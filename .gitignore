@@ -1,0 +1,17 @@
+.vscode/c_cpp_properties.json
+.vscode/settings.json
+input/.DS_Store
+src/gxl_lib/.DS_Store
+src/.DS_Store
+.DS_Store
+input/monitor_blocks.txt
+input/monitor_points.txt
+input/boundary_condition/boundary   0.txt
+input/boundary_condition/inner   0.txt
+input/boundary_condition/parallel   0.txt
+input/chemistry/air.inp
+input/chemistry/H2_mech_mixing.inp
+input/chemistry/H2_mech.inp
+input/chemistry/therm.dat
+input/chemistry/tran.dat
+input/grid/grid   0.dat

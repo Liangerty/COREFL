@@ -1,0 +1,186 @@
+bool parallel = 0      // specify the mode of computation. 0 - serial, 1 - parallel.
+
+int  problem_type = 1  // the type of problem. 0 - general problem, 1 - mixing layer.
+
+// Grid info
+int mesh_file_type = 0  // Read the Plot3D file exported from Pointwise. 0 - Preprocessed by readGrid, 1 - directly read the Plot3D file.
+string mesh_prefix = mixingLayer // The name related to CAE files, where the grid is mesh_prefix.dat, and the boundary conditions are mesh_prefix.inp.
+int gridIsBinary = 1    // 0 - ASCII, 1 - binary
+real gridScale = 1e-4    // grid scale(m)
+int symmetric_conservative_metric = 0 // If we compute the metric and jacobian with a symmetric conservative form. 0-No, 2-2nd order, 4-4th order, 6-6th order
+range real coreRegion = {  // The core region of computation. Only grids in core regions are monitored or probed.
+  0  650   // x1,x2
+  -60 60   // y1,y2
+  -20 20   // z1,z2
+}
+
+// controls
+int initial = 0         // 0 - new case, 1 - continue from a previous case.
+int total_step = 1020  // total number of steps
+int output_file = 200  // frequency of output files
+int output_screen = 20 // frequency of screen output
+int output_time_series = 0 // frequency of output time series data. 0 - Not output, else - output every output_time_series steps.
+bool limit_flow = 0     // 0 - no limit, 1 - limit the flow field.
+
+// flow info.
+// for mixing layer computations(problem type=1), specify the following info.
+real ma_c = 0.3            // the convective Mach number Ma_c
+real delta_omega = 1e-4     // the inlet vorticity thickness(m)
+real velocity_ratio = 1.5   // the velocity ratio between the two streams
+bool compatible_mixing_layer = 0 // 1 - the mixing layer compatible as the Chen Qian's PhD thesis
+struct upper_stream = {
+    real mach = 1.1
+    real temperature = 210
+    real pressure = 100000
+    real H2 = 1
+    real mixture_fraction = 1
+    real turb_viscosity_ratio =	1
+    real turbulence_intensity = 0.01
+    real ps1 = 1
+    real ps2 = 1
+    real ps3 = 1
+    real ps4 = 1
+}
+struct lower_stream = {
+    real temperature = 210
+    real pressure = 100000
+    real O2 = 0.232
+    real N2 = 0.768
+    real mixture_fraction = 0
+    real turb_viscosity_ratio =	1
+    real turbulence_intensity = 0.01
+    real ps1 = 0
+    real ps2 = 0
+    real ps3 = 0
+    real ps4 = 0
+}
+bool upper_faster = 0   // 1 - upper stream has larger mach number, 0 - lower stream has larger mach number.
+
+// numerics
+// temporal scheme
+bool steady = 0                         // 0 - unsteady, 1 - steady
+real cfl = 1                            // CFL number
+int    temporal_scheme = 3                // Temporal scheme for transient sims: 2-Dual-time iteration with DPLUR; 3-SSPRK
+bool fixed_time_step   = 0              // If the time step is fixed(1), then the time step should be given; otherwise(0), the time step is determined by CFL number.
+real dt = 1.8e-9                          // In unsteady simulation, the time step should be given
+// real total_simulation_time = 2.233875e-4   // In unsteady simulation, how long physical time to be simulated 2.2154e-3
+real     n_flowThroughTime = 3               // The number of flow-through time for the unsteady simulation
+real    domain_length   = 0.06            // The length of the domain in the x direction, which is used to compute the flow-through time
+
+// spatial discretization
+string hybrid_inviscid_scheme = NO  // Options: No; EP+WENO5; EP+WENO7
+int inviscid_scheme = 72                // 2 - Roe, 3 - AUSM+, 4 - HLLC, 51 - WENOZ5-cp, 52 - WENOZ5-ch
+bool positive_preserving = 0            // If the Positive-preserving limiter is activated, only implemented for 51/52
+int viscous_order = 6                   // Default: 2nd order central discretization. Other choices: 0(inviscid)， 2(2nd order central), 6(6th order central alpha damping, don't need edges/corners)
+real shockSensor_threshold = 0.1        // The threshold for the shock sensor
+real shockSensor_epsilon = 4.340272e+12 // The epsilon for the shock sensor, usually computed by (U_ref/L_ref)^2
+
+// chemical info
+int species = 0  // If there is species involved. 0 - Air as perfect gas; 1 - Species involved; 2 - Species + mixture fraction + mixture fraction variance are solved
+int reaction = 0 //0-No reaction; 1-Finite rate chemistry; 2-Flamelet model. Even no reactions are involved, the mechanism file should exit to clarify the species
+string mechanism_file = chemistry/H2_mech_mixing.inp  // H2_mech_mixing.inp
+
+// turbulent sim info
+bool    turbulence = 0                  // 0 - laminar/DNS, 1 - turbulent
+int     turbulence_method = 1           // Turbulence model used. Options: 0 - DNS, 1 - RANS, 2 - DES, LES
+int     RANS_model = 2                  // RANS model used. Options: 2 - k-omega_SST, 1 - S-A
+int     turb_implicit   =   1           // If we use RANS, choose whether the source terms are implicitly treated. 1 - Yes(Default), 0 - No
+int     reynolds_stress_supplier = 2    // 0 - No, 1 - read from file, 2 - assume gaussian peak
+array real df_reynolds_gaussian_peak {
+    // The relative order should not be changed.
+    0.15    // R11
+    0.09    // R12
+    0.12    // R22
+    0.05     // R13
+    0.05     // R23
+    0.118   // R33
+}
+
+// bc info
+array string boundary_conditions {
+ freestream outflow  periodic
+}
+string  reference_state =   freestream  // Specify the reference state for the simulation. The reference state is used to calculate the stagnation enthalpy and the stagnation pressure.
+struct  freestream {
+    string  type            =   inflow
+    int     label           =   5
+    int     inflow_type     =   1 // 0 for constant inflow, 1 for mixing-layer-type inflow, other types may be added(such as 2 for self-similar inflow)
+    int     fluctuation_type    =  1       // Specify the type of fluctuation. 0 for no fluctuation, 1 for fluctuation in velocity with white noise.
+    real    fluctuation_intensity    =   0.04    // Specify the intensity of fluctuation in velocity. The intensity is defined as the ratio of the standard deviation of the fluctuation to the mean value of the velocity.
+    real    turb_viscosity_ratio	=	1
+    real    turbulence_intensity               =   0.01
+}
+struct outflow {
+    string type = outflow
+    int label   =   6
+    int nonReflecting = 0   // 0 - No special treatment, 1 - perfectly Non-reflecting
+}
+struct  periodic  {
+    string type = periodic
+    int label = 8
+}
+
+// Additional passive scalar
+int n_ps = 0 // number of additional scalars
+array real sc_passive_scalar {
+    0.2 0.5 1.0 1.5
+}
+array real sct_passive_scalar {
+    1 1 1 1
+}
+
+// statistics control
+bool if_collect_statistics = 0
+bool if_continue_collect_statistics = 0
+bool perform_spanwise_average = 1
+bool output_statistics_plt = 0
+// stat choice
+array string stat_rey_1st {
+    u v w T
+}
+bool rho_p_correlation = 1
+bool stat_tke_budget = 0
+array string stat_species {
+    all     // If "all" is specified, then all species are monitored.
+    // H2 O2 N2
+}
+bool stat_scalar_fluc_budget = 1
+bool stat_species_velocity_correlation = 0
+bool stat_species_dissipation_rate = 0
+
+// sponge layer info
+bool sponge_layer = 0
+int sponge_function = 0 // 0 - (Nektar++, CPC, 2024)
+array int sponge_layer_direction = { // 0 - x-, 1 - x+, 2 - y-, 3 - y+, 4 - z-, 5 - z+
+    1   // 1 - x+
+    2   // 2 - y-
+    3   // 3 - y+
+}
+real spongeXPlusStart = 650
+real spongeXPlusEnd = 850
+real spongeYMinusStart = -60
+real spongeYMinusEnd = -180
+real spongeYPlusStart = 60
+real spongeYPlusEnd = 180
+real spongeCoefficient = 1e-8 // The coefficient for Uc/Dx.
+
+// monitor info
+int if_monitor_points = 0 // Monitor some points
+string monitor_file = input/monitor_points.txt
+array string monitor_var {
+    density u   v  w  pressure temperature H2 O2 N2
+}
+// The slices should in form of the block file, where one of the indices is fixed.
+int if_monitor_blocks = 0 // Monitor some blocks
+string monitor_block_file = input/monitor_blocks.txt
+int monitor_block_frequency = 3
+array string monitor_block_var {
+    u   v  w  pressure
+}
+
+// output info
+// The output field variables can include
+// QCriteria
+array string available_field_var {
+   // shockSensor QCriteria
+}
