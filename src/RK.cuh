@@ -145,7 +145,7 @@ void RK3(Driver<mix_model, turb> &driver) {
       if (!fixed_time_step && rk == 0) {
         // compute the local time step
         for (auto b = 0; b < n_block; ++b)
-          local_time_step<mix_model, turb><<<bpg[b], tpb>>>(field[b].d_ptr, param);
+          local_time_step<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param);
         // After all processes and all blocks computing dt_local, we compute the global time step.
         dt = global_time_step(mesh, parameter, field);
 
@@ -155,12 +155,12 @@ void RK3(Driver<mix_model, turb> &driver) {
       for (auto b = 0; b < n_block; ++b) {
         // Second, for each block, compute the residual dq
         compute_inviscid_flux<mix_model>(mesh[b], field[b].d_ptr, param, n_var, parameter);
-        compute_viscous_flux<mix_model, turb>(mesh[b], field[b].d_ptr, param, parameter);
+        compute_viscous_flux<mix_model>(mesh[b], field[b].d_ptr, param, parameter);
 
         // Explicit temporal schemes should not use any implicit treatment.
 
         // Apply the non-reflecting boundary condition
-        driver.bound_cond.template nonReflectingBoundary<mix_model, turb>(mesh[b], field[b], param);
+        driver.bound_cond.template nonReflectingBoundary<mix_model>(mesh[b], field[b], param);
 
         // update basic variables
         update_cv_and_bv_rk<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param, dt, rk);
@@ -177,7 +177,7 @@ void RK3(Driver<mix_model, turb> &driver) {
         driver.bound_cond.template apply_boundary_conditions<mix_model>(mesh[b], field[b], param, step);
       }
       // Third, transfer data between and within processes
-      data_communication<mix_model, turb>(mesh, field, parameter, step, param);
+      data_communication<mix_model>(mesh, field, parameter, step, param);
 
       if (mesh.dimension == 2) {
         for (auto b = 0; b < n_block; ++b) {

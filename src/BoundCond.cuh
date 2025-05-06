@@ -37,7 +37,7 @@ struct DBoundCond {
   void
   apply_boundary_conditions(const Block &block, Field &field, DParameter *param, int step = -1) const;
 
-  template<MixtureModel mix_model, class turb>
+  template<MixtureModel mix_model>
   void nonReflectingBoundary(const Block &block, Field &field, DParameter *param) const;
 
   void write_df(Parameter &parameter, const Mesh &mesh) const;
@@ -1022,7 +1022,7 @@ void DBoundCond::apply_boundary_conditions(const Block &block, Field &field, DPa
   }
 }
 
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 __global__ void apply_outflow_nr(DZone *zone, int i_face, const DParameter *param) {
   const auto &b = zone->boundary[i_face];
   const auto range_start = b.range_start, range_end = b.range_end;
@@ -1137,7 +1137,7 @@ __global__ void apply_outflow_nr(DZone *zone, int i_face, const DParameter *para
                                    d[3] + d[4] / (gamma_air - 1));
 }
 
-template<MixtureModel mix_model, class turb> void DBoundCond::nonReflectingBoundary(const Block &block, Field &field,
+template<MixtureModel mix_model> void DBoundCond::nonReflectingBoundary(const Block &block, Field &field,
   DParameter *param) const {
   // Non-reflecting boundary condition
   // First, for outflow boundaries.
@@ -1160,7 +1160,7 @@ template<MixtureModel mix_model, class turb> void DBoundCond::nonReflectingBound
         bpg[j] = (n_point - 1) / tpb[j] + 1;
       }
       dim3 TPB{tpb[0], tpb[1], tpb[2]}, BPG{bpg[0], bpg[1], bpg[2]};
-      apply_outflow_nr<mix_model, turb> <<<BPG, TPB>>>(field.d_ptr, i_face, param);
+      apply_outflow_nr<mix_model> <<<BPG, TPB>>>(field.d_ptr, i_face, param);
     }
   }
 }

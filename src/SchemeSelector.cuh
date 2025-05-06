@@ -32,7 +32,7 @@ void compute_inviscid_flux(const Block &block, DZone *zone, DParameter *param, i
   }
 }
 
-template<MixtureModel mix_model, class turb_method>
+template<MixtureModel mix_model>
 void compute_viscous_flux(const Block &block, DZone *zone, DParameter *param, const Parameter &parameter) {
   const int viscous_order = parameter.get_int("viscous_order");
 

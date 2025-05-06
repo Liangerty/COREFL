@@ -10,7 +10,7 @@
 namespace cfd {
 __global__ void store_last_step(DZone *zone);
 
-template<MixtureModel mixture, class turb_method>
+template<MixtureModel mixture>
 __global__ void local_time_step(DZone *zone, DParameter *param);
 
 __global__ void compute_square_of_dbv(DZone *zone);
@@ -25,7 +25,7 @@ template<MixtureModel mixture>
 __global__ void limit_flow(DZone *zone, DParameter *param);
 }
 
-template<MixtureModel mixture, class turb_method>
+template<MixtureModel mixture>
 __global__ void cfd::local_time_step(DZone *zone, DParameter *param) {
   const int extent[3]{zone->mx, zone->my, zone->mz};
   const int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -71,9 +71,6 @@ __global__ void cfd::local_time_step(DZone *zone, DParameter *param) {
   }
   const real coeff_1 = max(gamma, 4.0 / 3.0) / bv(i, j, k, 0);
   real coeff_2 = zone->mul(i, j, k) / param->Pr;
-  if constexpr (TurbMethod<turb_method>::hasMut) {
-    coeff_2 += zone->mut(i, j, k) / param->Prt;
-  }
   auto &vis_spec_rad = zone->visc_spectr_rad(i, j, k);
   vis_spec_rad[0] = grad_xi * grad_xi * coeff_1 * coeff_2;
   vis_spec_rad[1] = grad_eta * grad_eta * coeff_1 * coeff_2;
