@@ -334,14 +334,6 @@ void read_flowfield(Parameter &parameter, const Mesh &mesh, std::vector<Field> &
         initialize_turb_from_inflow(parameter, mesh, field, species);
       }
     }
-    if constexpr ((mix_model == MixtureModel::MixtureFraction) &&
-                  (TurbMethod<turb>::type == TurbSimLevel::RANS || TurbMethod<turb>::type == TurbSimLevel::DES ||
-                   TurbMethod<turb>::type == TurbSimLevel::LES)) {
-      if (old_data_info[0] == 1) {
-        // From species field to mixture fraction field
-        initialize_mixture_fraction_from_species(parameter, mesh, field, species);
-      }
-    }
 
     for (auto &f: field) {
       cudaMemcpy(f.h_ptr->bv.data(), f.bv.data(), f.h_ptr->bv.size() * sizeof(real) * 6, cudaMemcpyHostToDevice);
@@ -749,14 +741,6 @@ read_flowfield_with_same_block(Parameter &parameter, const Mesh &mesh, std::vect
   if constexpr (TurbMethod<turb>::type == TurbSimLevel::RANS) {
     if (old_data_info[1] == 0) {
       initialize_turb_from_inflow(parameter, mesh, field, species);
-    }
-  }
-  if constexpr ((mix_model == MixtureModel::MixtureFraction) &&
-                (TurbMethod<turb>::type == TurbSimLevel::RANS || TurbMethod<turb>::type == TurbSimLevel::DES ||
-                 TurbMethod<turb>::type == TurbSimLevel::LES)) {
-    if (old_data_info[0] == 1) {
-      // From species field to mixture fraction field
-      initialize_mixture_fraction_from_species(parameter, mesh, field, species);
     }
   }
 

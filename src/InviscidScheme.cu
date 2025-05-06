@@ -759,18 +759,9 @@ template void compute_convective_term_aweno<MixtureModel::Air>(const Block &bloc
 template void compute_convective_term_aweno<MixtureModel::Mixture>(const Block &block, DZone *zone, DParameter *param,
   int n_var);
 
-template void compute_convective_term_aweno<MixtureModel::MixtureFraction>(const Block &block, DZone *zone,
-  DParameter *param, int n_var);
-
 template void Roe_compute_inviscid_flux<MixtureModel::Air>(const Block &block, DZone *zone, DParameter *param,
   int n_var, const Parameter &parameter);
 
 template void Roe_compute_inviscid_flux<MixtureModel::Mixture>(const Block &block, DZone *zone, DParameter *param,
   int n_var, const Parameter &parameter);
-
-template<> void Roe_compute_inviscid_flux<MixtureModel::MixtureFraction>(const Block &block, DZone *zone,
-  DParameter *param, int n_var, const Parameter &parameter) {
-  printf("Roe_compute_inviscid_flux<MixtureModel::MixtureFraction> is not implemented yet.\n");
-  MpiParallel::exit();
-}
 }

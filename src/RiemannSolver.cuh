@@ -427,12 +427,4 @@ riemannSolver_laxFriedrich<MixtureModel::Air>(const real *pv_l, const real *pv_r
   fci[4] = ((pv_l[n_reconstruct] + pv_l[4]) * Ukl + (pv_r[n_reconstruct] + pv_r[4]) * Ukr -
             spectral_radius * (pv_r[n_reconstruct] - pv_l[n_reconstruct])) * half_jac_ave;
 }
-
-template<>
-__device__ void
-riemannSolver_hllc<MixtureModel::MixtureFraction>(const real *pv_l, const real *pv_r, DParameter *param, int tid,
-                                                  const real *metric, const real *jac, real *fc, int i_shared) {
-  printf("riemannSolver_hllc<MixtureModel::MixtureFraction> is not implemented yet.\n");
-}
-
 }

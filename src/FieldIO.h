@@ -469,11 +469,6 @@ FieldIO<mix_model, turb, output_time_choice>::acquire_variable_names(std::vector
     var_name.emplace_back("tke");
     var_name.emplace_back("omega");
   }
-  if constexpr (mix_model == MixtureModel::MixtureFraction) {
-    nv += 3; // Z, Z_prime, chi
-    var_name.emplace_back("MixtureFraction");
-    var_name.emplace_back("MixtureFractionVariance");
-  }
   if (const int n_ps = parameter.get_int("n_ps"); n_ps > 0) {
     nv += n_ps;
     for (int i = 0; i < n_ps; ++i) {
@@ -483,9 +478,6 @@ FieldIO<mix_model, turb, output_time_choice>::acquire_variable_names(std::vector
   if constexpr (TurbMethod<turb>::hasMut) {
     nv += 1; // mu_t
     var_name.emplace_back("mut");
-  }
-  if constexpr (mix_model == MixtureModel::MixtureFraction) {
-    var_name.emplace_back("ScalarDissipationRate");
   }
   return nv;
 }

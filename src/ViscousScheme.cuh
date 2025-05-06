@@ -264,43 +264,6 @@ __global__ void compute_fv_2nd_order(DZone *zone, DParameter *param) {
         (mul + mut * sigma_omega) * (xi_x_div_jac * omega_x + xi_y_div_jac * omega_y + xi_z_div_jac * omega_z);
   }
 
-  if constexpr (mix_model == MixtureModel::MixtureFraction) {
-    // For flamelet model, we need to compute the viscous term for the mixture fraction and also its variance.
-    const int i_fl{param->i_fl}, i_fl_cv{param->i_fl_cv};
-    const auto &sv = zone->sv;
-
-    // First, compute the mixture fraction gradient
-    const real mixFrac_xi = sv(i + 1, j, k, i_fl) - sv(i, j, k, i_fl);
-    const real mixFrac_eta =
-        0.25 * (sv(i, j + 1, k, i_fl) - sv(i, j - 1, k, i_fl) + sv(i + 1, j + 1, k, i_fl) - sv(i + 1, j - 1, k, i_fl));
-    const real mixFrac_zeta =
-        0.25 * (sv(i, j, k + 1, i_fl) - sv(i, j, k - 1, i_fl) + sv(i + 1, j, k + 1, i_fl) - sv(i + 1, j, k - 1, i_fl));
-
-    const real mixFrac_x = mixFrac_xi * xi_x + mixFrac_eta * eta_x + mixFrac_zeta * zeta_x;
-    const real mixFrac_y = mixFrac_xi * xi_y + mixFrac_eta * eta_y + mixFrac_zeta * zeta_y;
-    const real mixFrac_z = mixFrac_xi * xi_z + mixFrac_eta * eta_z + mixFrac_zeta * zeta_z;
-
-    const real rhoD{mul / param->Sc + mut / param->Sct};
-    fv(i, j, k, i_fl_cv - 1) = rhoD * (xi_x_div_jac * mixFrac_x + xi_y_div_jac * mixFrac_y + xi_z_div_jac * mixFrac_z);
-
-    if constexpr (TurbMethod<turb_method>::type == TurbSimLevel::RANS ||
-                  TurbMethod<turb_method>::type == TurbSimLevel::DES) {
-      // For RANS / DES, we also solve the mixture fraction variance eqn.
-      const real mixFracVar_xi = sv(i + 1, j, k, i_fl + 1) - sv(i, j, k, i_fl + 1);
-      const real mixFracVar_eta = 0.25 * (sv(i, j + 1, k, i_fl + 1) - sv(i, j - 1, k, i_fl + 1) +
-                                          sv(i + 1, j + 1, k, i_fl + 1) - sv(i + 1, j - 1, k, i_fl + 1));
-      const real mixFracVar_zeta = 0.25 * (sv(i, j, k + 1, i_fl + 1) - sv(i, j, k - 1, i_fl + 1) +
-                                           sv(i + 1, j, k + 1, i_fl + 1) - sv(i + 1, j, k - 1, i_fl + 1));
-
-      const real mixFracVar_x = mixFracVar_xi * xi_x + mixFracVar_eta * eta_x + mixFracVar_zeta * zeta_x;
-      const real mixFracVar_y = mixFracVar_xi * xi_y + mixFracVar_eta * eta_y + mixFracVar_zeta * zeta_y;
-      const real mixFracVar_z = mixFracVar_xi * xi_z + mixFracVar_eta * eta_z + mixFracVar_zeta * zeta_z;
-
-      fv(i, j, k, i_fl_cv) =
-          rhoD * (xi_x_div_jac * mixFracVar_x + xi_y_div_jac * mixFracVar_y + xi_z_div_jac * mixFracVar_z);
-    }
-  }
-
   if (param->n_ps > 0) {
     const auto &sv = zone->sv;
 
@@ -570,44 +533,6 @@ __global__ void compute_gv_2nd_order(DZone *zone, DParameter *param) {
         (mul + mut * sigma_omega) * (eta_x_div_jac * omega_x + eta_y_div_jac * omega_y + eta_z_div_jac * omega_z);
   }
 
-  if constexpr (mix_model == MixtureModel::MixtureFraction) {
-    // For flamelet model, we need to compute the viscous term for the mixture fraction and also its variance.
-    const int i_fl{param->i_fl}, i_fl_cv{param->i_fl_cv};
-    const auto &sv = zone->sv;
-
-    // First, compute the mixture fraction gradient
-    const real mixFrac_xi =
-        0.25 * (sv(i + 1, j, k, i_fl) - sv(i - 1, j, k, i_fl) + sv(i + 1, j + 1, k, i_fl) - sv(i - 1, j + 1, k, i_fl));
-    const real mixFrac_eta = sv(i, j + 1, k, i_fl) - sv(i, j, k, i_fl);
-    const real mixFrac_zeta =
-        0.25 * (sv(i, j, k + 1, i_fl) - sv(i, j, k - 1, i_fl) + sv(i, j + 1, k + 1, i_fl) - sv(i, j + 1, k - 1, i_fl));
-
-    const real mixFrac_x = mixFrac_xi * xi_x + mixFrac_eta * eta_x + mixFrac_zeta * zeta_x;
-    const real mixFrac_y = mixFrac_xi * xi_y + mixFrac_eta * eta_y + mixFrac_zeta * zeta_y;
-    const real mixFrac_z = mixFrac_xi * xi_z + mixFrac_eta * eta_z + mixFrac_zeta * zeta_z;
-
-    const real rhoD{mul / param->Sc + mut / param->Sct};
-    gv(i, j, k, i_fl_cv - 1) = rhoD * (eta_x_div_jac * mixFrac_x + eta_y_div_jac * mixFrac_y + eta_z_div_jac *
-                                       mixFrac_z);
-
-    if constexpr (TurbMethod<turb_method>::type == TurbSimLevel::RANS ||
-                  TurbMethod<turb_method>::type == TurbSimLevel::DES) {
-      // For LES, we do not need to compute the variance of mixture fraction.
-      const real mixFracVar_xi = 0.25 * (sv(i + 1, j, k, i_fl + 1) - sv(i - 1, j, k, i_fl + 1) +
-                                         sv(i + 1, j + 1, k, i_fl + 1) - sv(i - 1, j + 1, k, i_fl + 1));
-      const real mixFracVar_eta = sv(i, j + 1, k, i_fl + 1) - sv(i, j, k, i_fl + 1);
-      const real mixFracVar_zeta = 0.25 * (sv(i, j, k + 1, i_fl + 1) - sv(i, j, k - 1, i_fl + 1) +
-                                           sv(i, j + 1, k + 1, i_fl + 1) - sv(i, j + 1, k - 1, i_fl + 1));
-
-      const real mixFracVar_x = mixFracVar_xi * xi_x + mixFracVar_eta * eta_x + mixFracVar_zeta * zeta_x;
-      const real mixFracVar_y = mixFracVar_xi * xi_y + mixFracVar_eta * eta_y + mixFracVar_zeta * zeta_y;
-      const real mixFracVar_z = mixFracVar_xi * xi_z + mixFracVar_eta * eta_z + mixFracVar_zeta * zeta_z;
-
-      gv(i, j, k, i_fl_cv) =
-          rhoD * (eta_x_div_jac * mixFracVar_x + eta_y_div_jac * mixFracVar_y + eta_z_div_jac * mixFracVar_z);
-    }
-  }
-
   if (param->n_ps > 0) {
     const auto &sv = zone->sv;
 
@@ -870,44 +795,6 @@ __global__ void compute_hv_2nd_order(DZone *zone, DParameter *param) {
         (mul + mut * sigma_omega) * (zeta_x_div_jac * omega_x + zeta_y_div_jac * omega_y + zeta_z_div_jac * omega_z);
   }
 
-  if constexpr (mix_model == MixtureModel::MixtureFraction) {
-    // For flamelet model, we need to compute the viscous term for the mixture fraction and also its variance.
-    const int i_fl{param->i_fl}, i_fl_cv{param->i_fl_cv};
-    const auto &sv = zone->sv;
-
-    // First, compute the mixture fraction gradient
-    const real mixFrac_xi =
-        0.25 * (sv(i + 1, j, k, i_fl) - sv(i - 1, j, k, i_fl) + sv(i + 1, j, k + 1, i_fl) - sv(i - 1, j, k + 1, i_fl));
-    const real mixFrac_eta =
-        0.25 * (sv(i, j + 1, k, i_fl) - sv(i, j - 1, k, i_fl) + sv(i, j + 1, k + 1, i_fl) - sv(i, j - 1, k + 1, i_fl));
-    const real mixFrac_zeta = sv(i, j, k + 1, i_fl) - sv(i, j, k, i_fl);
-
-    const real mixFrac_x = mixFrac_xi * xi_x + mixFrac_eta * eta_x + mixFrac_zeta * zeta_x;
-    const real mixFrac_y = mixFrac_xi * xi_y + mixFrac_eta * eta_y + mixFrac_zeta * zeta_y;
-    const real mixFrac_z = mixFrac_xi * xi_z + mixFrac_eta * eta_z + mixFrac_zeta * zeta_z;
-
-    const real rhoD{mul / param->Sc + mut / param->Sct};
-    hv(i, j, k, i_fl_cv - 1) = rhoD * (zeta_x_div_jac * mixFrac_x + zeta_y_div_jac * mixFrac_y + zeta_z_div_jac *
-                                       mixFrac_z);
-
-    if constexpr (TurbMethod<turb_method>::type == TurbSimLevel::RANS ||
-                  TurbMethod<turb_method>::type == TurbSimLevel::DES) {
-      // For LES, we do not need to compute the variance of mixture fraction.
-      const real mixFracVar_xi = 0.25 * (sv(i + 1, j, k, i_fl + 1) - sv(i - 1, j, k, i_fl + 1) +
-                                         sv(i + 1, j, k + 1, i_fl + 1) - sv(i - 1, j, k + 1, i_fl + 1));
-      const real mixFracVar_eta = 0.25 * (sv(i, j + 1, k, i_fl + 1) - sv(i, j - 1, k, i_fl + 1) +
-                                          sv(i, j + 1, k + 1, i_fl + 1) - sv(i, j - 1, k + 1, i_fl + 1));
-      const real mixFracVar_zeta = sv(i, j, k + 1, i_fl + 1) - sv(i, j, k, i_fl + 1);
-
-      const real mixFracVar_x = mixFracVar_xi * xi_x + mixFracVar_eta * eta_x + mixFracVar_zeta * zeta_x;
-      const real mixFracVar_y = mixFracVar_xi * xi_y + mixFracVar_eta * eta_y + mixFracVar_zeta * zeta_y;
-      const real mixFracVar_z = mixFracVar_xi * xi_z + mixFracVar_eta * eta_z + mixFracVar_zeta * zeta_z;
-
-      hv(i, j, k, i_fl_cv) =
-          rhoD * (zeta_x_div_jac * mixFracVar_x + zeta_y_div_jac * mixFracVar_y + zeta_z_div_jac * mixFracVar_z);
-    }
-  }
-
   if (param->n_ps > 0) {
     const auto &sv = zone->sv;
 
@@ -1158,38 +1045,6 @@ __global__ void compute_fv_6th_order_alpha_damping(DZone *zone, DParameter *para
         (mul + mut * sigma_omega) * (xi_x_div_jac * omega_x + xi_y_div_jac * omega_y + xi_z_div_jac * omega_z);
   }
 
-  if constexpr (mix_model == MixtureModel::MixtureFraction) {
-    // For flamelet model, we need to compute the viscous term for the mixture fraction and also its variance.
-    const int i_fl{param->i_fl}, i_fl_cv{param->i_fl_cv};
-
-    // First, compute the mixture fraction gradient
-    auto idx = i_fl * 3 + 15;
-    const real mixFrac_xi = grad(i, j, k, idx), mixFrac_eta = grad(i, j, k, idx + 1), mixFrac_zeta = grad(
-      i, j, k, idx + 2);
-
-    const real mixFrac_x = mixFrac_xi * xi_x + mixFrac_eta * eta_x + mixFrac_zeta * zeta_x;
-    const real mixFrac_y = mixFrac_xi * xi_y + mixFrac_eta * eta_y + mixFrac_zeta * zeta_y;
-    const real mixFrac_z = mixFrac_xi * xi_z + mixFrac_eta * eta_z + mixFrac_zeta * zeta_z;
-
-    const real rhoD{mul / param->Sc + mut / param->Sct};
-    fv(i, j, k, i_fl_cv - 1) = rhoD * (xi_x_div_jac * mixFrac_x + xi_y_div_jac * mixFrac_y + xi_z_div_jac * mixFrac_z);
-
-    if constexpr (TurbMethod<turb_method>::type == TurbSimLevel::RANS ||
-                  TurbMethod<turb_method>::type == TurbSimLevel::DES) {
-      // For RANS / DES, we also solve the mixture fraction variance eqn.
-      idx++;
-      const real mixFracVar_xi = grad(i, j, k, idx), mixFracVar_eta = grad(i, j, k, idx + 1),
-          mixFracVar_zeta = grad(i, j, k, idx + 2);
-
-      const real mixFracVar_x = mixFracVar_xi * xi_x + mixFracVar_eta * eta_x + mixFracVar_zeta * zeta_x;
-      const real mixFracVar_y = mixFracVar_xi * xi_y + mixFracVar_eta * eta_y + mixFracVar_zeta * zeta_y;
-      const real mixFracVar_z = mixFracVar_xi * xi_z + mixFracVar_eta * eta_z + mixFracVar_zeta * zeta_z;
-
-      fv(i, j, k, i_fl_cv) =
-          rhoD * (xi_x_div_jac * mixFracVar_x + xi_y_div_jac * mixFracVar_y + xi_z_div_jac * mixFracVar_z);
-    }
-  }
-
   if (param->n_ps > 0) {
     for (int l = 0; l < param->n_ps; ++l) {
       // First, compute the passive scalar gradient
@@ -1438,39 +1293,6 @@ __global__ void compute_gv_6th_order_alpha_damping(DZone *zone, DParameter *para
         (mul + mut * sigma_omega) * (eta_x_div_jac * omega_x + eta_y_div_jac * omega_y + eta_z_div_jac * omega_z);
   }
 
-  if constexpr (mix_model == MixtureModel::MixtureFraction) {
-    // For flamelet model, we need to compute the viscous term for the mixture fraction and also its variance.
-    const int i_fl{param->i_fl}, i_fl_cv{param->i_fl_cv};
-
-    // First, compute the mixture fraction gradient
-    auto idx = i_fl * 3 + 15;
-    const real mixFrac_xi = grad(i, j, k, idx), mixFrac_eta = grad(i, j, k, idx + 1), mixFrac_zeta = grad(
-      i, j, k, idx + 2);
-
-    const real mixFrac_x = mixFrac_xi * xi_x + mixFrac_eta * eta_x + mixFrac_zeta * zeta_x;
-    const real mixFrac_y = mixFrac_xi * xi_y + mixFrac_eta * eta_y + mixFrac_zeta * zeta_y;
-    const real mixFrac_z = mixFrac_xi * xi_z + mixFrac_eta * eta_z + mixFrac_zeta * zeta_z;
-
-    const real rhoD{mul / param->Sc + mut / param->Sct};
-    gv(i, j, k, i_fl_cv - 1) = rhoD * (eta_x_div_jac * mixFrac_x + eta_y_div_jac * mixFrac_y + eta_z_div_jac *
-                                       mixFrac_z);
-
-    if constexpr (TurbMethod<turb_method>::type == TurbSimLevel::RANS ||
-                  TurbMethod<turb_method>::type == TurbSimLevel::DES) {
-      // For LES, we do not need to compute the variance of mixture fraction.
-      idx++;
-      const real mixFracVar_xi = grad(i, j, k, idx), mixFracVar_eta = grad(i, j, k, idx + 1),
-          mixFracVar_zeta = grad(i, j, k, idx + 2);
-
-      const real mixFracVar_x = mixFracVar_xi * xi_x + mixFracVar_eta * eta_x + mixFracVar_zeta * zeta_x;
-      const real mixFracVar_y = mixFracVar_xi * xi_y + mixFracVar_eta * eta_y + mixFracVar_zeta * zeta_y;
-      const real mixFracVar_z = mixFracVar_xi * xi_z + mixFracVar_eta * eta_z + mixFracVar_zeta * zeta_z;
-
-      gv(i, j, k, i_fl_cv) =
-          rhoD * (eta_x_div_jac * mixFracVar_x + eta_y_div_jac * mixFracVar_y + eta_z_div_jac * mixFracVar_z);
-    }
-  }
-
   if (param->n_ps > 0) {
     for (int l = 0; l < param->n_ps; ++l) {
       // First, compute the passive scalar gradient
@@ -1717,39 +1539,6 @@ __global__ void compute_hv_6th_order_alpha_damping(DZone *zone, DParameter *para
                                  (zeta_x_div_jac * k_x + zeta_y_div_jac * k_y + zeta_z_div_jac * k_z);
     hv(i, j, k, i_turb_cv) =
         (mul + mut * sigma_omega) * (zeta_x_div_jac * omega_x + zeta_y_div_jac * omega_y + zeta_z_div_jac * omega_z);
-  }
-
-  if constexpr (mix_model == MixtureModel::MixtureFraction) {
-    // For flamelet model, we need to compute the viscous term for the mixture fraction and also its variance.
-    const int i_fl{param->i_fl}, i_fl_cv{param->i_fl_cv};
-
-    // First, compute the mixture fraction gradient
-    auto idx = i_fl * 3 + 15;
-    const real mixFrac_xi = grad(i, j, k, idx), mixFrac_eta = grad(i, j, k, idx + 1), mixFrac_zeta = grad(
-      i, j, k, idx + 2);
-
-    const real mixFrac_x = mixFrac_xi * xi_x + mixFrac_eta * eta_x + mixFrac_zeta * zeta_x;
-    const real mixFrac_y = mixFrac_xi * xi_y + mixFrac_eta * eta_y + mixFrac_zeta * zeta_y;
-    const real mixFrac_z = mixFrac_xi * xi_z + mixFrac_eta * eta_z + mixFrac_zeta * zeta_z;
-
-    const real rhoD{mul / param->Sc + mut / param->Sct};
-    hv(i, j, k, i_fl_cv - 1) = rhoD * (zeta_x_div_jac * mixFrac_x + zeta_y_div_jac * mixFrac_y + zeta_z_div_jac *
-                                       mixFrac_z);
-
-    if constexpr (TurbMethod<turb_method>::type == TurbSimLevel::RANS ||
-                  TurbMethod<turb_method>::type == TurbSimLevel::DES) {
-      // For LES, we do not need to compute the variance of mixture fraction.
-      idx++;
-      const real mixFracVar_xi = grad(i, j, k, idx), mixFracVar_eta = grad(i, j, k, idx + 1),
-          mixFracVar_zeta = grad(i, j, k, idx + 2);
-
-      const real mixFracVar_x = mixFracVar_xi * xi_x + mixFracVar_eta * eta_x + mixFracVar_zeta * zeta_x;
-      const real mixFracVar_y = mixFracVar_xi * xi_y + mixFracVar_eta * eta_y + mixFracVar_zeta * zeta_y;
-      const real mixFracVar_z = mixFracVar_xi * xi_z + mixFracVar_eta * eta_z + mixFracVar_zeta * zeta_z;
-
-      hv(i, j, k, i_fl_cv) =
-          rhoD * (zeta_x_div_jac * mixFracVar_x + zeta_y_div_jac * mixFracVar_y + zeta_z_div_jac * mixFracVar_z);
-    }
   }
 
   if (param->n_ps > 0) {

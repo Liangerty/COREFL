@@ -1194,13 +1194,6 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
     }
   }
 
-  if constexpr (mix_model == MixtureModel::MixtureFraction) {
-    // Flamelet model
-    const int i_fl{param->i_fl};
-    sv(i, j, k, i_fl) = sv(idx[0], idx[1], idx[2], i_fl);
-    sv(i, j, k, i_fl + 1) = sv(idx[0], idx[1], idx[2], i_fl + 1);
-  }
-
   if (param->n_ps > 0) {
     const int i_ps{param->i_ps};
     for (int l = 0; l < param->n_ps; l++) {
@@ -1252,11 +1245,6 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
       sv(i_gh[0], i_gh[1], i_gh[2], n_spec) = 0;
       sv(i_gh[0], i_gh[1], i_gh[2], n_spec + 1) = sv(i, j, k, n_spec + 1);
       zone->mut(i_gh[0], i_gh[1], i_gh[2]) = 0;
-    }
-
-    if constexpr (mix_model == MixtureModel::MixtureFraction) {
-      sv(i_gh[0], i_gh[1], i_gh[2], param->i_fl) = sv(i_in[0], i_in[1], i_in[2], param->i_fl);
-      sv(i_gh[0], i_gh[1], i_gh[2], param->i_fl + 1) = sv(i_in[0], i_in[1], i_in[2], param->i_fl + 1);
     }
 
     if (param->n_ps > 0) {
