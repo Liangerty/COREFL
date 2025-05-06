@@ -47,13 +47,13 @@ void compute_viscous_flux(const Block &block, DZone *zone, DParameter *param, co
     tpb = {32, 16, 1};
   dim3 BPG{(mx - 1) / tpb.x + 1, (my - 1) / tpb.y + 1, (mz - 1) / tpb.z + 1};
 
-  if (viscous_order == 2) {
+  // if (viscous_order == 2) {
     auto bpg = dim3(mx/*+1-1*/ / tpb.x + 1, (my - 1) / tpb.y + 1, (mz - 1) / tpb.z + 1);
-    compute_fv_2nd_order<mix_model, turb_method><<<bpg, tpb>>>(zone, param);
+    compute_fv_2nd_order<mix_model><<<bpg, tpb>>>(zone, param);
     compute_dFv_dx<<<BPG, tpb>>>(zone, param);
 
     bpg = dim3((mx - 1) / tpb.x + 1, my/*+1-1*/ / tpb.y + 1, (mz - 1) / tpb.z + 1);
-    compute_gv_2nd_order<mix_model, turb_method><<<bpg, tpb>>>(zone, param);
+    compute_gv_2nd_order<mix_model><<<bpg, tpb>>>(zone, param);
     compute_dGv_dy<<<BPG, tpb>>>(zone, param);
 
     if (dim == 3) {
@@ -61,31 +61,10 @@ void compute_viscous_flux(const Block &block, DZone *zone, DParameter *param, co
       // constexpr dim3 TPB = {32, 8, 2};
       // bpg = dim3((mx - 1) / TPB.x + 1, (my - 1) / TPB.y + 1, mz/*+1-1*/ / TPB.z + 1);
       bpg = dim3((mx - 1) / TPB.x + 1, (my - 1) / TPB.y + 1, mz/*+1-1*/ / TPB.z + 1);
-      compute_hv_2nd_order<mix_model, turb_method><<<bpg, TPB>>>(zone, param);
+      compute_hv_2nd_order<mix_model><<<bpg, TPB>>>(zone, param);
 
       compute_dHv_dz<<<BPG, tpb>>>(zone, param);
     }
-  } else if (viscous_order == 6) {
-    dim3 bpg{mx/*+1-1*/ / tpb.x + 1, my / tpb.y + 1, mz / tpb.z + 1};
-    compute_gradient_alpha_damping_6th_order<<<bpg, tpb>>>(zone, param);
-
-    bpg = dim3(mx/*+1-1*/ / tpb.x + 1, (my - 1) / tpb.y + 1, (mz - 1) / tpb.z + 1);
-    compute_fv_6th_order_alpha_damping<mix_model, turb_method><<<bpg, tpb>>>(zone, param);
-    compute_dFv_dx<<<BPG, tpb>>>(zone, param);
-
-    bpg = dim3((mx - 1) / tpb.x + 1, my/*+1-1*/ / tpb.y + 1, (mz - 1) / tpb.z + 1);
-    compute_gv_6th_order_alpha_damping<mix_model, turb_method><<<bpg, tpb>>>(zone, param);
-    compute_dGv_dy<<<BPG, tpb>>>(zone, param);
-
-    if (dim == 3) {
-      dim3 TPB = {32, 8, 2};
-      // constexpr dim3 TPB = {32, 8, 2};
-      // bpg = dim3((mx - 1) / TPB.x + 1, (my - 1) / TPB.y + 1, mz/*+1-1*/ / TPB.z + 1);
-      bpg = dim3((mx - 1) / TPB.x + 1, (my - 1) / TPB.y + 1, mz/*+1-1*/ / TPB.z + 1);
-      compute_hv_6th_order_alpha_damping<mix_model, turb_method><<<bpg, TPB>>>(zone, param);
-
-      compute_dHv_dz<<<BPG, tpb>>>(zone, param);
-    }
-  }
+  // }
 }
 }
