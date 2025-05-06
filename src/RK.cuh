@@ -45,7 +45,7 @@ void RK3(Driver<mix_model, turb> &driver) {
     // we need the conservative variables.
     const auto mx{mesh[b].mx}, my{mesh[b].my}, mz{mesh[b].mz};
     dim3 BPG{(mx + ng_1) / tpb.x + 1, (my + ng_1) / tpb.y + 1, (mz + ng_1) / tpb.z + 1};
-    compute_cv_from_bv<mix_model, turb><<<BPG, tpb>>>(field[b].d_ptr, param);
+    compute_cv_from_bv<mix_model><<<BPG, tpb>>>(field[b].d_ptr, param);
   }
   auto err = cudaGetLastError();
   if (err != cudaSuccess) {
@@ -133,7 +133,7 @@ void RK3(Driver<mix_model, turb> &driver) {
 
         // First, compute the source term, because properties such as mut are updated here, which is used by computing dt.
         if (parameter.get_int("reaction") == 1) {
-          compute_source<mix_model, turb><<<bpg[b], tpb>>>(field[b].d_ptr, param);
+          finite_rate_chemistry<<<bpg[b], tpb>>>(field[b].d_ptr, param);
         }       
       }
 

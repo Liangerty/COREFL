@@ -37,7 +37,7 @@ __device__ void compute_total_energy(int i, int j, int k, DZone *zone, const DPa
   zone->cv(i, j, k, 4) = total_energy;
 }
 
-template<MixtureModel mix_model, class turb_method>
+template<MixtureModel mix_model>
 __global__ void compute_cv_from_bv(DZone *zone, DParameter *param) {
   const int ngg{zone->ngg}, mx{zone->mx}, my{zone->my}, mz{zone->mz};
   const int i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x) - ngg;

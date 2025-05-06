@@ -4,7 +4,13 @@
 #include "Constants.h"
 
 namespace cfd {
-__device__ void finite_rate_chemistry(DZone *zone, int i, int j, int k, const DParameter *param) {
+__global__ void finite_rate_chemistry(DZone *zone, const DParameter *param){
+  const int extent[3]{zone->mx, zone->my, zone->mz};
+  const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
+  const auto j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
+  const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
+  if (i >= extent[0] || j >= extent[1] || k >= extent[2]) return;
+
   const auto &bv = zone->bv;
   const auto &sv = zone->sv;
 

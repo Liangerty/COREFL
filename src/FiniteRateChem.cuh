@@ -5,6 +5,8 @@
 namespace cfd {
 struct DZone;
 
+__global__ void finite_rate_chemistry(DZone *zone, const DParameter *param);
+
 __device__ void finite_rate_chemistry(DZone *zone, int i, int j, int k, const DParameter *param);
 
 __device__ void forward_reaction_rate(real t, real *kf, const real *concentration, const DParameter *param);
