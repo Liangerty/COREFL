@@ -56,22 +56,12 @@ __global__ void compute_cv_from_bv(DZone *zone, DParameter *param) {
   cv(i, j, k, 1) = rho * u;
   cv(i, j, k, 2) = rho * v;
   cv(i, j, k, 3) = rho * w;
-  // It seems we don't need an if here, if there is no other scalars, n_scalar=0; else, n_scalar=n_spec+n_turb
   const auto &sv = zone->sv;
-  if constexpr (mix_model != MixtureModel::FL) {
-    const int n_scalar{param->n_scalar};
-    for (auto l = 0; l < n_scalar; ++l) {
-      cv(i, j, k, 5 + l) = rho * sv(i, j, k, l);
-    }
-  } else {
-    // Flamelet model
-    const int n_spec{param->n_spec};
-    const int n_scalar_transported{param->n_scalar_transported};
-    for (auto l = 0; l < n_scalar_transported; ++l) {
-      cv(i, j, k, 5 + l) = rho * sv(i, j, k, l + n_spec);
-    }
+  const int n_scalar{param->n_scalar};
+  for (auto l = 0; l < n_scalar; ++l) {
+    cv(i, j, k, 5 + l) = rho * sv(i, j, k, l);
   }
-
+  
   compute_total_energy<mix_model>(i, j, k, zone, param);
 }
 

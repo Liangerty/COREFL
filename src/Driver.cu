@@ -471,20 +471,4 @@ template
 struct Driver<MixtureModel::Mixture, SST<TurbSimLevel::RANS>>;
 template
 struct Driver<MixtureModel::Mixture, SST<TurbSimLevel::DES>>;
-template
-struct Driver<MixtureModel::FR, Laminar>;
-template
-struct Driver<MixtureModel::FR, SST<TurbSimLevel::RANS>>;
-template
-struct Driver<MixtureModel::FR, SST<TurbSimLevel::DES>>;
-template
-struct Driver<MixtureModel::MixtureFraction, Laminar>;
-template
-struct Driver<MixtureModel::MixtureFraction, SST<TurbSimLevel::RANS>>;
-template
-struct Driver<MixtureModel::MixtureFraction, SST<TurbSimLevel::DES>>;
-template
-struct Driver<MixtureModel::FL, SST<TurbSimLevel::RANS>>;
-template
-struct Driver<MixtureModel::FL, SST<TurbSimLevel::DES>>;
 } // cfd

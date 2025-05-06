@@ -32,11 +32,8 @@ __global__ void compute_DQ_0(DZone *zone, const DParameter *param, real diag_fac
     diag += 2 * dt_local *
         (zone->visc_spectr_rad(i, j, k)[0] + zone->visc_spectr_rad(i, j, k)[1] + zone->visc_spectr_rad(i, j, k)[2]);
   const int n_spec{param->n_spec};
-  if constexpr (mixture_model == MixtureModel::Air || mixture_model == MixtureModel::Mixture) {
-    for (int l = 0; l < 5 + n_spec; ++l) {
-      dq(i, j, k, l) /= diag;
-    }
-  } else if constexpr (mixture_model == MixtureModel::FR) {
+  const int n_reac{param->n_reac};
+  if (n_reac>0) {
     // Use point implicit method to treat the chemical source
     for (int l = 0; l < 5; ++l) {
       dq(i, j, k, l) /= diag;
@@ -58,21 +55,12 @@ __global__ void compute_DQ_0(DZone *zone, const DParameter *param, real diag_fac
         }
         break;
     }
-  } else if constexpr (mixture_model == MixtureModel::FL) {
-    for (int l = 0; l < 5; ++l) {
-      dq(i, j, k, l) /= diag;
-    }
-    for (int l = param->i_fl_cv; l < param->n_var; ++l) {
-      dq(i, j, k, l) /= diag;
-    }
-  } else if constexpr (mixture_model == MixtureModel::MixtureFraction) {
+  } else {
     for (int l = 0; l < 5 + n_spec; ++l) {
       dq(i, j, k, l) /= diag;
     }
-    for (int l = param->i_fl_cv; l < param->n_var; ++l) {
-      dq(i, j, k, l) /= diag;
-    }
   }
+  
   if (param->turb_implicit == 1) {
     if constexpr (TurbMethod<turb_method>::hasImplicitTreat)
       turb_method::implicit_treat_for_dq0(zone, diag, i, j, k, param);
@@ -229,12 +217,8 @@ __global__ void DPLUR_inner_iteration(const DParameter *param, DZone *zone, real
                                 zone->visc_spectr_rad(i, j, k)[2]);
   auto &dqk = zone->dqk;
   const auto &dq0 = zone->dq0;
-  const int n_spec{param->n_spec};
-  if constexpr (mixture_model == MixtureModel::Air || mixture_model == MixtureModel::Mixture) {
-    for (int l = 0; l < 5 + n_spec; ++l) {
-      dqk(i, j, k, l) = dq0(i, j, k, l) + dt_local * dq_total[l] / diag;
-    }
-  } else if constexpr (mixture_model == MixtureModel::FR) {
+  const int n_spec{param->n_spec}, n_reac{param->n_reac};
+  if (n_reac>0) {
     // Use point implicit method to dispose chemical source
     #pragma unroll
     for (int l = 0; l < 5; ++l) {
@@ -258,23 +242,12 @@ __global__ void DPLUR_inner_iteration(const DParameter *param, DZone *zone, real
         }
         break;
     }
-  } else if constexpr (mixture_model == MixtureModel::FL) {
-    // For flamelet model
-    #pragma unroll
-    for (int l = 0; l < 5; ++l) {
-      dqk(i, j, k, l) = dq0(i, j, k, l) + dt_local * dq_total[l] / diag;
-    }
-    const auto i_fl_cv{param->i_fl_cv};
-    dqk(i, j, k, i_fl_cv) = dq0(i, j, k, i_fl_cv) + dt_local * dq_total[i_fl_cv] / diag;
-    dqk(i, j, k, i_fl_cv + 1) = dq0(i, j, k, i_fl_cv + 1) + dt_local * dq_total[i_fl_cv + 1] / diag;
-  } else if constexpr (mixture_model == MixtureModel::MixtureFraction) {
+  } else {
     for (int l = 0; l < 5 + n_spec; ++l) {
       dqk(i, j, k, l) = dq0(i, j, k, l) + dt_local * dq_total[l] / diag;
     }
-    const auto i_fl_cv{param->i_fl_cv};
-    dqk(i, j, k, i_fl_cv) = dq0(i, j, k, i_fl_cv) + dt_local * dq_total[i_fl_cv] / diag;
-    dqk(i, j, k, i_fl_cv + 1) = dq0(i, j, k, i_fl_cv + 1) + dt_local * dq_total[i_fl_cv + 1] / diag;
   }
+  
   if (param->turb_implicit == 1) {
     if constexpr (TurbMethod<turb_method>::hasImplicitTreat) {
       turb_method::implicit_treat_for_dqk(zone, diag, i, j, k, dq_total, param);

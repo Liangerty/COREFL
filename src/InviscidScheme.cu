@@ -770,15 +770,6 @@ template void compute_convective_term_pv<MixtureModel::Air>(const Block &block, 
 template void compute_convective_term_pv<MixtureModel::Mixture>(const Block &block, DZone *zone, DParameter *param,
   int n_var, const Parameter &parameter);
 
-template void compute_convective_term_pv<MixtureModel::MixtureFraction>(const Block &block, DZone *zone,
-  DParameter *param, int n_var, const Parameter &parameter);
-
-template void compute_convective_term_pv<MixtureModel::FR>(const Block &block, DZone *zone, DParameter *param,
-  int n_var, const Parameter &parameter);
-
-template void compute_convective_term_pv<MixtureModel::FL>(const Block &block, DZone *zone, DParameter *param,
-  int n_var, const Parameter &parameter);
-
 template void compute_convective_term_aweno<MixtureModel::Air>(const Block &block, DZone *zone, DParameter *param,
   int n_var);
 
@@ -788,9 +779,6 @@ template void compute_convective_term_aweno<MixtureModel::Mixture>(const Block &
 template void compute_convective_term_aweno<MixtureModel::MixtureFraction>(const Block &block, DZone *zone,
   DParameter *param, int n_var);
 
-template void compute_convective_term_aweno<MixtureModel::FR>(const Block &block, DZone *zone, DParameter *param,
-  int n_var);
-
 template void compute_convective_term_aweno<MixtureModel::FL>(const Block &block, DZone *zone, DParameter *param,
   int n_var);
 
@@ -799,9 +787,6 @@ template void Roe_compute_inviscid_flux<MixtureModel::Air>(const Block &block, D
 
 template void Roe_compute_inviscid_flux<MixtureModel::Mixture>(const Block &block, DZone *zone, DParameter *param,
   int n_var, const Parameter &parameter);
-
-template void Roe_compute_inviscid_flux<MixtureModel::FR>(const Block &block, DZone *zone, DParameter *param, int n_var,
-  const Parameter &parameter);
 
 template<> void Roe_compute_inviscid_flux<MixtureModel::FL>(const Block &block, DZone *zone, DParameter *param,
   int n_var, const Parameter &parameter) {

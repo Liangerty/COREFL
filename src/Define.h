@@ -26,9 +26,6 @@ enum class TurbulenceMethod{
 enum class MixtureModel{
   Air,
   Mixture,  // Species mixing
-  FR,       // Finite Rate
-  MixtureFraction,  // Species + mixture fraction + mixture fraction variance are solved.
-  FL,       // Flamelet Model
 };
 
 enum class OutputTimeChoice{

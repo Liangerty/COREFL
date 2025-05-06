@@ -61,8 +61,8 @@ __global__ void cfd::local_time_step(DZone *zone, DParameter *param) {
     inviscid_spectral_radius[2] = std::abs(W) + acoustic_speed * grad_zeta;
     max_spectral_radius = max(max_spectral_radius, inviscid_spectral_radius[2]);
   }
-  const real spectral_radius_inv =
-      inviscid_spectral_radius[0] + inviscid_spectral_radius[1] + inviscid_spectral_radius[2];
+  // const real spectral_radius_inv =
+  //     inviscid_spectral_radius[0] + inviscid_spectral_radius[1] + inviscid_spectral_radius[2];
 
   // Next, compute the viscous spectral radius
   real gamma{gamma_air};
@@ -77,15 +77,15 @@ __global__ void cfd::local_time_step(DZone *zone, DParameter *param) {
   auto &vis_spec_rad = zone->visc_spectr_rad(i, j, k);
   vis_spec_rad[0] = grad_xi * grad_xi * coeff_1 * coeff_2;
   vis_spec_rad[1] = grad_eta * grad_eta * coeff_1 * coeff_2;
-  real spectral_radius_viscous = grad_xi * grad_xi + grad_eta * grad_eta;
+  // real spectral_radius_viscous = grad_xi * grad_xi + grad_eta * grad_eta;
   max_spectral_radius = max(max_spectral_radius, vis_spec_rad[0]);
   max_spectral_radius = max(max_spectral_radius, vis_spec_rad[1]);
   if (dim == 3) {
-    spectral_radius_viscous += grad_zeta * grad_zeta;
+    // spectral_radius_viscous += grad_zeta * grad_zeta;
     vis_spec_rad[2] = grad_zeta * grad_zeta * coeff_1 * coeff_2;
     max_spectral_radius = max(max_spectral_radius, vis_spec_rad[2]);
   }
-  spectral_radius_viscous *= coeff_1 * coeff_2;
+  // spectral_radius_viscous *= coeff_1 * coeff_2;
 
   // zone->dt_local(i, j, k) = param->cfl / (spectral_radius_inv + spectral_radius_viscous);
   zone->dt_local(i, j, k) = param->cfl / max_spectral_radius;

@@ -355,10 +355,6 @@ AWENO_interpolation<MixtureModel::Mixture>(const real *cv, real *pv_l, real *pv_
                                            const real *metric, DParameter *param);
 
 template __device__ void
-AWENO_interpolation<MixtureModel::FR>(const real *cv, real *pv_l, real *pv_r, int idx_shared, int n_var,
-                                      const real *metric, DParameter *param);
-
-template __device__ void
 AWENO_interpolation<MixtureModel::FL>(const real *cv, real *pv_l, real *pv_r, int idx_shared, int n_var,
                                       const real *metric, DParameter *param);
 
@@ -368,9 +364,6 @@ AWENO_interpolation<MixtureModel::MixtureFraction>(const real *cv, real *pv_l, r
 
 template __global__ void
 CDSPart1D<MixtureModel::Mixture>(DZone *zone, int direction, int max_extent, DParameter *param);
-
-template __global__ void
-CDSPart1D<MixtureModel::FR>(DZone *zone, int direction, int max_extent, DParameter *param);
 
 template __global__ void
 CDSPart1D<MixtureModel::FL>(DZone *zone, int direction, int max_extent, DParameter *param);

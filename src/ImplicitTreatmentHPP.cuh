@@ -8,9 +8,10 @@ template<MixtureModel mixture_model, class turb_method>
 void
 implicit_treatment(const Block &block, const DParameter *param, DZone *d_ptr, const Parameter &parameter, DZone *h_ptr,
                    DBoundCond &bound_cond, real diag_factor = 0) {
+  const int n_reac = parameter.get_int("n_reac");
   switch (parameter.get_int("implicit_method")) {
     case 0: // Explicit
-      if constexpr (mixture_model == MixtureModel::FR) {
+      if (n_reac > 0) {
         if (const int chem_src_method = parameter.get_int("chemSrcMethod");chem_src_method != 0) {
           const int extent[3]{block.mx, block.my, block.mz};
           const int dim{extent[2] == 1 ? 2 : 3};

@@ -132,7 +132,9 @@ void RK3(Driver<mix_model, turb> &driver) {
         cudaMemset(field[b].h_ptr->dq.data(), 0, field[b].h_ptr->dq.size() * n_var * sizeof(real));
 
         // First, compute the source term, because properties such as mut are updated here, which is used by computing dt.
-        compute_source<mix_model, turb><<<bpg[b], tpb>>>(field[b].d_ptr, param);
+        if (parameter.get_int("reaction") == 1) {
+          compute_source<mix_model, turb><<<bpg[b], tpb>>>(field[b].d_ptr, param);
+        }       
       }
 
       // For unsteady simulations, the time step should be consistent in all grid points

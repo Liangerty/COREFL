@@ -1,9 +1,14 @@
-﻿#include <cstdio>
+﻿/**
+ * @file main.cu
+ * @brief Main function for the DNS program.
+ * @details This program is designed to run a CFD simulation for various mixture types, including Air as calorically perfect gas, and thermally perfect gas mixture.
+ * TODO: Keep only the laminar/DNS part, and delete the flamelet part. Change FR to a choice instead of a template parameter.
+ */
+#include <cstdio>
 #include "Parameter.h"
 #include "Mesh.h"
 #include "Driver.cuh"
 #include "Simulate.cuh"
-#include "SST.cuh"
 
 int main(int argc, char *argv[]) {
   cfd::Parameter parameter(&argc, &argv);
@@ -21,112 +26,16 @@ int main(int argc, char *argv[]) {
 
   if (species == 1) {
     // Multiple species
-    if (turbulent_method == 1) {
-      // RANS
-      if (reaction == 1) {
-        // Finite rate chemistry
-        cfd::Driver<MixtureModel::FR, cfd::SST<cfd::TurbSimLevel::RANS>> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      } else if (reaction == 2) {
-        // Flamelet model
-        cfd::Driver<MixtureModel::FL, cfd::SST<cfd::TurbSimLevel::RANS>> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      } else {
-        // Pure mixing among species
-        cfd::Driver<MixtureModel::Mixture, cfd::SST<cfd::TurbSimLevel::RANS>> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      }
-    } else if (turbulent_method == 2) {
-      // DES and air
-      if (reaction == 1) {
-        // Finite rate chemistry
-        cfd::Driver<MixtureModel::FR, cfd::SST<cfd::TurbSimLevel::DES>> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      } else if (reaction == 2) {
-        // Pure mixing among species
-        cfd::Driver<MixtureModel::FL, cfd::SST<cfd::TurbSimLevel::DES>> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      } else {
-        // Pure mixing among species
-        cfd::Driver<MixtureModel::Mixture, cfd::SST<cfd::TurbSimLevel::DES>> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      }
-    } else {
-      // Laminar
-      if (reaction == 1) {
-        // Finite rate chemistry
-        cfd::Driver<MixtureModel::FR, cfd::Laminar> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      } else {
-        // Pure mixing among species
-        cfd::Driver<MixtureModel::Mixture, cfd::Laminar> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      }
-    }
-  } else if (species == 2) {
-    // Mixture fraction and mixture fraction variance are solved together with species mixing.
-    if (turbulent_method == 1) {
-      // RANS
-      if (reaction == 0) {
-        // Compute the species mixing, with mixture fraction and mixture fraction variance also solved.
-        cfd::Driver<MixtureModel::MixtureFraction, cfd::SST<cfd::TurbSimLevel::RANS>> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      } else if (reaction == 2) {
-        // Flamelet model
-        cfd::Driver<MixtureModel::FL, cfd::SST<cfd::TurbSimLevel::RANS>> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      } else {
-        printf("The combination of species model 2 and reaction model %d is not implemented", reaction);
-      }
-    } else if (turbulent_method == 2) {
-      // DDES
-      if (reaction == 0) {
-        // Compute the species mixing, with mixture fraction and mixture fraction variance also solved.
-        cfd::Driver<MixtureModel::MixtureFraction, cfd::SST<cfd::TurbSimLevel::DES>> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      } else if (reaction == 2) {
-        // Flamelet model
-        cfd::Driver<MixtureModel::FL, cfd::SST<cfd::TurbSimLevel::DES>> driver(parameter, mesh);
-        driver.initialize_computation();
-        simulate(driver);
-      } else {
-        printf("The combination of species model 2 and reaction model %d is not implemented", reaction);
-      }
-    } else {
-      // Laminar
-      cfd::Driver<MixtureModel::MixtureFraction, cfd::Laminar> driver(parameter, mesh);
+    // Laminar & DNS
+    cfd::Driver<MixtureModel::Mixture, cfd::Laminar> driver(parameter, mesh);
       driver.initialize_computation();
       simulate(driver);
-    }
   } else {
     // Air simulation
-    if (turbulent_method == 1) {
-      // RANS and air
-      cfd::Driver<MixtureModel::Air, cfd::SST<cfd::TurbSimLevel::RANS>> driver(parameter, mesh);
-      driver.initialize_computation();
-      simulate(driver);
-    } else if (turbulent_method == 2) {
-      // DES and air
-      cfd::Driver<MixtureModel::Air, cfd::SST<cfd::TurbSimLevel::DES>> driver(parameter, mesh);
-      driver.initialize_computation();
-      simulate(driver);
-    } else {
-      // Laminar and air
-      cfd::Driver<MixtureModel::Air, cfd::Laminar> driver(parameter, mesh);
-      driver.initialize_computation();
-      simulate(driver);
-    }
+    // Laminar and air
+    cfd::Driver<MixtureModel::Air, cfd::Laminar> driver(parameter, mesh);
+    driver.initialize_computation();
+    simulate(driver);
   }
 
   if (parameter.get_int("myid") == 0) {

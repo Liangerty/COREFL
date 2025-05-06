@@ -1734,27 +1734,10 @@ template void compute_convective_term_hybrid_weno_ep<MixtureModel::Air>(const Bl
 template void compute_convective_term_hybrid_weno_ep<MixtureModel::Mixture>(const Block &block, DZone *zone,
   DParameter *param, int n_var, const Parameter &parameter);
 
-template void compute_convective_term_hybrid_weno_ep<MixtureModel::MixtureFraction>(const Block &block, DZone *zone,
-  DParameter *param, int n_var, const Parameter &parameter);
-
-template void compute_convective_term_hybrid_weno_ep<MixtureModel::FR>(const Block &block, DZone *zone,
-  DParameter *param, int n_var, const Parameter &parameter);
-
-template void compute_convective_term_hybrid_weno_ep<MixtureModel::FL>(const Block &block, DZone *zone,
-  DParameter *param, int n_var, const Parameter &parameter);
-
 template void compute_convective_term_hybrid_ud_weno<MixtureModel::Air>(const Block &block, DZone *zone,
   DParameter *param, int n_var, const Parameter &parameter);
 
 template void compute_convective_term_hybrid_ud_weno<MixtureModel::Mixture>(const Block &block, DZone *zone,
   DParameter *param, int n_var, const Parameter &parameter);
 
-template void compute_convective_term_hybrid_ud_weno<MixtureModel::MixtureFraction>(const Block &block, DZone *zone,
-  DParameter *param, int n_var, const Parameter &parameter);
-
-template void compute_convective_term_hybrid_ud_weno<MixtureModel::FR>(const Block &block, DZone *zone,
-  DParameter *param, int n_var, const Parameter &parameter);
-
-template void compute_convective_term_hybrid_ud_weno<MixtureModel::FL>(const Block &block, DZone *zone,
-  DParameter *param, int n_var, const Parameter &parameter);
 }
