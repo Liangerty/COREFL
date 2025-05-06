@@ -377,23 +377,6 @@ void FieldIO<mix_model, turb, output_time_choice>::write_common_data_section() {
     //   MPI_File_write_at(fp, offset, &max_val, 1, MPI_DOUBLE, &status);
     //   offset += 8;
     // }
-    // If mixture model is FL or MixtureFraction, we need to output scalar dissipation rate
-    // if constexpr (mix_model == MixtureModel::MixtureFraction || mix_model == MixtureModel::FL) {
-    //   min_val = v.ov(-ngg, -ngg, -ngg, 2);
-    //   max_val = v.ov(-ngg, -ngg, -ngg, 2);
-    //   for (int k = -ngg; k < mz + ngg; ++k) {
-    //     for (int j = -ngg; j < my + ngg; ++j) {
-    //       for (int i = -ngg; i < mx + ngg; ++i) {
-    //         min_val = std::min(min_val, v.ov(i, j, k, 2));
-    //         max_val = std::max(max_val, v.ov(i, j, k, 2));
-    //       }
-    //     }
-    //   }
-    //   MPI_File_write_at(fp, offset, &min_val, 1, MPI_DOUBLE, &status);
-    //   offset += 8;
-    //   MPI_File_write_at(fp, offset, &max_val, 1, MPI_DOUBLE, &status);
-    //   offset += 8;
-    // }
     int n_other_var = parameter.get_int("n_other_var");
     for (int l = 0; l < n_other_var; ++l) {
       min_val = v.ov(-ngg, -ngg, -ngg, l);
@@ -452,12 +435,6 @@ void FieldIO<mix_model, turb, output_time_choice>::write_common_data_section() {
     //   MPI_File_write_at(fp, offset, var, 1, ty, &status);
     //   offset += memsz;
     // }
-    // If mixture model is FL or MixtureFraction, we need to output scalar dissipation rate
-    // if constexpr (mix_model == MixtureModel::MixtureFraction || mix_model == MixtureModel::FL) {
-    //   var = v.ov[2];
-    //   MPI_File_write_at(fp, offset, var, 1, ty, &status);
-    //   offset += memsz;
-    // }
     for (int l = 0; l < n_other_var; ++l) {
       auto var = v.ov[l];
       MPI_File_write_at(fp, offset, var, 1, ty, &status);
@@ -492,7 +469,7 @@ FieldIO<mix_model, turb, output_time_choice>::acquire_variable_names(std::vector
     var_name.emplace_back("tke");
     var_name.emplace_back("omega");
   }
-  if constexpr (mix_model == MixtureModel::FL || mix_model == MixtureModel::MixtureFraction) {
+  if constexpr (mix_model == MixtureModel::MixtureFraction) {
     nv += 3; // Z, Z_prime, chi
     var_name.emplace_back("MixtureFraction");
     var_name.emplace_back("MixtureFractionVariance");
@@ -507,7 +484,7 @@ FieldIO<mix_model, turb, output_time_choice>::acquire_variable_names(std::vector
     nv += 1; // mu_t
     var_name.emplace_back("mut");
   }
-  if constexpr (mix_model == MixtureModel::FL || mix_model == MixtureModel::MixtureFraction) {
+  if constexpr (mix_model == MixtureModel::MixtureFraction) {
     var_name.emplace_back("ScalarDissipationRate");
   }
   return nv;
@@ -610,23 +587,6 @@ void FieldIO<mix_model, turb, output_time_choice>::print_field(int step, real ti
     //   MPI_File_write_at(fp, offset, &max_val, 1, MPI_DOUBLE, &status);
     //   offset += 8;
     // }
-    // If mixture model is FL or MixtureFraction, we need to output scalar dissipation rate
-    // if constexpr (mix_model == MixtureModel::MixtureFraction || mix_model == MixtureModel::FL) {
-    //   min_val = v.ov(-ngg, -ngg, -ngg, 2);
-    //   max_val = v.ov(-ngg, -ngg, -ngg, 2);
-    //   for (int k = -ngg; k < mz + ngg; ++k) {
-    //     for (int j = -ngg; j < my + ngg; ++j) {
-    //       for (int i = -ngg; i < mx + ngg; ++i) {
-    //         min_val = std::min(min_val, v.ov(i, j, k, 2));
-    //         max_val = std::max(max_val, v.ov(i, j, k, 2));
-    //       }
-    //     }
-    //   }
-    //   MPI_File_write_at(fp, offset, &min_val, 1, MPI_DOUBLE, &status);
-    //   offset += 8;
-    //   MPI_File_write_at(fp, offset, &max_val, 1, MPI_DOUBLE, &status);
-    //   offset += 8;
-    // }
     const int n_other_var = parameter.get_int("n_other_var");
     for (int l = 0; l < n_other_var; ++l) {
       min_val = v.ov(-ngg, -ngg, -ngg, l);
@@ -673,12 +633,6 @@ void FieldIO<mix_model, turb, output_time_choice>::print_field(int step, real ti
     // if turbulent, mut
     // if constexpr (TurbMethod<turb>::hasMut) {
     //   var = v.ov[1];
-    //   MPI_File_write_at(fp, offset, var, 1, ty, &status);
-    //   offset += memsz;
-    // }
-    // If mixture model is FL or MixtureFraction, we need to output scalar dissipation rate
-    // if constexpr (mix_model == MixtureModel::MixtureFraction || mix_model == MixtureModel::FL) {
-    //   var = v.ov[2];
     //   MPI_File_write_at(fp, offset, var, 1, ty, &status);
     //   offset += memsz;
     // }
@@ -745,11 +699,6 @@ int32_t FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries>::acquire_variable
     nv += 2; // k, omega
     var_name.emplace_back("tke");
     var_name.emplace_back("omega");
-  }
-  if constexpr (mix_model == MixtureModel::FL) {
-    nv += 2; // Z, Z_prime
-    var_name.emplace_back("MixtureFraction");
-    var_name.emplace_back("MixtureFractionVariance");
   }
   if (const int n_ps = parameter.get_int("n_ps"); n_ps > 0) {
     nv += n_ps;

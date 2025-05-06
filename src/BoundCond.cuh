@@ -697,11 +697,6 @@ __global__ void apply_inflow_df(DZone *zone, Inflow *inflow, DParameter *param,
   //    bv(gi, gj, gk, 3) = cv(gi, gj, gk, 3) * density_inv;
   //    auto v2 = bv(gi, gj, gk, 1) * bv(gi, gj, gk, 1) + bv(gi, gj, gk, 2) * bv(gi, gj, gk, 2) +
   //              bv(gi, gj, gk, 3) * bv(gi, gj, gk, 3);
-  //    if constexpr (mix_model != MixtureModel::FL) {
-  //      for (int l = 0; l < param->n_scalar; ++l) {
-  //        sv(gi, gj, gk, l) = cv(gi, gj, gk, l + 5) * density_inv;
-  //      }
-  //    } // Flamelet is not considered here
   //    if constexpr (mix_model != MixtureModel::Air) {
   //      compute_temperature_and_pressure(gi, gj, gk, param, zone, cv(gi, gj, gk, 4));
   //    } else {
@@ -1199,7 +1194,7 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
     }
   }
 
-  if constexpr (mix_model == MixtureModel::FL || mix_model == MixtureModel::MixtureFraction) {
+  if constexpr (mix_model == MixtureModel::MixtureFraction) {
     // Flamelet model
     const int i_fl{param->i_fl};
     sv(i, j, k, i_fl) = sv(idx[0], idx[1], idx[2], i_fl);
@@ -1259,7 +1254,7 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
       zone->mut(i_gh[0], i_gh[1], i_gh[2]) = 0;
     }
 
-    if constexpr (mix_model == MixtureModel::FL || mix_model == MixtureModel::MixtureFraction) {
+    if constexpr (mix_model == MixtureModel::MixtureFraction) {
       sv(i_gh[0], i_gh[1], i_gh[2], param->i_fl) = sv(i_in[0], i_in[1], i_in[2], param->i_fl);
       sv(i_gh[0], i_gh[1], i_gh[2], param->i_fl + 1) = sv(i_in[0], i_in[1], i_in[2], param->i_fl + 1);
     }

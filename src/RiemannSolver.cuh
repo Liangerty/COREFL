@@ -24,9 +24,6 @@ riemannSolver_ausmPlus(const real *pv_l, const real *pv_r, DParameter *param, in
   real gam_l{gamma_air}, gam_r{gamma_air};
   const int n_var = param->n_var;
   auto n_reconstruct{n_var};
-  if constexpr (mix_model == MixtureModel::FL) {
-    n_reconstruct += param->n_spec;
-  }
   if constexpr (mix_model != MixtureModel::Air) {
     gam_l = pv_l[n_reconstruct + 1];
     gam_r = pv_r[n_reconstruct + 1];
@@ -71,12 +68,7 @@ riemannSolver_ausmPlus(const real *pv_l, const real *pv_r, DParameter *param, in
     fci[3] = coeff * pv_l[3] + p_coeff * k3;
     fci[4] = coeff * (pv_l[n_reconstruct] + pv_l[4]) / pv_l[0];
     for (int l = 5; l < n_var; ++l) {
-      if constexpr (mix_model != MixtureModel::FL) {
-        fci[l] = coeff * pv_l[l];
-      } else {
-        // Flamelet model
-        fci[l] = coeff * pv_l[l + param->n_spec];
-      }
+      fci[l] = coeff * pv_l[l];
     }
   } else {
     fci[0] = coeff;
@@ -85,12 +77,7 @@ riemannSolver_ausmPlus(const real *pv_l, const real *pv_r, DParameter *param, in
     fci[3] = coeff * pv_r[3] + p_coeff * k3;
     fci[4] = coeff * (pv_r[n_reconstruct] + pv_r[4]) / pv_r[0];
     for (int l = 5; l < n_var; ++l) {
-      if constexpr (mix_model != MixtureModel::FL) {
-        fci[l] = coeff * pv_r[l];
-      } else {
-        // Flamelet model
-        fci[l] = coeff * pv_r[l + param->n_spec];
-      }
+      fci[l] = coeff * pv_r[l];
     }
   }
 }
@@ -101,9 +88,6 @@ riemannSolver_hllc(const real *pv_l, const real *pv_r, DParameter *param, int ti
                    real *fc, int i_shared) {
   const int n_var = param->n_var;
   int n_reconstruct{n_var};
-  if constexpr (mix_model == MixtureModel::FL) {
-    n_reconstruct += param->n_spec;
-  }
 
   // Compute the Roe averaged variables.
   const real rl_c{std::sqrt(pv_l[0]) / (std::sqrt(pv_l[0]) + std::sqrt(pv_r[0]))},
@@ -240,9 +224,6 @@ compute_half_sum_left_right_flux(const real *pv_l, const real *pv_r, DParameter 
   real Uk = pv_l[1] * JacKx + pv_l[2] * JacKy + pv_l[3] * JacKz;
 
   int n_reconstruct{param->n_var};
-  if constexpr (mixtureModel == MixtureModel::FL) {
-    n_reconstruct += param->n_spec;
-  }
   real coeff = Uk * pv_l[0];
   fc[0] = 0.5 * coeff;
   fc[1] = 0.5 * (coeff * pv_l[1] + pv_l[4] * JacKx);
@@ -250,11 +231,7 @@ compute_half_sum_left_right_flux(const real *pv_l, const real *pv_r, DParameter 
   fc[3] = 0.5 * (coeff * pv_l[3] + pv_l[4] * JacKz);
   fc[4] = 0.5 * Uk * (pv_l[4] + pv_l[n_reconstruct]);
   for (int l = 5; l < param->n_var; ++l) {
-    if constexpr (mixtureModel != MixtureModel::FL) {
-      fc[l] = 0.5 * coeff * pv_l[l];
-    } else {
-      fc[l] = 0.5 * coeff * pv_l[l + param->n_spec];
-    }
+    fc[l] = 0.5 * coeff * pv_l[l];
   }
 
   JacKx = jac[i_shared + 1] * metric[(i_shared + 1) * 3];
@@ -269,11 +246,7 @@ compute_half_sum_left_right_flux(const real *pv_l, const real *pv_r, DParameter 
   fc[3] += 0.5 * (coeff * pv_r[3] + pv_r[4] * JacKz);
   fc[4] += 0.5 * Uk * (pv_r[4] + pv_r[n_reconstruct]);
   for (int l = 5; l < param->n_var; ++l) {
-    if constexpr (mixtureModel != MixtureModel::FL) {
-      fc[l] += 0.5 * coeff * pv_r[l];
-    } else {
-      fc[l] += 0.5 * coeff * pv_r[l + param->n_spec];
-    }
+    fc[l] += 0.5 * coeff * pv_r[l];
   }
 }
 
@@ -289,9 +262,6 @@ riemannSolver_Roe(DZone *zone, real *pv, int tid, DParameter *param, real *fc, r
 
   // The entropy fix delta may not need shared memory, which may be replaced by shuffle instructions.
   int n_reconstruct{param->n_var};
-  if constexpr (mix_model == MixtureModel::FL) {
-    n_reconstruct += param->n_spec;
-  }
 
   // Compute the left and right convective fluxes, which uses the reconstructed primitive variables, rather than the roe averaged ones.
   const auto fci = &fc[tid * param->n_var];
@@ -385,10 +355,7 @@ riemannSolver_Roe(DZone *zone, real *pv, int tid, DParameter *param, real *fc, r
   LDq[3] = kz * c3 - ((ky * u - kx * v) * dq[0] - ky * dq[1] + kx * dq[2]) / c;
   LDq[4] = 0.5 * (c1 + c2);
   for (int l = 0; l < param->n_scalar_transported; ++l) {
-    if constexpr (mix_model != MixtureModel::FL)
-      LDq[l + 5] = dq[l + 5] - svm[l] * dq[0];
-    else
-      LDq[l + 5] = dq[l + 5] - svm[l + param->n_spec] * dq[0];
+    LDq[l + 5] = dq[l + 5] - svm[l] * dq[0];
   }
 
   // To reduce memory usage, we use dq array to contain the b array to be computed
@@ -468,10 +435,4 @@ riemannSolver_hllc<MixtureModel::MixtureFraction>(const real *pv_l, const real *
   printf("riemannSolver_hllc<MixtureModel::MixtureFraction> is not implemented yet.\n");
 }
 
-template<>
-__device__ void
-riemannSolver_hllc<MixtureModel::FL>(const real *pv_l, const real *pv_r, DParameter *param, int tid,
-                                     const real *metric, const real *jac, real *fc, int i_shared) {
-  printf("riemannSolver_hllc<MixtureModel::FL> is not implemented yet.\n");
-}
 }

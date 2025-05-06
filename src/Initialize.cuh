@@ -334,7 +334,7 @@ void read_flowfield(Parameter &parameter, const Mesh &mesh, std::vector<Field> &
         initialize_turb_from_inflow(parameter, mesh, field, species);
       }
     }
-    if constexpr ((mix_model == MixtureModel::FL || mix_model == MixtureModel::MixtureFraction) &&
+    if constexpr ((mix_model == MixtureModel::MixtureFraction) &&
                   (TurbMethod<turb>::type == TurbSimLevel::RANS || TurbMethod<turb>::type == TurbSimLevel::DES ||
                    TurbMethod<turb>::type == TurbSimLevel::LES)) {
       if (old_data_info[0] == 1) {
@@ -751,7 +751,7 @@ read_flowfield_with_same_block(Parameter &parameter, const Mesh &mesh, std::vect
       initialize_turb_from_inflow(parameter, mesh, field, species);
     }
   }
-  if constexpr ((mix_model == MixtureModel::FL || mix_model == MixtureModel::MixtureFraction) &&
+  if constexpr ((mix_model == MixtureModel::MixtureFraction) &&
                 (TurbMethod<turb>::type == TurbSimLevel::RANS || TurbMethod<turb>::type == TurbSimLevel::DES ||
                  TurbMethod<turb>::type == TurbSimLevel::LES)) {
     if (old_data_info[0] == 1) {

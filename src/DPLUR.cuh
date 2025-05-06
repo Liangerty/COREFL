@@ -94,15 +94,6 @@ compute_jacobian_times_dq(const DParameter *param, DZone *zone, int i, int j, in
 
   if constexpr (mixture_model == MixtureModel::Air) {
     h = gamma / (gamma - 1) * pv(i, j, k, 4) / pv(i, j, k, 0) + e;
-  } else if constexpr (mixture_model == MixtureModel::FL) {
-    real enthalpy[MAX_SPEC_NUMBER];
-    const real t{pv(i, j, k, 5)};
-    gamma = zone->gamma(i, j, k);
-    compute_enthalpy(t, enthalpy, param);
-    for (int l = 0; l < param->n_spec; ++l) {
-      h += sv(i, j, k, l) * enthalpy[l];
-    }
-    h += e;
   } else {
     const auto &mw = param->mw;
     real enthalpy[MAX_SPEC_NUMBER];
@@ -129,12 +120,7 @@ compute_jacobian_times_dq(const DParameter *param, DZone *zone, int i, int j, in
   convJacTimesDq[4] = h * b1 + U * b2 + lmd1 * dq(i, j, k, 4) + U * (b3 - b4);
 
   for (int l = 0; l < param->n_scalar_transported; ++l) {
-    if constexpr (mixture_model != MixtureModel::FL) {
-      convJacTimesDq[5 + l] = lmd1 * dq(i, j, k, 5 + l) + sv(i, j, k, l) * b1;
-    } else {
-      // Flamelet model
-      convJacTimesDq[5 + l] = lmd1 * dq(i, j, k, 5 + l) + sv(i, j, k, l + param->n_spec) * b1;
-    }
+    convJacTimesDq[5 + l] = lmd1 * dq(i, j, k, 5 + l) + sv(i, j, k, l) * b1;
   }
 }
 

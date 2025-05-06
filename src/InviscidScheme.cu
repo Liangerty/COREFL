@@ -17,10 +17,6 @@ void compute_convective_term_pv(const Block &block, DZone *zone, DParameter *par
   const int n_computation_per_block = block_dim + 2 * block.ngg - 1;
   auto shared_mem = (block_dim * n_var                                            // fc
                      + n_computation_per_block * (n_var + 3 + 1)) * sizeof(real); // pv[n_var]+metric[3]+jacobian
-  if constexpr (mix_model == MixtureModel::FL) {
-    // For flamelet model, we need also the mass fractions of species, which is not included in the n_var
-    shared_mem += n_computation_per_block * parameter.get_int("n_spec") * sizeof(real);
-  }
 
   for (auto dir = 0; dir < 2; ++dir) {
     int tpb[3]{1, 1, 1};
@@ -68,9 +64,6 @@ compute_convective_term_pv_1D(DZone *zone, int direction, int max_extent, DParam
   extern __shared__ real s[];
   const auto n_var{param->n_var};
   auto n_reconstruct{n_var};
-  if constexpr (mix_model == MixtureModel::FL) {
-    n_reconstruct += param->n_spec;
-  }
   real *pv = s;
   real *metric = &pv[n_point * n_reconstruct];
   real *jac = &metric[n_point * 3];
@@ -164,9 +157,6 @@ template<MixtureModel mix_model>
 __device__ void
 reconstruction(real *pv, real *pv_l, real *pv_r, const int idx_shared, DParameter *param) {
   auto n_var = param->n_var;
-  if constexpr (mix_model == MixtureModel::FL) {
-    n_var += param->n_spec;
-  }
   switch (param->reconstruction) {
     case 2:
       MUSCL_reconstruct(pv, pv_l, pv_r, idx_shared, n_var, param->limiter);
@@ -389,10 +379,6 @@ void Roe_compute_inviscid_flux(const Block &block, DZone *zone, DParameter *para
                      + n_computation_per_block * (n_var + 1)) * sizeof(real) // pv[n_var]+jacobian
                     + n_computation_per_block * 3 * sizeof(real)             // metric[3]
                     + n_computation_per_block * sizeof(real);                // entropy fix delta
-  if constexpr (mix_model == MixtureModel::FL) {
-    // For flamelet model, we need also the mass fractions of species, which is not included in the n_var
-    shared_mem += n_computation_per_block * parameter.get_int("n_spec") * sizeof(real);
-  }
 
   for (auto dir = 0; dir < 2; ++dir) {
     int tpb[3]{1, 1, 1};
@@ -475,9 +461,6 @@ Roe_compute_inviscid_flux_1D(DZone *zone, int direction, int max_extent, DParame
   extern __shared__ real s[];
   const auto n_var{param->n_var};
   auto n_reconstruct{n_var};
-  if constexpr (mix_model == MixtureModel::FL) {
-    n_reconstruct += param->n_spec;
-  }
   real *pv = s;
   real *metric = &pv[n_point * n_reconstruct];
   real *jac = &metric[n_point * 3];
@@ -779,20 +762,11 @@ template void compute_convective_term_aweno<MixtureModel::Mixture>(const Block &
 template void compute_convective_term_aweno<MixtureModel::MixtureFraction>(const Block &block, DZone *zone,
   DParameter *param, int n_var);
 
-template void compute_convective_term_aweno<MixtureModel::FL>(const Block &block, DZone *zone, DParameter *param,
-  int n_var);
-
 template void Roe_compute_inviscid_flux<MixtureModel::Air>(const Block &block, DZone *zone, DParameter *param,
   int n_var, const Parameter &parameter);
 
 template void Roe_compute_inviscid_flux<MixtureModel::Mixture>(const Block &block, DZone *zone, DParameter *param,
   int n_var, const Parameter &parameter);
-
-template<> void Roe_compute_inviscid_flux<MixtureModel::FL>(const Block &block, DZone *zone, DParameter *param,
-  int n_var, const Parameter &parameter) {
-  printf("Roe_compute_inviscid_flux<MixtureModel::FL> is not implemented yet.\n");
-  MpiParallel::exit();
-}
 
 template<> void Roe_compute_inviscid_flux<MixtureModel::MixtureFraction>(const Block &block, DZone *zone,
   DParameter *param, int n_var, const Parameter &parameter) {

@@ -160,11 +160,6 @@ acquire_boundary_variable_names(std::vector<std::string> &var_name, const Parame
     var_name.emplace_back("tke");
     var_name.emplace_back("omega");
   }
-  if constexpr (mix_model == MixtureModel::FL) {
-    nv += 2; // Z, Z_prime
-    var_name.emplace_back("MixtureFraction");
-    var_name.emplace_back("MixtureFractionVariance");
-  }
   if constexpr (TurbMethod<turb_method>::hasMut) {
     nv += 1; // mu_t
     var_name.emplace_back("mut");

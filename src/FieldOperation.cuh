@@ -77,18 +77,9 @@ __device__ void compute_cv_from_bv_1_point(DZone *zone, const DParameter *param,
   cv(i, j, k, 3) = rho * bv(i, j, k, 3);
   // It seems we don't need an if here, if there are no other scalars, n_scalar=0; else, n_scalar=n_spec+n_turb
   const auto &sv = zone->sv;
-  if constexpr (mix_model != MixtureModel::FL) {
-    const int n_scalar{param->n_scalar};
-    for (auto l = 0; l < n_scalar; ++l) {
-      cv(i, j, k, 5 + l) = rho * sv(i, j, k, l);
-    }
-  } else {
-    // Flamelet model
-    const int n_spec{param->n_spec};
-    const int n_scalar_transported{param->n_scalar_transported};
-    for (auto l = 0; l < n_scalar_transported; ++l) {
-      cv(i, j, k, 5 + l) = rho * sv(i, j, k, l + n_spec);
-    }
+  const int n_scalar{param->n_scalar};
+  for (auto l = 0; l < n_scalar; ++l) {
+    cv(i, j, k, 5 + l) = rho * sv(i, j, k, l);
   }
 
   compute_total_energy<mix_model>(i, j, k, zone, param);
@@ -202,22 +193,9 @@ __global__ void update_cv_and_bv(DZone *zone, DParameter *param) {
   bv(i, j, k, 3) = cv(i, j, k, 3) * density_inv;
 
   auto &sv = zone->sv;
-  if constexpr (mix_model != MixtureModel::FL) {
-    // For multiple species or RANS methods, there will be scalars to be computed
-    for (int l = 0; l < param->n_scalar; ++l) {
-      sv(i, j, k, l) = cv(i, j, k, 5 + l) * density_inv;
-    }
-  } else {
-    // Flamelet model
-    for (int l = 0; l < param->n_scalar_transported; ++l) {
-      sv(i, j, k, l + param->n_spec) = cv(i, j, k, 5 + l) * density_inv;
-    }
-    real yk_ave[MAX_SPEC_NUMBER];
-    memset(yk_ave, 0, sizeof(real) * param->n_spec);
-    compute_massFraction_from_MixtureFraction(zone, i, j, k, param, yk_ave);
-    for (int l = 0; l < param->n_spec; ++l) {
-      sv(i, j, k, l) = yk_ave[l];
-    }
+  // For multiple species or RANS methods, there will be scalars to be computed
+  for (int l = 0; l < param->n_scalar; ++l) {
+    sv(i, j, k, l) = cv(i, j, k, 5 + l) * density_inv;
   }
   if constexpr (mix_model != MixtureModel::Air) {
     compute_temperature_and_pressure(i, j, k, param, zone, cv(i, j, k, 4));
@@ -263,23 +241,9 @@ __global__ void update_bv(DZone *zone, DParameter *param) {
 
   // Update scalars
   auto &sv = zone->sv;
-  if constexpr (mix_model != MixtureModel::FL) {
-    // For multiple species or RANS methods, there will be scalars to be computed
-    for (int l = 0; l < param->n_scalar; ++l) {
-      sv(i, j, k, l) = density_inv * (density_n * sv(i, j, k, l) + dq(i, j, k, 5 + l) * dt_div_jac);
-    }
-  } else {
-    // Flamelet model
-    const int n_spec{param->n_spec};
-    for (int l = 0; l < param->n_scalar_transported; ++l) {
-      sv(i, j, k, l + n_spec) = density_inv * (density_n * sv(i, j, k, l + n_spec) + dq(i, j, k, 5 + l) * dt_div_jac);
-    }
-    real yk_ave[MAX_SPEC_NUMBER];
-    memset(yk_ave, 0, sizeof(real) * n_spec);
-    compute_massFraction_from_MixtureFraction(zone, i, j, k, param, yk_ave);
-    for (int l = 0; l < n_spec; ++l) {
-      sv(i, j, k, l) = yk_ave[l];
-    }
+  // For multiple species or RANS methods, there will be scalars to be computed
+  for (int l = 0; l < param->n_scalar; ++l) {
+    sv(i, j, k, l) = density_inv * (density_n * sv(i, j, k, l) + dq(i, j, k, 5 + l) * dt_div_jac);
   }
 
   // update temperature and pressure from total energy and species composition
@@ -327,31 +291,9 @@ __global__ void update_bv(DZone *zone, DParameter *param, real dt) {
 
   // Update scalars
   auto &sv = zone->sv;
-  if constexpr (mix_model != MixtureModel::FL) {
-    // For multiple species or RANS methods, there will be scalars to be computed
-    for (int l = 0; l < param->n_scalar; ++l) {
-      sv(i, j, k, l) = density_inv * (density_n * sv(i, j, k, l) + dq(i, j, k, 5 + l) * dt_div_jac);
-    }
-  } else {
-    // Flamelet model
-    const int n_spec{param->n_spec};
-    for (int l = 0; l < param->n_scalar_transported; ++l) {
-      sv(i, j, k, l + n_spec) = density_inv * (density_n * sv(i, j, k, l + n_spec) + dq(i, j, k, 5 + l) * dt_div_jac);
-    }
-    real yk_ave[MAX_SPEC_NUMBER];
-    memset(yk_ave, 0, sizeof(real) * n_spec);
-    compute_massFraction_from_MixtureFraction(zone, i, j, k, param, yk_ave);
-    if (param->n_fl_step > 10000) {
-      for (int l = 0; l < n_spec; ++l) {
-        sv(i, j, k, l) = yk_ave[l];
-      }
-    } else {
-      for (int l = 0; l < n_spec; ++l) {
-        const real yk_mix = param->yk_lib(l, 0, 0, 0) +
-                            sv(i, j, k, param->i_fl) * (param->yk_lib(l, 0, 0, param->n_z) - param->yk_lib(l, 0, 0, 0));
-        sv(i, j, k, l) = yk_mix + param->n_fl_step * (yk_ave[l] - yk_mix) / 10000.0;
-      }
-    }
+  // For multiple species or RANS methods, there will be scalars to be computed
+  for (int l = 0; l < param->n_scalar; ++l) {
+    sv(i, j, k, l) = density_inv * (density_n * sv(i, j, k, l) + dq(i, j, k, 5 + l) * dt_div_jac);
   }
 
   // update temperature and pressure from total energy and species composition

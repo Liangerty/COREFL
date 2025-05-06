@@ -264,7 +264,7 @@ __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
   }
 
   // Limit the mixture fraction values
-  if constexpr (mixture == MixtureModel::FL || mixture == MixtureModel::MixtureFraction) {
+  if constexpr (mixture == MixtureModel::MixtureFraction) {
     // Record the computed values
     real z_var[2];
     const int i_fl{param->i_fl};

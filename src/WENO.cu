@@ -1633,7 +1633,4 @@ template void
 compute_convective_term_weno<MixtureModel::MixtureFraction>(const Block &block, DZone *zone, DParameter *param,
                                                             int n_var, const Parameter &parameter);
 
-template void
-compute_convective_term_weno<MixtureModel::FL>(const Block &block, DZone *zone, DParameter *param, int n_var,
-                                               const Parameter &parameter);
 }

@@ -300,23 +300,11 @@ __global__ void update_cv_and_bv_rk(DZone *zone, DParameter *param, real dt, int
   //V^2
 
   auto &sv = zone->sv;
-  if constexpr (mix_model != MixtureModel::FL) {
-    // For multiple species or RANS methods, there will be scalars to be computed
-    for (int l = 0; l < param->n_scalar; ++l) {
-      sv(i, j, k, l) = cv(i, j, k, 5 + l) * density_inv;
-    }
-  } else {
-    // Flamelet model
-    for (int l = 0; l < param->n_scalar_transported; ++l) {
-      sv(i, j, k, l + param->n_spec) = cv(i, j, k, 5 + l) * density_inv;
-    }
-    real yk_ave[MAX_SPEC_NUMBER];
-    memset(yk_ave, 0, sizeof(real) * param->n_spec);
-    compute_massFraction_from_MixtureFraction(zone, i, j, k, param, yk_ave);
-    for (int l = 0; l < param->n_spec; ++l) {
-      sv(i, j, k, l) = yk_ave[l];
-    }
+  // For multiple species or RANS methods, there will be scalars to be computed
+  for (int l = 0; l < param->n_scalar; ++l) {
+    sv(i, j, k, l) = cv(i, j, k, 5 + l) * density_inv;
   }
+
   if constexpr (mix_model != MixtureModel::Air) {
     compute_temperature_and_pressure(i, j, k, param, zone, cv(i, j, k, 4));
   } else {
