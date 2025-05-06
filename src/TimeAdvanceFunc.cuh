@@ -193,7 +193,7 @@ __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
       bv(i, j, k, 5) = updated_var[4] * mw / (updated_var[0] * R_u);
     }
 
-    compute_cv_from_bv_1_point<mixture, turb_method>(zone, param, i, j, k);
+    compute_cv_from_bv_1_point<mixture>(zone, param, i, j, k);
   }
   __syncthreads();
 }

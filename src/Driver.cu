@@ -9,7 +9,7 @@
 #include "Parallel.h"
 
 namespace cfd {
-template<MixtureModel mix_model, class turb> Driver<mix_model, turb>::Driver(Parameter &parameter, Mesh &mesh_):
+template<MixtureModel mix_model> Driver<mix_model>::Driver(Parameter &parameter, Mesh &mesh_):
   myid(parameter.get_int("myid")), mesh(mesh_), parameter(parameter), spec(parameter), reac(parameter, spec),
   flameletLib(parameter), stat_collector(parameter, mesh, field, spec) {
   // This function initializes the driver, including the mesh, field, species, reactions, flamelet library,
@@ -60,7 +60,7 @@ template<MixtureModel mix_model, class turb> Driver<mix_model, turb>::Driver(Par
   }
 
   // Initialize the basic variables.
-  initialize_basic_variables<mix_model, turb>(parameter, mesh, field, spec);
+  initialize_basic_variables<mix_model>(parameter, mesh, field, spec);
   cudaDeviceSynchronize();
   MpiParallel::barrier();
   err = cudaGetLastError();
@@ -119,8 +119,8 @@ template<MixtureModel mix_model, class turb> Driver<mix_model, turb>::Driver(Par
   }
 }
 
-template<MixtureModel mix_model, class turb>
-void Driver<mix_model, turb>::initialize_computation() {
+template<MixtureModel mix_model>
+void Driver<mix_model>::initialize_computation() {
   dim3 tpb{8, 8, 4};
   if (mesh.dimension == 2) {
     tpb = {16, 16, 1};
@@ -132,13 +132,8 @@ void Driver<mix_model, turb>::initialize_computation() {
     printf("\n******************************Prepare to compute********************************\n");
 
   // If we use k-omega SST model, we need the wall distance, thus we need to compute or read it here.
-  if constexpr (TurbMethod<turb>::needWallDistance == true) {
-    // SST method
-    acquire_wall_distance<mix_model, turb>(*this);
-  } else {
-    if (parameter.get_int("if_compute_wall_distance") == 1) {
-      acquire_wall_distance<mix_model, turb>(*this);
-    }
+  if (parameter.get_int("if_compute_wall_distance") == 1) {
+      acquire_wall_distance<mix_model>(*this);
   }
 
   if (mesh.dimension == 2) {
@@ -151,7 +146,7 @@ void Driver<mix_model, turb>::initialize_computation() {
 
   // First, apply boundary conditions to all boundaries; all ghost grids will have reasonable values.
   for (int b = 0; b < mesh.n_block; ++b) {
-    bound_cond.apply_boundary_conditions<mix_model, turb>(mesh[b], field[b], param, 0);
+    bound_cond.apply_boundary_conditions<mix_model>(mesh[b], field[b], param, 0);
   }
   MpiParallel::barrier();
   if (myid == 0)
@@ -163,27 +158,11 @@ void Driver<mix_model, turb>::initialize_computation() {
     MpiParallel::exit();
   }
 
-  // Second, if RAS, initialize the turbulence quantities
-  if constexpr (TurbMethod<turb>::hasMut == true) {
-    for (auto i = 0; i < mesh.n_block; ++i) {
-      const int mx{mesh[i].mx}, my{mesh[i].my}, mz{mesh[i].mz};
-      dim3 bpg{(mx + ng_1) / tpb.x + 1, (my + ng_1) / tpb.y + 1, (mz + ng_1) / tpb.z + 1};
-      initialize_mut<mix_model, turb><<<bpg, tpb>>>(field[i].d_ptr, param);
-    }
-  }
-  cudaDeviceSynchronize();
-  MpiParallel::barrier();
-  err = cudaGetLastError();
-  if (err != cudaSuccess) {
-    printf("Error in proc %d after initialize_mut: %s\n", myid, cudaGetErrorString(err));
-    MpiParallel::exit();
-  }
-
   // Third, communicate values between processes
   MpiParallel::barrier();
   if (myid == 0)
     printf("\tStart transferring data\n");
-  data_communication<mix_model, turb>(mesh, field, parameter, 0, param);
+  data_communication<mix_model>(mesh, field, parameter, 0, param);
   MpiParallel::barrier();
   if (myid == 0)
     printf("\tFinish transferring data\n");
@@ -460,15 +439,7 @@ __global__ void transfer_counter_to_device(DParameter *param, int count_rey, int
 
 // Instantiate all possible drivers
 template
-struct Driver<MixtureModel::Air, Laminar>;
+struct Driver<MixtureModel::Air>;
 template
-struct Driver<MixtureModel::Air, SST<TurbSimLevel::RANS>>;
-template
-struct Driver<MixtureModel::Air, SST<TurbSimLevel::DES>>;
-template
-struct Driver<MixtureModel::Mixture, Laminar>;
-template
-struct Driver<MixtureModel::Mixture, SST<TurbSimLevel::RANS>>;
-template
-struct Driver<MixtureModel::Mixture, SST<TurbSimLevel::DES>>;
+struct Driver<MixtureModel::Mixture>;
 } // cfd

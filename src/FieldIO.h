@@ -25,7 +25,7 @@ write_static_array(MPI_Offset offset, const Field &field, MPI_File &fp, MPI_Data
 MPI_Offset
 write_dynamic_array(MPI_Offset offset, const Field &field, MPI_File &fp, MPI_Datatype ty, long long int mem_sz);
 
-template<MixtureModel mix_model, class turb, OutputTimeChoice output_time_choice = OutputTimeChoice::Instance>
+template<MixtureModel mix_model, OutputTimeChoice output_time_choice = OutputTimeChoice::Instance>
 class FieldIO {
   const int myid{0};
   const Mesh &mesh;
@@ -55,8 +55,8 @@ private:
   int32_t acquire_variable_names(std::vector<std::string> &var_name) const;
 };
 
-template<MixtureModel mix_model, class turb, OutputTimeChoice output_time_choice> FieldIO<
-  mix_model, turb, output_time_choice>::FieldIO(int _myid, const Mesh &_mesh, std::vector<Field> &_field,
+template<MixtureModel mix_model, OutputTimeChoice output_time_choice> FieldIO<
+  mix_model, output_time_choice>::FieldIO(int _myid, const Mesh &_mesh, std::vector<Field> &_field,
   const Parameter &_parameter, const Species &spec, int ngg_out):
   myid{_myid}, mesh{_mesh}, field(_field), parameter{_parameter}, species{spec}, ngg_output{ngg_out} {
   const std::filesystem::path out_dir("output");
@@ -68,8 +68,8 @@ template<MixtureModel mix_model, class turb, OutputTimeChoice output_time_choice
   write_common_data_section();
 }
 
-template<MixtureModel mix_model, class turb, OutputTimeChoice output_time_choice>
-void FieldIO<mix_model, turb, output_time_choice>::write_header() {
+template<MixtureModel mix_model, OutputTimeChoice output_time_choice>
+void FieldIO<mix_model, output_time_choice>::write_header() {
   const std::filesystem::path out_dir("output");
   MPI_File fp;
   // Question: Should I use MPI_MODE_CREATE only here?
@@ -203,8 +203,8 @@ void FieldIO<mix_model, turb, output_time_choice>::write_header() {
   MPI_File_close(&fp);
 }
 
-template<MixtureModel mix_model, class turb, OutputTimeChoice output_time_choice>
-void FieldIO<mix_model, turb, output_time_choice>::compute_offset_header() {
+template<MixtureModel mix_model, OutputTimeChoice output_time_choice>
+void FieldIO<mix_model, output_time_choice>::compute_offset_header() {
   MPI_Offset new_offset{0};
   int i_blk{0};
   for (int p = 0; p < myid; ++p) {
@@ -222,8 +222,8 @@ void FieldIO<mix_model, turb, output_time_choice>::compute_offset_header() {
   offset_header += new_offset;
 }
 
-template<MixtureModel mix_model, class turb, OutputTimeChoice output_time_choice>
-void FieldIO<mix_model, turb, output_time_choice>::write_common_data_section() {
+template<MixtureModel mix_model, OutputTimeChoice output_time_choice>
+void FieldIO<mix_model, output_time_choice>::write_common_data_section() {
   const std::filesystem::path out_dir("output");
   MPI_File fp;
   MPI_File_open(MPI_COMM_WORLD, (out_dir.string() + "/flowfield.plt").c_str(), MPI_MODE_WRONLY,
@@ -450,9 +450,9 @@ void FieldIO<mix_model, turb, output_time_choice>::write_common_data_section() {
   MPI_File_close(&fp);
 }
 
-template<MixtureModel mix_model, class turb, OutputTimeChoice output_time_choice>
+template<MixtureModel mix_model, OutputTimeChoice output_time_choice>
 int32_t
-FieldIO<mix_model, turb, output_time_choice>::acquire_variable_names(std::vector<std::string> &var_name) const {
+FieldIO<mix_model, output_time_choice>::acquire_variable_names(std::vector<std::string> &var_name) const {
   int32_t nv = 3 + 7; // x,y,z + rho,u,v,w,p,T,Mach
   if constexpr (mix_model != MixtureModel::Air) {
     nv += parameter.get_int("n_spec"); // Y_k
@@ -482,8 +482,8 @@ FieldIO<mix_model, turb, output_time_choice>::acquire_variable_names(std::vector
   return nv;
 }
 
-template<MixtureModel mix_model, class turb, OutputTimeChoice output_time_choice>
-void FieldIO<mix_model, turb, output_time_choice>::print_field(int step, real time) const {
+template<MixtureModel mix_model, OutputTimeChoice output_time_choice>
+void FieldIO<mix_model, output_time_choice>::print_field(int step, real time) const {
   if (myid == 0) {
     std::ofstream file("output/message/step.txt");
     file << step;
@@ -641,8 +641,8 @@ void FieldIO<mix_model, turb, output_time_choice>::print_field(int step, real ti
   MPI_File_close(&fp);
 }
 
-template<MixtureModel mix_model, class turb>
-class FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries> {
+template<MixtureModel mix_model>
+class FieldIO<mix_model, OutputTimeChoice::TimeSeries> {
   const int myid{0};
   const Mesh &mesh;
   std::vector<Field> &field;
@@ -674,8 +674,8 @@ private:
   int32_t acquire_variable_names();
 };
 
-template<MixtureModel mix_model, class turb>
-int32_t FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries>::acquire_variable_names() {
+template<MixtureModel mix_model>
+int32_t FieldIO<mix_model, OutputTimeChoice::TimeSeries>::acquire_variable_names() {
   int32_t nv = 3 + 7; // x,y,z + rho,u,v,w,p,T,Mach
   if constexpr (mix_model != MixtureModel::Air) {
     nv += parameter.get_int("n_spec"); // Y_k
@@ -705,7 +705,7 @@ int32_t FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries>::acquire_variable
   return nv;
 }
 
-template<MixtureModel mix_model, class turb> FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries>::FieldIO(int _myid,
+template<MixtureModel mix_model> FieldIO<mix_model, OutputTimeChoice::TimeSeries>::FieldIO(int _myid,
   const Mesh &_mesh, std::vector<Field> &_field, const Parameter &_parameter, const Species &spec, int ngg_out):
   myid{_myid}, mesh{_mesh}, field(_field), parameter{_parameter}, species{spec}, ngg_output{ngg_out} {
   if (parameter.get_int("output_time_series") == 0) {
@@ -720,8 +720,8 @@ template<MixtureModel mix_model, class turb> FieldIO<mix_model, turb, OutputTime
   write_common_data_section();
 }
 
-template<MixtureModel mix_model, class turb>
-void FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries>::write_header() {
+template<MixtureModel mix_model>
+void FieldIO<mix_model, OutputTimeChoice::TimeSeries>::write_header() {
   const std::filesystem::path out_dir("output/time_series");
   MPI_File fp;
   // Question: Should I use MPI_MODE_CREATE only here?
@@ -862,8 +862,8 @@ void FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries>::write_header() {
   MPI_File_close(&fp);
 }
 
-template<MixtureModel mix_model, class turb>
-void FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries>::compute_offset_header() {
+template<MixtureModel mix_model>
+void FieldIO<mix_model, OutputTimeChoice::TimeSeries>::compute_offset_header() {
   MPI_Offset new_offset{0};
   int i_blk{0};
   for (int p = 0; p < myid; ++p) {
@@ -881,8 +881,8 @@ void FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries>::compute_offset_head
   offset_header += new_offset;
 }
 
-template<MixtureModel mix_model, class turb>
-void FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries>::write_common_data_section() {
+template<MixtureModel mix_model>
+void FieldIO<mix_model, OutputTimeChoice::TimeSeries>::write_common_data_section() {
   const std::filesystem::path out_dir("output/time_series");
   MPI_File fp;
   MPI_File_open(MPI_COMM_WORLD, (out_dir.string() + "/flowfield_0.plt").c_str(), MPI_MODE_WRONLY,
@@ -1105,8 +1105,8 @@ void FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries>::write_common_data_s
   MPI_File_close(&fp);
 }
 
-template<MixtureModel mix_model, class turb>
-void FieldIO<mix_model, turb, OutputTimeChoice::TimeSeries>::print_field(int step, real time) const {
+template<MixtureModel mix_model>
+void FieldIO<mix_model, OutputTimeChoice::TimeSeries>::print_field(int step, real time) const {
   // if (step % parameter.get_int("output_file") != 0) {
   //   // The data has not been updated.
   //   // Copy data from GPU to CPU

@@ -12,22 +12,22 @@
 #include <fstream>
 
 namespace cfd {
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 void initialize_basic_variables(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field, Species &species);
 
 void initialize_from_start(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field, Species &species);
 
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 void read_flowfield(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field, Species &species);
 
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 void read_flowfield_with_same_block(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field, Species &species,
                                     const std::vector<int> &blk_order, MPI_Offset offset_data,
                                     const std::vector<int> &mx, const std::vector<int> &my, const std::vector<int> &mz,
                                     int n_var_old, const std::vector<int> &index_order, MPI_File &fp,
                                     std::array<int, 2> &old_data_info);
 
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 void read_flowfield_by_0Order_interpolation(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field,
                                             Species &species, const std::vector<int> &blk_order, MPI_Offset offset_data,
                                             const std::vector<int> &mx, const std::vector<int> &my,
@@ -35,7 +35,7 @@ void read_flowfield_by_0Order_interpolation(Parameter &parameter, const Mesh &me
                                             const std::vector<int> &index_order, MPI_File &fp,
                                             std::array<int, 2> &old_data_info);
 
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 void read_2D_for_3D(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field, Species &species);
 
 void initialize_mixing_layer(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field, const Species &species);
@@ -73,7 +73,7 @@ void initialize_mixture_fraction_from_species(Parameter &parameter, const Mesh &
 void expand_2D_to_3D(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field);
 
 // Implementations
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 void initialize_basic_variables(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field, Species &species) {
   const int init_method = parameter.get_int("initial");
   // No matter which method is used to initialize the flowfield,
@@ -88,10 +88,10 @@ void initialize_basic_variables(Parameter &parameter, const Mesh &mesh, std::vec
       initialize_from_start(parameter, mesh, field, species);
       break;
     case 1:
-      read_flowfield<mix_model, turb>(parameter, mesh, field, species);
+      read_flowfield<mix_model>(parameter, mesh, field, species);
       break;
     case 2: // Read a 2D profile, all span-wise layers are initialized with the same profile.
-      read_2D_for_3D<mix_model, turb>(parameter, mesh, field, species);
+      read_2D_for_3D<mix_model>(parameter, mesh, field, species);
       break;
     default:
       printf("\tThe initialization method is unknown, use freestream value to initialize by default.\n");
@@ -99,7 +99,7 @@ void initialize_basic_variables(Parameter &parameter, const Mesh &mesh, std::vec
   }
 }
 
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 void read_flowfield(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field, Species &species) {
   const std::filesystem::path out_dir("output");
   if (!exists(out_dir)) {
@@ -126,7 +126,7 @@ void read_flowfield(Parameter &parameter, const Mesh &mesh, std::vector<Field> &
   // That is, if the first value is not 0, we have species info.
   // The 2nd one tells if turbulent var exists, if 0 (compute from laminar), 1(From SA), 2(From SST)
   std::array old_data_info{0, 0};
-  auto index_order = cfd::identify_variable_labels<mix_model, turb>(parameter, var_name, species,
+  auto index_order = cfd::identify_variable_labels<mix_model>(parameter, var_name, species,
                                                                     old_data_info);
 
   auto index_or = parameter.identify_variable_labels(var_name, species);
@@ -209,7 +209,7 @@ void read_flowfield(Parameter &parameter, const Mesh &mesh, std::vector<Field> &
 
     if (same_block) {
       // Read the data in the order of the current mesh
-      read_flowfield_with_same_block<mix_model, turb>(parameter, mesh, field, species, blk_order, offset,
+      read_flowfield_with_same_block<mix_model>(parameter, mesh, field, species, blk_order, offset,
                                                       mx, my, mz, n_var_old, index_order, fp, old_data_info);
     } else {
       // The mesh is different, we need to interpolate the data to the current mesh
@@ -329,11 +329,6 @@ void read_flowfield(Parameter &parameter, const Mesh &mesh, std::vector<Field> &
         old_data_info[0] = 1;
       }
     }
-    if constexpr (TurbMethod<turb>::type == TurbSimLevel::RANS) {
-      if (old_data_info[1] == 0) {
-        initialize_turb_from_inflow(parameter, mesh, field, species);
-      }
-    }
 
     for (auto &f: field) {
       cudaMemcpy(f.h_ptr->bv.data(), f.bv.data(), f.h_ptr->bv.size() * sizeof(real) * 6, cudaMemcpyHostToDevice);
@@ -353,7 +348,7 @@ void read_flowfield(Parameter &parameter, const Mesh &mesh, std::vector<Field> &
   }
 }
 
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 std::vector<int>
 identify_variable_labels(Parameter &parameter, std::vector<std::string> &var_name, Species &species,
                          std::array<int, 2> &old_data_info) {
@@ -397,25 +392,6 @@ identify_variable_labels(Parameter &parameter, std::vector<std::string> &var_nam
           old_data_info[0] = 2;
         }
       }
-      if constexpr (TurbMethod<turb>::type == TurbSimLevel::RANS || TurbMethod<turb>::type == TurbSimLevel::DES) {
-        // We expect to find some RANS variables. If not found, old_data_info[1] will remain 0.
-        if (n == "K" || n == "TKE") { // turbulent kinetic energy
-          if (n_turb == 2) {
-            l = 6 + n_spec;
-          }
-          old_data_info[1] = 2;    // SST model in previous simulation
-        } else if (n == "OMEGA") { // specific dissipation rate
-          if (n_turb == 2) {
-            l = 6 + n_spec + 1;
-          }
-          old_data_info[1] = 2;     // SST model in previous simulation
-        } else if (n == "NUT SA") { // the variable from SA, not named yet!!!
-          if (n_turb == 1) {
-            l = 6 + n_spec;
-          }
-          old_data_info[1] = 1; // SA model in previous simulation
-        }
-      }
       if (const int n_ps = parameter.get_int("n_ps"); n_ps > 0) {
         const int i_ps = parameter.get_int("i_ps");
         for (int i = 0; i < n_ps; ++i) {
@@ -431,7 +407,7 @@ identify_variable_labels(Parameter &parameter, std::vector<std::string> &var_nam
   return labels;
 }
 
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 void read_2D_for_3D(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field, Species &species) {
   const std::filesystem::path out_dir(parameter.get_string("result_file"));
   if (!exists(out_dir)) {
@@ -458,7 +434,7 @@ void read_2D_for_3D(Parameter &parameter, const Mesh &mesh, std::vector<Field> &
   // That is, if the first value is not 0, we have species info.
   // The 2nd one tells if turbulent var exists, if 0 (compute from laminar), 1(From SA), 2(From SST)
   std::array old_data_info{0, 0};
-  auto index_order = cfd::identify_variable_labels<mix_model, turb>(parameter, var_name, species,
+  auto index_order = cfd::identify_variable_labels<mix_model>(parameter, var_name, species,
                                                                     old_data_info);
   const int n_spec{species.n_spec};
   const int n_turb{parameter.get_int("n_turb")};
@@ -587,18 +563,6 @@ void read_2D_for_3D(Parameter &parameter, const Mesh &mesh, std::vector<Field> &
       old_data_info[0] = 1;
     }
   }
-  if constexpr (TurbMethod<turb>::type == TurbSimLevel::RANS) {
-    if (old_data_info[1] == 0) {
-      initialize_turb_from_inflow(parameter, mesh, field, species);
-    }
-  }
-  if constexpr (TurbMethod<turb>::type == TurbSimLevel::RANS || TurbMethod<turb>::type == TurbSimLevel::DES ||
-                TurbMethod<turb>::type == TurbSimLevel::LES) {
-    if (n_spec > 0 && parameter.get_int("reaction") == 2 && old_data_info[0] == 1) {
-      // From species field to mixture fraction field
-      initialize_mixture_fraction_from_species(parameter, mesh, field, species);
-    }
-  }
 
   // Next, we expand the 2D profile to 3D.
   expand_2D_to_3D(parameter, mesh, field);
@@ -621,7 +585,7 @@ void read_2D_for_3D(Parameter &parameter, const Mesh &mesh, std::vector<Field> &
   }
 }
 
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 void
 read_flowfield_with_same_block(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field, Species &species,
                                const std::vector<int> &blk_order, MPI_Offset offset_data,
@@ -738,11 +702,6 @@ read_flowfield_with_same_block(Parameter &parameter, const Mesh &mesh, std::vect
       old_data_info[0] = 1;
     }
   }
-  if constexpr (TurbMethod<turb>::type == TurbSimLevel::RANS) {
-    if (old_data_info[1] == 0) {
-      initialize_turb_from_inflow(parameter, mesh, field, species);
-    }
-  }
 
   for (auto &f: field) {
     cudaMemcpy(f.h_ptr->bv.data(), f.bv.data(), f.h_ptr->bv.size() * sizeof(real) * 6, cudaMemcpyHostToDevice);
@@ -762,7 +721,7 @@ read_flowfield_with_same_block(Parameter &parameter, const Mesh &mesh, std::vect
 }
 
 
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 void read_flowfield_by_0Order_interpolation(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field,
                                             Species &species, const std::vector<int> &blk_order, MPI_Offset offset_data,
                                             const std::vector<int> &mx, const std::vector<int> &my,

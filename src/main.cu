@@ -27,13 +27,13 @@ int main(int argc, char *argv[]) {
   if (species == 1) {
     // Multiple species
     // Laminar & DNS
-    cfd::Driver<MixtureModel::Mixture, cfd::Laminar> driver(parameter, mesh);
+    cfd::Driver<MixtureModel::Mixture> driver(parameter, mesh);
       driver.initialize_computation();
       simulate(driver);
   } else {
     // Air simulation
     // Laminar and air
-    cfd::Driver<MixtureModel::Air, cfd::Laminar> driver(parameter, mesh);
+    cfd::Driver<MixtureModel::Air> driver(parameter, mesh);
     driver.initialize_computation();
     simulate(driver);
   }

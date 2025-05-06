@@ -7,7 +7,7 @@
 #include "gxl_lib/Array.hpp"
 
 namespace cfd {
-template<MixtureModel mix_model, class turb_method, OutputTimeChoice output_time_choice = OutputTimeChoice::Instance>
+template<MixtureModel mix_model, OutputTimeChoice output_time_choice = OutputTimeChoice::Instance>
 struct BoundaryIO {
   const Parameter &parameter;
   const Mesh &mesh;
@@ -37,8 +37,8 @@ private:
   void write_header(const std::vector<Field> &_field);
 };
 
-template<MixtureModel mix_model, class turb_method, OutputTimeChoice output_time_choice>
-BoundaryIO<mix_model, turb_method, output_time_choice>::BoundaryIO(const Parameter &parameter_, const Mesh &mesh_,
+template<MixtureModel mix_model, OutputTimeChoice output_time_choice>
+BoundaryIO<mix_model, output_time_choice>::BoundaryIO(const Parameter &parameter_, const Mesh &mesh_,
                                                                    const Species &species_, std::vector<Field> &_field)
   : parameter(parameter_),
   mesh(mesh_),
@@ -167,9 +167,9 @@ acquire_boundary_variable_names(std::vector<std::string> &var_name, const Parame
   return nv;
 }
 
-template<MixtureModel mix_model, class turb_method, OutputTimeChoice output_time_choice>
+template<MixtureModel mix_model, OutputTimeChoice output_time_choice>
 void
-BoundaryIO<mix_model, turb_method, output_time_choice>::write_header(const std::vector<Field> &_field) {
+BoundaryIO<mix_model, output_time_choice>::write_header(const std::vector<Field> &_field) {
   const std::filesystem::path out_dir("output");
   const int n_proc{parameter.get_int("n_proc")};
   for (int l = 0; l < labels_to_output.size(); ++l) {
@@ -188,9 +188,9 @@ BoundaryIO<mix_model, turb_method, output_time_choice>::write_header(const std::
     n_var[l] = 3 + 6;
     std::vector<std::string> var_name{"x", "y", "z", "density", "u", "v", "w", "pressure", "temperature"};
     if (type[l] == 2) {
-      n_var[l] = acquire_boundary_variable_names<mix_model, turb_method, 2>(var_name, parameter, species);
+      n_var[l] = acquire_boundary_variable_names<mix_model, 2>(var_name, parameter, species);
     } else {
-      n_var[l] = acquire_boundary_variable_names<mix_model, turb_method, 1>(var_name, parameter, species);
+      n_var[l] = acquire_boundary_variable_names<mix_model, 1>(var_name, parameter, species);
     }
     if (myid == 0) {
       // i. Magic number, Version number
@@ -512,8 +512,8 @@ BoundaryIO<mix_model, turb_method, output_time_choice>::write_header(const std::
   }
 }
 
-template<MixtureModel mix_model, class turb_method, OutputTimeChoice output_time_choice>
-void BoundaryIO<mix_model, turb_method, output_time_choice>::print_boundary() {
+template<MixtureModel mix_model, OutputTimeChoice output_time_choice>
+void BoundaryIO<mix_model, output_time_choice>::print_boundary() {
   const std::filesystem::path out_dir("output");
   for (int l = 0; l < labels_to_output.size(); ++l) {
     std::string file_name{out_dir.string() + "/" + name_of_boundary[l] + ".plt"};

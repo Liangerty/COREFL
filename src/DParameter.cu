@@ -1,6 +1,5 @@
 #include "DParameter.cuh"
 #include "ChemData.h"
-#include "FlameletLib.cuh"
 #include <filesystem>
 
 cfd::DParameter::DParameter(Parameter &parameter, const Species &species, Reaction *reaction,
@@ -19,7 +18,7 @@ cfd::DParameter::DParameter(Parameter &parameter, const Species &species, Reacti
   chemSrcMethod{parameter.get_int("chemSrcMethod")},
   Pr(parameter.get_real("prandtl_number")), cfl(parameter.get_real("cfl")),
   Prt(parameter.get_real("turbulent_prandtl_number")),
-  Sct(parameter.get_real("turbulent_schmidt_number")), c_chi{parameter.get_real("c_chi")},
+  Sct(parameter.get_real("turbulent_schmidt_number")),
   rho_ref{parameter.get_real("rho_inf")},
   a_ref2{parameter.get_real("speed_of_sound") * parameter.get_real("speed_of_sound")},
   v_ref{parameter.get_real("v_inf")}, T_ref{parameter.get_real("T_inf")}, mach_ref{parameter.get_real("M_inf")},
@@ -156,34 +155,6 @@ cfd::DParameter::DParameter(Parameter &parameter, const Species &species, Reacti
     cudaMemcpy(troe_t1, reaction->troe_t1.data(), mem_sz, cudaMemcpyHostToDevice);
     cudaMalloc(&troe_t2, mem_sz);
     cudaMemcpy(troe_t2, reaction->troe_t2.data(), mem_sz, cudaMemcpyHostToDevice);
-  }
-
-  if (flamelet_lib->n_z != 0) {
-    n_z = flamelet_lib->n_z;
-    n_zPrime = flamelet_lib->n_zPrime;
-    n_chi = flamelet_lib->n_chi;
-
-    mem_sz = (n_z + 1) * sizeof(real);
-    cudaMalloc(&mix_frac, mem_sz);
-    cudaMemcpy(mix_frac, flamelet_lib->z.data(), mem_sz, cudaMemcpyHostToDevice);
-    zPrime.init_with_size(n_zPrime + 1, n_z + 1);
-    cudaMemcpy(zPrime.data(), flamelet_lib->zPrime.data(), zPrime.size() * sizeof(real), cudaMemcpyHostToDevice);
-    chi_min.init_with_size(n_zPrime + 1, n_z + 1);
-    cudaMemcpy(chi_min.data(), flamelet_lib->chi_min.data(), chi_min.size() * sizeof(real), cudaMemcpyHostToDevice);
-    chi_max.init_with_size(n_zPrime + 1, n_z + 1);
-    cudaMemcpy(chi_max.data(), flamelet_lib->chi_max.data(), chi_max.size() * sizeof(real), cudaMemcpyHostToDevice);
-    chi_min_j.init_with_size(n_zPrime + 1, n_z + 1);
-    cudaMemcpy(chi_min_j.data(), flamelet_lib->chi_min_j.data(), chi_min_j.size() * sizeof(int),
-               cudaMemcpyHostToDevice);
-    chi_max_j.init_with_size(n_zPrime + 1, n_z + 1);
-    cudaMemcpy(chi_max_j.data(), flamelet_lib->chi_max_j.data(), chi_max_j.size() * sizeof(int),
-               cudaMemcpyHostToDevice);
-
-    chi_ave.allocate_memory(n_chi, n_zPrime + 1, n_z + 1, 0);
-    cudaMemcpy(chi_ave.data(), flamelet_lib->chi_ave.data(), sizeof(real) * chi_ave.size(), cudaMemcpyHostToDevice);
-    yk_lib.allocate_memory(n_spec, n_chi, n_zPrime + 1, n_z + 1, 0);
-    cudaMemcpy(yk_lib.data(), flamelet_lib->yk.data(), sizeof(real) * yk_lib.size() * (n_z + 1),
-               cudaMemcpyHostToDevice);
   }
 
   if (parameter.get_bool("if_collect_statistics")) {

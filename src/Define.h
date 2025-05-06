@@ -15,14 +15,6 @@ using uint = unsigned int;
 // When the therm.dat has multiple temperature ranges, we define it as HighTempMultiPart.
 #define Combustion2Part
 
-enum class TurbulenceMethod{
-  Laminar,
-  RANS,
-  LES,
-//  ILES,
-//  DNS
-};
-
 enum class MixtureModel{
   Air,
   Mixture,  // Species mixing

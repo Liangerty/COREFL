@@ -89,16 +89,6 @@ struct DParameter {
   ggxl::MatrixDyn<real> third_body_coeff;
   real *troe_alpha = nullptr, *troe_t3 = nullptr, *troe_t1 = nullptr, *troe_t2 = nullptr;
 
-  // Flamelet library info
-  int n_z = 0, n_zPrime = 0, n_chi = 0;
-  int n_fl_step = 0;
-  real *mix_frac = nullptr;
-  ggxl::MatrixDyn<real> zPrime, chi_min, chi_max;
-  ggxl::MatrixDyn<int> chi_min_j, chi_max_j;
-  ggxl::Array3D<real> chi_ave;
-  ggxl::VectorField3D<real> yk_lib;
-  real c_chi{1.0};
-
   // Reference value info, currently used by weno, only rho_ref and a_ref2 are used.
   real rho_ref = 1.0;
   real a_ref2 = 1.0;

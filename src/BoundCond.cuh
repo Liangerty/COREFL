@@ -6,7 +6,6 @@
 #include "Field.h"
 #include "DParameter.cuh"
 #include "FieldOperation.cuh"
-#include "SST.cuh"
 #include "gxl_lib/Array.cuh"
 #include "gxl_lib/MyAlgorithm.h"
 

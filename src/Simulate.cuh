@@ -9,13 +9,13 @@
 
 namespace cfd {
 
-template<MixtureModel mix_model, class turb>
-void simulate(Driver<mix_model, turb> &driver) {
+template<MixtureModel mix_model>
+void simulate(Driver<mix_model> &driver) {
   auto &parameter{driver.parameter};
   if (const auto steady{parameter.get_bool("steady")}) {
     // The methods which use only bv do not need to save cv at all, which is the case in steady simulations.
     // In those methods, such as Roe, AUSM..., we do not store the cv variables.
-    steady_simulation<mix_model, turb>(driver);
+    steady_simulation<mix_model>(driver);
   } else {
     if (parameter.get_bool("steady_before_transient")) {
       if (parameter.get_int("initial") == 0) {
@@ -27,7 +27,7 @@ void simulate(Driver<mix_model, turb> &driver) {
           change_cfl = true;
           modify_cfl<<<1, 1>>>(driver.param, cfl_steady);
         }
-        steady_simulation<mix_model, turb>(driver);
+        steady_simulation<mix_model>(driver);
         if (change_cfl) {
           modify_cfl<<<1, 1>>>(driver.param, cfl_transient);
         }
@@ -77,11 +77,11 @@ void simulate(Driver<mix_model, turb> &driver) {
 
     switch (const auto temporal_tag{parameter.get_int("temporal_scheme")}) {
       case 2:
-        dual_time_stepping<mix_model, turb>(driver);
+        dual_time_stepping<mix_model>(driver);
         break;
       case 3:
       default:
-        RK3<mix_model, turb>(driver);
+        RK3<mix_model>(driver);
         break;
     }
   }

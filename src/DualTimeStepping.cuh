@@ -6,7 +6,6 @@
 #include "TimeAdvanceFunc.cuh"
 #include "IOManager.h"
 #include "Monitor.cuh"
-#include "SourceTerm.cuh"
 #include "SchemeSelector.cuh"
 #include "ImplicitTreatmentHPP.cuh"
 #include "DataCommunication.cuh"
@@ -29,8 +28,8 @@ __global__ void compute_square_of_dbv_wrt_last_inner_iter(DZone *zone);
 
 __global__ void store_last_iter(DZone *zone);
 
-template<MixtureModel mix_model, class turb>
-void dual_time_stepping(Driver<mix_model, turb> &driver) {
+template<MixtureModel mix_model>
+void dual_time_stepping(Driver<mix_model> &driver) {
   auto &parameter{driver.parameter};
   const real dt = parameter.get_real("dt");
   const real diag_factor = 1.5 / dt;
@@ -63,7 +62,7 @@ void dual_time_stepping(Driver<mix_model, turb> &driver) {
     // we need the conservative variables.
     const auto mx{mesh[b].mx}, my{mesh[b].my}, mz{mesh[b].mz};
     dim3 BPG{(mx + ng_1) / tpb.x + 1, (my + ng_1) / tpb.y + 1, (mz + ng_1) / tpb.z + 1};
-    compute_cv_from_bv<mix_model, turb><<<BPG, tpb>>>(field[b].d_ptr, param);
+    compute_cv_from_bv<mix_model><<<BPG, tpb>>>(field[b].d_ptr, param);
 
     // Initialize qn1. This should be a condition if we read from previous or initialize with the current cv.
     // We currently initialize with the cv.
@@ -76,8 +75,8 @@ void dual_time_stepping(Driver<mix_model, turb> &driver) {
     MpiParallel::exit();
   }
 
-  IOManager<mix_model, turb> ioManager(driver.myid, mesh, field, parameter, driver.spec, 0);
-  TimeSeriesIOManager<mix_model, turb> timeSeriesIOManager(driver.myid, mesh, field, parameter, driver.spec, 0);
+  IOManager<mix_model> ioManager(driver.myid, mesh, field, parameter, driver.spec, 0);
+  TimeSeriesIOManager<mix_model> timeSeriesIOManager(driver.myid, mesh, field, parameter, driver.spec, 0);
   const int output_time_series = parameter.get_int("output_time_series");
 
   Monitor monitor(parameter, driver.spec, mesh);
@@ -142,32 +141,32 @@ void dual_time_stepping(Driver<mix_model, turb> &driver) {
 
         // Second, for each block, compute the residual dq
         // First, compute the source term, because properties such as mut are updated here.
-        compute_source<mix_model, turb><<<bpg[b], tpb>>>(field[b].d_ptr, param);
+        compute_source<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param);
         compute_inviscid_flux<mix_model>(mesh[b], field[b].d_ptr, param, n_var, parameter);
-        compute_viscous_flux<mix_model, turb>(mesh[b], field[b].d_ptr, param, parameter);
+        compute_viscous_flux<mix_model>(mesh[b], field[b].d_ptr, param, parameter);
 
         // compute the local time step
-        local_time_step<mix_model, turb><<<bpg[b], tpb>>>(field[b].d_ptr, param);
+        local_time_step<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param);
 
         // Implicit treat
-        dual_time_stepping_implicit_treat<mix_model, turb>(mesh[b], param, field[b].d_ptr, field[b].h_ptr, parameter,
+        dual_time_stepping_implicit_treat<mix_model>(mesh[b], param, field[b].d_ptr, field[b].h_ptr, parameter,
                                                            driver.bound_cond, diag_factor);
 
         // update basic and conservative variables
-        update_cv_and_bv<mix_model, turb><<<bpg[b], tpb>>>(field[b].d_ptr, param);
+        update_cv_and_bv<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param);
 
         if (parameter.get_bool("limit_flow"))
-          limit_flow<mix_model, turb><<<bpg[b], tpb>>>(field[b].d_ptr, param);
+          limit_flow<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param);
 
         // Apply boundary conditions
         // Attention: "driver" is a template class, when a template class calls a member function of another template,
         // the compiler will not treat the called function as a template function,
         // so we need to explicitly specify the "template" keyword here.
         // If we call this function in the "driver" member function, we can omit the "template" keyword, as shown in Driver.cu, line 88.
-        driver.bound_cond.template apply_boundary_conditions<mix_model, turb>(mesh[b], field[b], param, 0);
+        driver.bound_cond.template apply_boundary_conditions<mix_model>(mesh[b], field[b], param, 0);
       }
       // Third, transfer data between and within processes
-      data_communication<mix_model, turb>(mesh, field, parameter, step, param);
+      data_communication<mix_model>(mesh, field, parameter, step, param);
 
       if (mesh.dimension == 2) {
         for (auto b = 0; b < n_block; ++b) {
@@ -220,7 +219,7 @@ void dual_time_stepping(Driver<mix_model, turb> &driver) {
       monitor.output_block_monitors(parameter, field, physical_time);
     }
     if (if_collect_statistics && step > collect_statistics_iter_start) {
-      //      stat_collector.template collect_data<mix_model, turb>(param);
+      //      stat_collector.template collect_data<mix_model>(param);
       stat_collector.collect_data(param);
     }
     if (step % output_file == 0 || finished) {
@@ -255,7 +254,7 @@ void dual_time_stepping(Driver<mix_model, turb> &driver) {
   delete[] bpg;
 }
 
-template<MixtureModel mixture_model, class turb_method>
+template<MixtureModel mixture_model>
 void dual_time_stepping_implicit_treat(const Block &block, DParameter *param, DZone *d_ptr, DZone *h_ptr,
   Parameter &parameter, DBoundCond &bound_cond, real diag_factor) {
   const int extent[3]{block.mx, block.my, block.mz};
@@ -267,6 +266,6 @@ void dual_time_stepping_implicit_treat(const Block &block, DParameter *param, DZ
   const dim3 bpg{(extent[0] - 1) / tpb.x + 1, (extent[1] - 1) / tpb.y + 1, (extent[2] - 1) / tpb.z + 1};
   compute_modified_rhs<<<bpg, tpb>>>(d_ptr, parameter.get_int("n_var"), parameter.get_real("dt"));
 
-  DPLUR<mixture_model, turb_method>(block, param, d_ptr, h_ptr, parameter, bound_cond, diag_factor);
+  DPLUR<mixture_model>(block, param, d_ptr, h_ptr, parameter, bound_cond, diag_factor);
 }
 }

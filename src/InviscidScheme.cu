@@ -1,7 +1,6 @@
 #include "InviscidScheme.cuh"
 #include "Mesh.h"
 #include "Parameter.h"
-#include "AWENO.cuh"
 #include "Field.h"
 #include "DParameter.cuh"
 #include "Reconstruction.cuh"

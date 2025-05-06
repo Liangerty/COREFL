@@ -16,8 +16,8 @@ __device__ constexpr real c[3]{1.0, 0.25, 2.0 / 3.0};
 template<MixtureModel mix_model>
 __global__ void update_cv_and_bv_rk(DZone *zone, DParameter *param, real dt, int rk);
 
-template<MixtureModel mix_model, class turb>
-void RK3(Driver<mix_model, turb> &driver) {
+template<MixtureModel mix_model>
+void RK3(Driver<mix_model> &driver) {
   if (driver.myid == 0) {
     printf("\n****************************Time advancement starts*****************************\n");
   }
@@ -56,8 +56,8 @@ void RK3(Driver<mix_model, turb> &driver) {
   auto &parameter{driver.parameter};
   // auto &ps{driver.ps};
 
-  IOManager<mix_model, turb> ioManager(driver.myid, mesh, field, parameter, driver.spec, 0);
-  TimeSeriesIOManager<mix_model, turb> timeSeriesIOManager(driver.myid, mesh, field, parameter, driver.spec, 0);
+  IOManager<mix_model> ioManager(driver.myid, mesh, field, parameter, driver.spec, 0);
+  TimeSeriesIOManager<mix_model> timeSeriesIOManager(driver.myid, mesh, field, parameter, driver.spec, 0);
   const int output_time_series = parameter.get_int("output_time_series");
 
   Monitor monitor(parameter, driver.spec, mesh);

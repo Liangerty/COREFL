@@ -11,14 +11,13 @@ list(APPEND src_file
     DataCommunication.cuh DataCommunication.cu Define.h DParameter.cu DParameter.cuh DPLUR.cuh DPLUR.cu Driver.cu Driver.cuh DualTimeStepping.cuh DualTimeStepping.cu
     Element.h Element.cpp
     Field.h Field.cu FieldOperation.cuh FieldOperation.cu FiniteRateChem.cu FiniteRateChem.cuh FieldIO.h
-    FlameletLib.cu FlameletLib.cuh
     ImplicitTreatmentHPP.cuh Initialize.cuh Initialize.cu InviscidScheme.cuh InviscidScheme.cu IOManager.h InviscidHybrid.cu
     kernels.cuh kernels.cu kernels.h
     Limiter.cuh Mesh.cu Mesh.cuh
     main.cu Mesh.h Mesh.cpp MixtureFraction.cpp MixtureFraction.h Monitor.cuh Monitor.cu MixingLayer.cuh MixingLayer.cu
     Parallel.h Parallel.cpp Parameter.h Parameter.cpp PostProcess.h PostProcess.cu ParameterSet.cpp ParameterSet.h
     Reconstruction.cu Reconstruction.cuh Residual.cu Residual.cuh RK.cuh RiemannSolver.cuh
-    SchemeSelector.cuh SST.cuh SST.cu SteadySim.cuh Simulate.cuh
+    SchemeSelector.cuh SteadySim.cuh Simulate.cuh
     SpongeLayer.cu SpongeLayer.cuh SinglePointStat.cu SinglePointStat.cuh
     Transport.cuh Transport.cu TimeAdvanceFunc.cu TimeAdvanceFunc.cuh Thermo.cuh Thermo.cu TurbMethod.hpp
     DigitalFilter.cu DigitalFilter.cuh

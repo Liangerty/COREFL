@@ -6,13 +6,12 @@
 #include "ChemData.h"
 #include "Field.h"
 #include "BoundCond.cuh"
-#include "FlameletLib.cuh"
 #include "ParameterSet.h"
 #include "SinglePointStat.cuh"
 
 namespace cfd {
 
-template<MixtureModel mix_model, class turb>
+template<MixtureModel mix_model>
 struct Driver {
   Driver(Parameter &parameter, Mesh &mesh_);
 
@@ -39,8 +38,8 @@ public:
 //  StatisticsCollector stat_collector;
 };
 
-template<MixtureModel mix_model, class turb>
-void Driver<mix_model, turb>::deallocate() {
+template<MixtureModel mix_model>
+void Driver<mix_model>::deallocate() {
   for (auto& f:field){
     f.deallocate_memory(parameter);
   }

@@ -72,8 +72,8 @@ __global__ void reduction_of_dv_squared(real *arr, int size);
 
 __global__ void check_nan(DZone *zone, int blk, int myid);
 
-template<MixtureModel mix_model, class turb>
-real compute_residual(Driver<mix_model, turb> &driver, int step) {
+template<MixtureModel mix_model>
+real compute_residual(Driver<mix_model> &driver, int step) {
   const auto &mesh{driver.mesh};
   std::array<real, 4> &res{driver.res};
 

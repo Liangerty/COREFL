@@ -5,13 +5,12 @@
 #include "DParameter.cuh"
 #include "Constants.h"
 #include "Thermo.cuh"
-#include "SST.cuh"
 #include "FiniteRateChem.cuh"
 
 namespace cfd {
 struct DZone;
 
-template<MixtureModel mixture_model, class turb_method>
+template<MixtureModel mixture_model>
 __global__ void compute_DQ_0(DZone *zone, const DParameter *param, real diag_factor = 0) {
   const int extent[3]{zone->mx, zone->my, zone->mz};
   const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
@@ -124,7 +123,7 @@ compute_jacobian_times_dq(const DParameter *param, DZone *zone, int i, int j, in
   }
 }
 
-template<MixtureModel mixture_model, class turb_method>
+template<MixtureModel mixture_model>
 __global__ void DPLUR_inner_iteration(const DParameter *param, DZone *zone, real diag_factor = 0) {
   // This can be split into 3 kernels, such that the shared memory can be used.
   // E.g., i=2 needs ii=1 and ii=3, while i=4 needs ii=3 and ii=5, thus the ii=3 is recomputed.
@@ -255,7 +254,7 @@ struct DBoundCond;
 
 void set_wall_dq_to_0(const Block &block, const DParameter *param, DZone *zone, const DBoundCond &bound_cond, bool ngg_extended);
 
-template<MixtureModel mixture_model, class turb_method>
+template<MixtureModel mixture_model>
 void DPLUR(const Block &block, const DParameter *param, DZone *d_ptr, DZone *h_ptr, const Parameter &parameter,
            DBoundCond &bound_cond, real diag_factor = 0) {
   const int extent[3]{block.mx, block.my, block.mz};
@@ -267,7 +266,7 @@ void DPLUR(const Block &block, const DParameter *param, DZone *d_ptr, DZone *h_p
   const dim3 bpg{(extent[0] - 1) / tpb.x + 1, (extent[1] - 1) / tpb.y + 1, (extent[2] - 1) / tpb.z + 1};
 
   // DQ(0)=dt*DQ/(1+dt*DRho+dt*dS/dQ)
-  compute_DQ_0<mixture_model, turb_method><<<bpg, tpb>>>(d_ptr, param, diag_factor);
+  compute_DQ_0<mixture_model><<<bpg, tpb>>>(d_ptr, param, diag_factor);
   // Take care of all such treatments where n_var is used to decide the memory size,
   // for when the flamelet model is used, the data structure should be modified to make the useful data contiguous.
   const auto mem_sz = h_ptr->dq.size() * parameter.get_int("n_var") * sizeof(real);
@@ -281,7 +280,7 @@ void DPLUR(const Block &block, const DParameter *param, DZone *d_ptr, DZone *h_p
   for (int iter = 0; iter < parameter.get_int("DPLUR_inner_step"); ++iter) {
     set_wall_dq_to_0(block, param, d_ptr, bound_cond, ngg_extended);
 
-    DPLUR_inner_iteration<mixture_model, turb_method><<<bpg, tpb>>>(param, d_ptr, diag_factor);
+    DPLUR_inner_iteration<mixture_model><<<bpg, tpb>>>(param, d_ptr, diag_factor);
     // Theoretically, there should be a data communication here to exchange dq among processes.
     cudaMemcpy(h_ptr->dq.data(), h_ptr->dqk.data(), mem_sz, cudaMemcpyDeviceToDevice);
   }
