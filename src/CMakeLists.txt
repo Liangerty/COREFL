@@ -6,7 +6,6 @@
 #     However, the correctness, if the resource is available for the corresponding kernel may need to be tested.
 
 list(APPEND src_file
-    AWENO.cuh AWENO.cu
     BoundCond.h BoundCond.cpp BoundCond.cu BoundCond.cuh BoundaryIO.h
     ChemData.h ChemData.cpp Constants.h
     DataCommunication.cuh DataCommunication.cu Define.h DParameter.cu DParameter.cuh DPLUR.cuh DPLUR.cu Driver.cu Driver.cuh DualTimeStepping.cuh DualTimeStepping.cu
