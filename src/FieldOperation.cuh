@@ -65,7 +65,7 @@ __global__ void compute_cv_from_bv(DZone *zone, DParameter *param) {
   compute_total_energy<mix_model>(i, j, k, zone, param);
 }
 
-template<MixtureModel mix_model, class turb_method>
+template<MixtureModel mix_model>
 __device__ void compute_cv_from_bv_1_point(DZone *zone, const DParameter *param, int i, int j, int k) {
   const auto &bv = zone->bv;
   auto &cv = zone->cv;

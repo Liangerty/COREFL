@@ -13,7 +13,7 @@ __device__ constexpr real b[3]{0.0, 0.25, 2.0 / 3.0};
 __device__ constexpr real c[3]{1.0, 0.25, 2.0 / 3.0};
 }
 
-template<MixtureModel mix_model, class turb_method>
+template<MixtureModel mix_model>
 __global__ void update_cv_and_bv_rk(DZone *zone, DParameter *param, real dt, int rk);
 
 template<MixtureModel mix_model, class turb>
@@ -163,18 +163,18 @@ void RK3(Driver<mix_model, turb> &driver) {
         driver.bound_cond.template nonReflectingBoundary<mix_model, turb>(mesh[b], field[b], param);
 
         // update basic variables
-        update_cv_and_bv_rk<mix_model, turb><<<bpg[b], tpb>>>(field[b].d_ptr, param, dt, rk);
+        update_cv_and_bv_rk<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param, dt, rk);
 
         // limit unphysical values computed by the program
         if (parameter.get_bool("limit_flow"))
-          limit_flow<mix_model, turb><<<bpg[b], tpb>>>(field[b].d_ptr, param);
+          limit_flow<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param);
 
         // Apply boundary conditions
         // Attention: "driver" is a template class, when a template class calls a member function of another template,
         // the compiler will not treat the called function as a template function,
         // so we need to explicitly specify the "template" keyword here.
         // If we call this function in the "driver" member function, we can omit the "template" keyword, as shown in Driver.cu, line 88.
-        driver.bound_cond.template apply_boundary_conditions<mix_model, turb>(mesh[b], field[b], param, step);
+        driver.bound_cond.template apply_boundary_conditions<mix_model>(mesh[b], field[b], param, step);
       }
       // Third, transfer data between and within processes
       data_communication<mix_model, turb>(mesh, field, parameter, step, param);
@@ -269,7 +269,7 @@ void RK3(Driver<mix_model, turb> &driver) {
   delete[] bpg;
 }
 
-template<MixtureModel mix_model, class turb_method>
+template<MixtureModel mix_model>
 __global__ void update_cv_and_bv_rk(DZone *zone, DParameter *param, real dt, int rk) {
   const int extent[3]{zone->mx, zone->my, zone->mz};
   const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);

@@ -21,7 +21,7 @@ __global__ void min_of_arr(real *arr, int size);
 
 __global__ void update_physical_time(DParameter *param, real t);
 
-template<MixtureModel mixture, class turb_method>
+template<MixtureModel mixture>
 __global__ void limit_flow(DZone *zone, DParameter *param);
 }
 
@@ -92,7 +92,7 @@ __global__ void cfd::local_time_step(DZone *zone, DParameter *param) {
 //  zone->udv(i, j, k, 0) = zone->dt_local(i, j, k);
 }
 
-template<MixtureModel mixture, class turb_method>
+template<MixtureModel mixture>
 __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
   const int mx{zone->mx}, my{zone->my}, mz{zone->mz};
   const int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -199,67 +199,4 @@ __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
     compute_cv_from_bv_1_point<mixture, turb_method>(zone, param, i, j, k);
   }
   __syncthreads();
-
-  // Limit the turbulent values
-  if constexpr (TurbMethod<turb_method>::label == TurbMethodLabel::SST) {
-    // Record the computed values
-    constexpr int n_turb = 2;
-    real t_var[n_turb];
-    t_var[0] = sv(i, j, k, n_spec);
-    t_var[1] = sv(i, j, k, n_spec + 1);
-
-    // Find the unphysical values and limit them
-    unphysical = false;
-    if (isnan(t_var[0]) || isnan(t_var[1]) || t_var[0] < 0 || t_var[1] < 0) {
-      unphysical = true;
-    }
-
-    if (unphysical) {
-      real updated_var[n_turb] = {};
-      int kn{0};
-      // Compute the sum of all "good" points surrounding the "bad" point
-      for (int ka = -1; ka < 2; ++ka) {
-        const int k1{k + ka};
-        if (k1 < 0 || k1 >= mz) continue;
-        for (int ja = -1; ja < 2; ++ja) {
-          const int j1{j + ja};
-          if (j1 < 0 || j1 >= my) continue;
-          for (int ia = -1; ia < 2; ++ia) {
-            const int i1{i + ia};
-            if (i1 < 0 || i1 >= mx)continue;
-
-            if (isnan(sv(i1, j1, k1, n_spec)) || isnan(sv(i1, j1, k1, 1 + n_spec)) || sv(i1, j1, k1, n_spec) < 0 ||
-                sv(i1, j1, k1, n_spec + 1) < 0) {
-              continue;
-            }
-
-            updated_var[0] += sv(i1, j1, k1, n_spec);
-            updated_var[1] += sv(i1, j1, k1, 1 + n_spec);
-
-            ++kn;
-          }
-        }
-      }
-
-      // Compute the average of the surrounding points
-      if (kn > 0) {
-        const real kn_inv{1.0 / kn};
-        updated_var[0] *= kn_inv;
-        updated_var[1] *= kn_inv;
-      } else {
-        // The surrounding points are all "bad"
-        updated_var[0] = t_var[0] < 0 ? param->limit_flow.sv_inf[n_spec] : t_var[0];
-        updated_var[1] = t_var[1] < 0 ? param->limit_flow.sv_inf[n_spec + 1] : t_var[1];
-      }
-
-      // Assign averaged values for the bad point
-      if (sv(i, j, k, n_spec) < 0)
-        sv(i, j, k, n_spec) = updated_var[0];
-      if (sv(i, j, k, n_spec + 1) < 0)
-        sv(i, j, k, n_spec + 1) = updated_var[1];
-
-      zone->cv(i, j, k, n_spec) = bv(i, j, k, 0) * sv(i, j, k, n_spec);
-      zone->cv(i, j, k, n_spec + 1) = bv(i, j, k, 0) * sv(i, j, k, n_spec + 1);
-    }
-  }
 }
