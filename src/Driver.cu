@@ -11,7 +11,7 @@
 namespace cfd {
 template<MixtureModel mix_model> Driver<mix_model>::Driver(Parameter &parameter, Mesh &mesh_):
   myid(parameter.get_int("myid")), mesh(mesh_), parameter(parameter), spec(parameter), reac(parameter, spec),
-  flameletLib(parameter), stat_collector(parameter, mesh, field, spec) {
+  stat_collector(parameter, mesh, field, spec) {
   // This function initializes the driver, including the mesh, field, species, reactions, flamelet library,
   // and statistics collector
 
@@ -92,7 +92,7 @@ template<MixtureModel mix_model> Driver<mix_model>::Driver(Parameter &parameter,
   }
 
   // Transfer the parameters to GPU.
-  const DParameter d_param(parameter, spec, &reac, &flameletLib);
+  const DParameter d_param(parameter, spec, &reac);
   cudaMalloc(&param, sizeof(DParameter));
   cudaMemcpy(param, &d_param, sizeof(DParameter), cudaMemcpyHostToDevice);
   cudaDeviceSynchronize();

@@ -165,7 +165,7 @@ __device__ real compute_total_energy_1_point(int i, int j, int k, DZone *zone, D
   return total_energy;
 }
 
-template<MixtureModel mix_model, class turb_method>
+template<MixtureModel mix_model>
 __global__ void update_cv_and_bv(DZone *zone, DParameter *param) {
   const int extent[3]{zone->mx, zone->my, zone->mz};
   const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);

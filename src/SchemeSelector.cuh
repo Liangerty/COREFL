@@ -10,9 +10,6 @@ void compute_inviscid_flux(const Block &block, DZone *zone, DParameter *param, i
     case 0: // Compute the term with primitive reconstruction methods. (MUSCL/NND/1stOrder + LF/AUSM+/HLLC)
       compute_convective_term_pv<mix_model>(block, zone, param, n_var, parameter);
       break;
-    case 1: // Compute the term with AWENO methods. (WENO-Z-5 + LF/AUSM+/HLLC)
-      compute_convective_term_aweno<mix_model>(block, zone, param, n_var);
-      break;
     case 3: // Compute the term with WENO-Z-5
       compute_convective_term_weno<mix_model>(block, zone, param, n_var, parameter);
       break;

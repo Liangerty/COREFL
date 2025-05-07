@@ -82,7 +82,9 @@ void steady_simulation(Driver<mix_model> &driver) {
 
       // Second, for each block, compute the residual dq
       // First, compute the source term, because properties such as mut are updated here.
-      compute_source<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param);
+      if (parameter.get_int("reaction") == 1) {
+        finite_rate_chemistry<<<bpg[b], tpb>>>(field[b].d_ptr, param);
+      }       
       compute_inviscid_flux<mix_model>(mesh[b], field[b].d_ptr, param, n_var, parameter);
       compute_viscous_flux<mix_model>(mesh[b], field[b].d_ptr, param, parameter);
 

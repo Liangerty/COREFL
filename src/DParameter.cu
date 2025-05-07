@@ -2,8 +2,7 @@
 #include "ChemData.h"
 #include <filesystem>
 
-cfd::DParameter::DParameter(Parameter &parameter, const Species &species, Reaction *reaction,
-  FlameletLib *flamelet_lib) :
+cfd::DParameter::DParameter(Parameter &parameter, const Species &species, Reaction *reaction) :
   myid{parameter.get_int("myid")},
   dim{parameter.get_int("dimension")}, problem_type{parameter.get_int("problem_type")},
   n_var{parameter.get_int("n_var")}, n_scalar_transported{parameter.get_int("n_scalar_transported")},

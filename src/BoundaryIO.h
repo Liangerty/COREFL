@@ -131,7 +131,7 @@ BoundaryIO<mix_model, output_time_choice>::BoundaryIO(const Parameter &parameter
   write_header(field);
 }
 
-template<MixtureModel mix_model, class turb_method, int BoundaryType>
+template<MixtureModel mix_model, int BoundaryType>
 int32_t
 acquire_boundary_variable_names(std::vector<std::string> &var_name, const Parameter &parameter,
                                 const Species &species) {
@@ -152,17 +152,6 @@ acquire_boundary_variable_names(std::vector<std::string> &var_name, const Parame
         var_name[ind + 9] = name;
       }
     }
-  }
-  if constexpr (TurbMethod<turb_method>::label == TurbMethodLabel::SA) {
-    nv += 1;
-  } else if constexpr (TurbMethod<turb_method>::label == TurbMethodLabel::SST) {
-    nv += 2; // k, omega
-    var_name.emplace_back("tke");
-    var_name.emplace_back("omega");
-  }
-  if constexpr (TurbMethod<turb_method>::hasMut) {
-    nv += 1; // mu_t
-    var_name.emplace_back("mut");
   }
   return nv;
 }
@@ -445,23 +434,6 @@ BoundaryIO<mix_model, output_time_choice>::write_header(const std::vector<Field>
         MPI_File_write_at(fp, offset, &max_val, 1, MPI_DOUBLE, &status);
         offset += 8;
       }
-      // if turbulent, mut
-      if constexpr (TurbMethod<turb_method>::hasMut) {
-        min_val = v.ov(xs[l][f], ys[l][f], zs[l][f], 1);
-        max_val = v.ov(xs[l][f], ys[l][f], zs[l][f], 1);
-        for (int k = zs[l][f]; k <= ze[l][f]; ++k) {
-          for (int j = ys[l][f]; j <= ye[l][f]; ++j) {
-            for (int i = xs[l][f]; i <= xe[l][f]; ++i) {
-              min_val = std::min(min_val, v.ov(i, j, k, 1));
-              max_val = std::max(max_val, v.ov(i, j, k, 1));
-            }
-          }
-        }
-        MPI_File_write_at(fp, offset, &min_val, 1, MPI_DOUBLE, &status);
-        offset += 8;
-        MPI_File_write_at(fp, offset, &max_val, 1, MPI_DOUBLE, &status);
-        offset += 8;
-      }
 
       // 7. Zone Data.
       MPI_Datatype ty;
@@ -492,12 +464,6 @@ BoundaryIO<mix_model, output_time_choice>::write_header(const std::vector<Field>
       }
       for (int m = 0; m < n_scalar; ++m) {
         auto var = v.sv[m];
-        MPI_File_write_at(fp, offset, var, 1, ty, &status);
-        offset += mem_sz;
-      }
-      // if turbulent, mut
-      if constexpr (TurbMethod<turb_method>::hasMut) {
-        auto var = v.ov[1];
         MPI_File_write_at(fp, offset, var, 1, ty, &status);
         offset += mem_sz;
       }
@@ -581,24 +547,7 @@ void BoundaryIO<mix_model, output_time_choice>::print_boundary() {
         MPI_File_write_at(fp, offset, &max_val, 1, MPI_DOUBLE, &status);
         offset += 8;
       }
-      // if turbulent, mut
-      if constexpr (TurbMethod<turb_method>::hasMut) {
-        min_val = v.ov(xs[l][f], ys[l][f], zs[l][f], 1);
-        max_val = v.ov(xs[l][f], ys[l][f], zs[l][f], 1);
-        for (int k = zs[l][f]; k <= ze[l][f]; ++k) {
-          for (int j = ys[l][f]; j <= ye[l][f]; ++j) {
-            for (int i = xs[l][f]; i <= xe[l][f]; ++i) {
-              min_val = std::min(min_val, v.ov(i, j, k, 1));
-              max_val = std::max(max_val, v.ov(i, j, k, 1));
-            }
-          }
-        }
-        MPI_File_write_at(fp, offset, &min_val, 1, MPI_DOUBLE, &status);
-        offset += 8;
-        MPI_File_write_at(fp, offset, &max_val, 1, MPI_DOUBLE, &status);
-        offset += 8;
-      }
-
+      // 7. Zone marker. Value = 299.0, indicates a V112 header.
       // 7. Zone Data.
       MPI_Datatype ty;
       const int ngg{parameter.get_int("ngg")};
@@ -623,12 +572,6 @@ void BoundaryIO<mix_model, output_time_choice>::print_boundary() {
       }
       for (int m = 0; m < n_scalar; ++m) {
         auto var = v.sv[m];
-        MPI_File_write_at(fp, offset, var, 1, ty, &status);
-        offset += mem_sz;
-      }
-      // if turbulent, mut
-      if constexpr (TurbMethod<turb_method>::hasMut) {
-        auto var = v.ov[1];
         MPI_File_write_at(fp, offset, var, 1, ty, &status);
         offset += mem_sz;
       }

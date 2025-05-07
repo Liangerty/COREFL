@@ -59,19 +59,6 @@ __global__ void compute_DQ_0(DZone *zone, const DParameter *param, real diag_fac
       dq(i, j, k, l) /= diag;
     }
   }
-  
-  if (param->turb_implicit == 1) {
-    if constexpr (TurbMethod<turb_method>::hasImplicitTreat)
-      turb_method::implicit_treat_for_dq0(zone, diag, i, j, k, param);
-    else {
-      // This method does not have an implicit treatment, do something.
-    }
-  } else {
-    if constexpr (TurbMethod<turb_method>::label == TurbMethodLabel::SST) {
-      dq(i, j, k, param->i_turb_cv) /= diag;
-      dq(i, j, k, param->i_turb_cv + 1) /= diag;
-    }
-  }
 }
 
 template<MixtureModel mixture_model>
@@ -230,20 +217,6 @@ __global__ void DPLUR_inner_iteration(const DParameter *param, DZone *zone, real
   } else {
     for (int l = 0; l < 5 + n_spec; ++l) {
       dqk(i, j, k, l) = dq0(i, j, k, l) + dt_local * dq_total[l] / diag;
-    }
-  }
-  
-  if (param->turb_implicit == 1) {
-    if constexpr (TurbMethod<turb_method>::hasImplicitTreat) {
-      turb_method::implicit_treat_for_dqk(zone, diag, i, j, k, dq_total, param);
-    } else {
-      // This method does not have an implicit treatment, do something.
-    }
-  } else {
-    if constexpr (TurbMethod<turb_method>::label == TurbMethodLabel::SST) {
-      const auto i_turb_cv{param->i_turb_cv};
-      dqk(i, j, k, i_turb_cv) = dq0(i, j, k, i_turb_cv) + dt_local * dq_total[i_turb_cv] / diag;
-      dqk(i, j, k, i_turb_cv + 1) = dq0(i, j, k, i_turb_cv + 1) + dt_local * dq_total[i_turb_cv + 1] / diag;
     }
   }
 }

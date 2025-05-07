@@ -27,7 +27,6 @@ public:
   // ParameterSet ps;
   Species spec;
   Reaction reac;
-  FlameletLib flameletLib;
   std::vector<Field> field; // The flowfield data of the simulation. Every block is a "Field" object
   DParameter *param = nullptr; // The parameters used for GPU simulation, data are stored on GPU while the pointer is on CPU
   DBoundCond bound_cond;  // Boundary conditions

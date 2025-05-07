@@ -462,22 +462,11 @@ FieldIO<mix_model, output_time_choice>::acquire_variable_names(std::vector<std::
       var_name[ind + 10] = name;
     }
   }
-  if constexpr (TurbMethod<turb>::label == TurbMethodLabel::SA) {
-    nv += 1; // SA variable?
-  } else if constexpr (TurbMethod<turb>::label == TurbMethodLabel::SST) {
-    nv += 2; // k, omega
-    var_name.emplace_back("tke");
-    var_name.emplace_back("omega");
-  }
   if (const int n_ps = parameter.get_int("n_ps"); n_ps > 0) {
     nv += n_ps;
     for (int i = 0; i < n_ps; ++i) {
       var_name.emplace_back("PS" + std::to_string(i + 1));
     }
-  }
-  if constexpr (TurbMethod<turb>::hasMut) {
-    nv += 1; // mu_t
-    var_name.emplace_back("mut");
   }
   return nv;
 }
@@ -685,22 +674,11 @@ int32_t FieldIO<mix_model, OutputTimeChoice::TimeSeries>::acquire_variable_names
       var_name[ind + 10] = name;
     }
   }
-  if constexpr (TurbMethod<turb>::label == TurbMethodLabel::SA) {
-    nv += 1; // SA variable?
-  } else if constexpr (TurbMethod<turb>::label == TurbMethodLabel::SST) {
-    nv += 2; // k, omega
-    var_name.emplace_back("tke");
-    var_name.emplace_back("omega");
-  }
   if (const int n_ps = parameter.get_int("n_ps"); n_ps > 0) {
     nv += n_ps;
     for (int i = 0; i < n_ps; ++i) {
       var_name.emplace_back("PS" + std::to_string(i + 1));
     }
-  }
-  if constexpr (TurbMethod<turb>::hasMut) {
-    nv += 1; // mu_t
-    var_name.emplace_back("mut");
   }
   return nv;
 }

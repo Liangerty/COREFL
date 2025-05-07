@@ -28,8 +28,8 @@ int main(int argc, char *argv[]) {
     // Multiple species
     // Laminar & DNS
     cfd::Driver<MixtureModel::Mixture> driver(parameter, mesh);
-      driver.initialize_computation();
-      simulate(driver);
+    driver.initialize_computation();
+    simulate(driver);
   } else {
     // Air simulation
     // Laminar and air

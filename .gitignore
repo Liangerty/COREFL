@@ -15,3 +15,6 @@ input/chemistry/H2_mech.inp
 input/chemistry/therm.dat
 input/chemistry/tran.dat
 input/grid/grid   0.dat
+cmake-build-debug-visual-studio/*
+cmake-build-release-visual-studio/*
+corefl.exe

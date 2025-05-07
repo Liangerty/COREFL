@@ -19,17 +19,11 @@ template<MixtureModel mix_model> __global__ void compute_convective_term_pv_1D(D
 template<MixtureModel mix_model> __device__ void reconstruction(real *pv, real *pv_l, real *pv_r, int idx_shared,
   DParameter *param);
 
-template<MixtureModel mix_model> void compute_convective_term_aweno(const Block &block, DZone *zone, DParameter *param,
-  int n_var);
-
 template<MixtureModel mix_model> void compute_convective_term_weno(const Block &block, DZone *zone, DParameter *param,
   int n_var, const Parameter &parameter);
 
 template<MixtureModel mix_model> void compute_convective_term_weno_new(const Block &block, DZone *zone,
   DParameter *param, int n_var, const Parameter &parameter);
-
-template<MixtureModel mix_model> __global__ void compute_convective_term_aweno_1D(DZone *zone, int direction,
-  int max_extent, DParameter *param);
 
 template<MixtureModel mix_model> void Roe_compute_inviscid_flux(const Block &block, DZone *zone, DParameter *param,
   int n_var, const Parameter &parameter);
