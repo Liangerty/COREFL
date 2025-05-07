@@ -34,7 +34,7 @@ public:
   std::array<real, 4> res_scale{1, 1, 1, 1};
   // Statistical data
   SinglePointStat stat_collector;
-//  StatisticsCollector stat_collector;
+  //  StatisticsCollector stat_collector;
 };
 
 template<MixtureModel mix_model>

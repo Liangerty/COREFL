@@ -125,6 +125,16 @@ void RK3(Driver<mix_model> &driver) {
       }
     }
 
+    if (!fixed_time_step) {
+      // compute the local time step
+      for (auto b = 0; b < n_block; ++b)
+        local_time_step<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param);
+      // After all processes and all blocks computing dt_local, we compute the global time step.
+      dt = global_time_step(mesh, parameter, field);
+
+      update_dt_global<<<1, 1>>>(param, dt);
+    }
+
     // Rk inner iteration
     for (int rk = 0; rk < 3; ++rk) {
       for (auto b = 0; b < n_block; ++b) {
@@ -135,24 +145,7 @@ void RK3(Driver<mix_model> &driver) {
         if (parameter.get_int("reaction") == 1) {
           finite_rate_chemistry<<<bpg[b], tpb>>>(field[b].d_ptr, param);
         }       
-      }
 
-      // For unsteady simulations, the time step should be consistent in all grid points
-      // Because if Positive-preserving WENO is used, the dt will be needed.
-      // Therefore, we compute the time step ahead of inviscid flux.
-      // Besides, when simulating turbulent flows, mut is needed in computing the time step,
-      // which makes the computation of source term ahead of this.
-      if (!fixed_time_step && rk == 0) {
-        // compute the local time step
-        for (auto b = 0; b < n_block; ++b)
-          local_time_step<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param);
-        // After all processes and all blocks computing dt_local, we compute the global time step.
-        dt = global_time_step(mesh, parameter, field);
-
-        update_dt_global<<<1, 1>>>(param, dt);
-      }
-
-      for (auto b = 0; b < n_block; ++b) {
         // Second, for each block, compute the residual dq
         compute_inviscid_flux<mix_model>(mesh[b], field[b].d_ptr, param, n_var, parameter);
         compute_viscous_flux<mix_model>(mesh[b], field[b].d_ptr, param, parameter);
