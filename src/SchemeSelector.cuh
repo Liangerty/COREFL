@@ -13,12 +13,6 @@ void compute_inviscid_flux(const Block &block, DZone *zone, DParameter *param, i
     case 3: // Compute the term with WENO-Z-5
       compute_convective_term_weno<mix_model>(block, zone, param, n_var, parameter);
       break;
-    case 4:
-      compute_convective_term_ep(block, zone, param, n_var);
-      break;
-    case 5:
-      compute_convective_term_hybrid_weno_ep<mix_model>(block, zone, param, n_var, parameter);
-      break;
     case 6:
       compute_convective_term_hybrid_ud_weno<mix_model>(block, zone, param, n_var, parameter);
       break;

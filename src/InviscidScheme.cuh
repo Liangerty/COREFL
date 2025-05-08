@@ -59,13 +59,6 @@ __device__ real WENO5_new(const real *vp, const real *vm, real eps);
 
 __device__ real WENO7_new(const real *vp, const real *vm, real eps);
 
-void compute_convective_term_ep(const Block &block, DZone *zone, DParameter *param, int n_var);
-
-__global__ void compute_convective_term_ep_1D(DZone *zone, int direction, int max_extent, DParameter *param);
-
-template<MixtureModel mix_model> void compute_convective_term_hybrid_weno_ep(const Block &block, DZone *zone,
-  DParameter *param, int n_var, const Parameter &parameter);
-
 template<MixtureModel mix_model> void compute_convective_term_hybrid_ud_weno(const Block &block, DZone *zone,
   DParameter *param, int n_var, const Parameter &parameter);
 
