@@ -2,13 +2,13 @@
 
 #include <vector>
 
-#ifdef __CUDACC__
-
-#include <cuda_runtime.h>
-
-#endif
-// #include "Define.h"
-
+// #ifdef __CUDACC__
+//
+// #include <cuda_runtime.h>
+//
+// #endif
+// // #include "Define.h"
+//
 #ifndef __CUDACC__
 #define __host__
 #define __device__
@@ -40,9 +40,9 @@ public:
 
   auto size() { return sz; }
 
-  CUDA_CALLABLE_MEMBER T &operator()(const int i, const int j) { return data_[i * my + j]; }
+  __host__ __device__ T &operator()(const int i, const int j) { return data_[i * my + j]; }
 
-  CUDA_CALLABLE_MEMBER const T &operator()(const int i, const int j) const { return data_[i * my + j]; }
+  __host__ __device__ const T &operator()(const int i, const int j) const { return data_[i * my + j]; }
 
   __device__ void deallocate_matrix() { delete[] data_; }
 };

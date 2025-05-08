@@ -245,7 +245,7 @@ __global__ void apply_inflow(DZone *zone, Inflow *inflow, int i_face, DParameter
 
   const int n_scalar = param->n_scalar;
 
-  real density, u, v, w, p, T, mut, vel;
+  real density, u, v, w, p, T, vel;
   real sv_b[MAX_SPEC_NUMBER + 4 + MAX_PASSIVE_SCALAR_NUMBER];
 
   if (inflow->inflow_type == 1) {
