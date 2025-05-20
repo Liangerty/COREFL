@@ -56,7 +56,7 @@ initialize_mixing_layer_with_info(DZone *zone, const real *var_info, int n_spec,
  * @param old_data_info the information about the previous simulation, the first one tells if species info exists, the second one tells if turbulent var exists
  * @return an array of orders. 0~5 means density, u, v, w, p, T; 6~5+ns means the species order, 6+ns~... means other variables such as mut...
  */
-template<MixtureModel mix_model, class turb_method>
+template<MixtureModel mix_model>
 std::vector<int>
 identify_variable_labels(Parameter &parameter, std::vector<std::string> &var_name, Species &species,
                          std::array<int, 2> &old_data_info);

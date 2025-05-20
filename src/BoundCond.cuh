@@ -761,7 +761,8 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
     }
     real ht = 0;
     for (int m = 0; m < 5; ++m) {
-      ht += wall->Tm[m] * sin(2.0 * pi * (m + 1) * (wall->fluctuation_frequency * t + phim[m]));
+      ht += wall->Tm[m] * sin(wall->fluctuation_frequency * t + 2.0 * pi * phim[m]);
+      // ht += wall->Tm[m] * sin(2.0 * pi * (m + 1) * (wall->fluctuation_frequency * t + phim[m]));
       //      ht += wall->Tm[m] * sin((m + 1) * omega * t + 2.0 * pi * (m + 1) * phim[m]);
     }
     if (x > x0 && x < x1) {

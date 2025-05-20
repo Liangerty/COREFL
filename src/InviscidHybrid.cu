@@ -133,7 +133,7 @@ template<MixtureModel mix_model> __device__ void hybrid_weno_part(const real *pv
       const auto *bv = &pv[is * n_var];
       real Uk = uk[is];
       const real lambda = abs(Uk) + cGradK[is];
-      real F[5 + MAX_REAC_NUMBER + MAX_PASSIVE_SCALAR_NUMBER];
+      real F[5 + MAX_SPEC_NUMBER + MAX_PASSIVE_SCALAR_NUMBER];
       F[0] = Uk * bv[0];
       F[1] = Uk * bv[1] * bv[0] + bv[4] * metric[is * 3];
       F[2] = Uk * bv[2] * bv[0] + bv[4] * metric[is * 3 + 1];

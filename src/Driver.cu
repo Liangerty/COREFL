@@ -133,7 +133,7 @@ void Driver<mix_model>::initialize_computation() {
 
   // If we use k-omega SST model, we need the wall distance, thus we need to compute or read it here.
   if (parameter.get_int("if_compute_wall_distance") == 1) {
-      acquire_wall_distance<mix_model>(*this);
+    acquire_wall_distance<mix_model>(*this);
   }
 
   if (mesh.dimension == 2) {
@@ -392,42 +392,44 @@ void write_reference_state(Parameter &parameter, const Species &species) {
     parameter.update_parameter("velocity_ratio", velocity_ratio);
     parameter.update_parameter("DeltaU", DeltaU);
   } else {
-    const std::filesystem::path out_dir("output/message");
-    if (!exists(out_dir)) {
-      create_directories(out_dir);
-    }
-    FILE *ref_state = fopen("output/message/reference_state.txt", "w");
-    printf("\t\t->-> %-16.10e : density(kg/m3)\n", parameter.get_real("rho_inf"));
-    printf("\t\t->-> %-16.10e : velocity(m/s)\n", parameter.get_real("v_inf"));
-    printf("\t\t->-> %-16.10e : u(m/s)\n", parameter.get_real("ux_inf"));
-    printf("\t\t->-> %-16.10e : v(m/s)\n", parameter.get_real("uy_inf"));
-    printf("\t\t->-> %-16.10e : pressure(Pa)\n", parameter.get_real("p_inf"));
-    printf("\t\t->-> %-16.10e : temperature(K)\n", parameter.get_real("T_inf"));
-    auto &sv_ref = parameter.get_real_array("sv_inf");
-    for (const auto &[name, i]: species.spec_list) {
-      if (sv_ref[i] > 0)
-        printf("\t\t->-> %-16.10e : Y_%s\n", sv_ref[i], name.c_str());
-    }
-    printf("\t\t->-> %-16.10e : Ma\n", parameter.get_real("M_inf"));
-    printf("\t\t->-> %-16.10e : Re_unit(/m)\n", parameter.get_real("Re_unit"));
-    printf("\t\t->-> %-16.10e : mu(kg/m/s)\n", parameter.get_real("mu_inf"));
-    printf("\t\t->-> %-16.10e : acoustic_speed(m/s)\n", parameter.get_real("speed_of_sound"));
-    printf("\t\t->-> %-16.10e : specific_heat_ratio\n", parameter.get_real("specific_heat_ratio_inf"));
+    if (myid == 0) {
+      const std::filesystem::path out_dir("output/message");
+      if (!exists(out_dir)) {
+        create_directories(out_dir);
+      }
+      FILE *ref_state = fopen("output/message/reference_state.txt", "w");
+      printf("\t\t->-> %-16.10e : density(kg/m3)\n", parameter.get_real("rho_inf"));
+      printf("\t\t->-> %-16.10e : velocity(m/s)\n", parameter.get_real("v_inf"));
+      printf("\t\t->-> %-16.10e : u(m/s)\n", parameter.get_real("ux_inf"));
+      printf("\t\t->-> %-16.10e : v(m/s)\n", parameter.get_real("uy_inf"));
+      printf("\t\t->-> %-16.10e : pressure(Pa)\n", parameter.get_real("p_inf"));
+      printf("\t\t->-> %-16.10e : temperature(K)\n", parameter.get_real("T_inf"));
+      auto &sv_ref = parameter.get_real_array("sv_inf");
+      for (const auto &[name, i]: species.spec_list) {
+        if (sv_ref[i] > 0)
+          printf("\t\t->-> %-16.10e : Y_%s\n", sv_ref[i], name.c_str());
+      }
+      printf("\t\t->-> %-16.10e : Ma\n", parameter.get_real("M_inf"));
+      printf("\t\t->-> %-16.10e : Re_unit(/m)\n", parameter.get_real("Re_unit"));
+      printf("\t\t->-> %-16.10e : mu(kg/m/s)\n", parameter.get_real("mu_inf"));
+      printf("\t\t->-> %-16.10e : acoustic_speed(m/s)\n", parameter.get_real("speed_of_sound"));
+      printf("\t\t->-> %-16.10e : specific_heat_ratio\n", parameter.get_real("specific_heat_ratio_inf"));
 
-    fprintf(ref_state, "Reference state\nrho_ref = %16.10e\n", parameter.get_real("rho_inf"));
-    fprintf(ref_state, "v_ref = %16.10e\n", parameter.get_real("v_inf"));
-    fprintf(ref_state, "p_ref = %16.10e\n", parameter.get_real("p_inf"));
-    fprintf(ref_state, "T_ref = %16.10e\n", parameter.get_real("T_inf"));
-    for (const auto &[name, i]: species.spec_list) {
-      if (sv_ref[i] > 0)
-        fprintf(ref_state, "Y_%s = %16.10e\n", name.c_str(), sv_ref[i]);
+      fprintf(ref_state, "Reference state\nrho_ref = %16.10e\n", parameter.get_real("rho_inf"));
+      fprintf(ref_state, "v_ref = %16.10e\n", parameter.get_real("v_inf"));
+      fprintf(ref_state, "p_ref = %16.10e\n", parameter.get_real("p_inf"));
+      fprintf(ref_state, "T_ref = %16.10e\n", parameter.get_real("T_inf"));
+      for (const auto &[name, i]: species.spec_list) {
+        if (sv_ref[i] > 0)
+          fprintf(ref_state, "Y_%s = %16.10e\n", name.c_str(), sv_ref[i]);
+      }
+      fprintf(ref_state, "Ma_ref = %16.10e\n", parameter.get_real("M_inf"));
+      fprintf(ref_state, "Re_unit = %16.10e\n", parameter.get_real("Re_unit"));
+      fprintf(ref_state, "mu_ref = %16.10e\n", parameter.get_real("mu_inf"));
+      fprintf(ref_state, "acoustic_speed_ref = %16.10e\n", parameter.get_real("speed_of_sound"));
+      fprintf(ref_state, "specific_heat_ratio = %16.10e\n", parameter.get_real("specific_heat_ratio_inf"));
+      fclose(ref_state);
     }
-    fprintf(ref_state, "Ma_ref = %16.10e\n", parameter.get_real("M_inf"));
-    fprintf(ref_state, "Re_unit = %16.10e\n", parameter.get_real("Re_unit"));
-    fprintf(ref_state, "mu_ref = %16.10e\n", parameter.get_real("mu_inf"));
-    fprintf(ref_state, "acoustic_speed_ref = %16.10e\n", parameter.get_real("speed_of_sound"));
-    fprintf(ref_state, "specific_heat_ratio = %16.10e\n", parameter.get_real("specific_heat_ratio_inf"));
-    fclose(ref_state);
   }
 }
 

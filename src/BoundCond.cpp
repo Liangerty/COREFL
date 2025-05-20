@@ -250,30 +250,6 @@ cfd::Inflow::Inflow(const std::string &inflow_name, Species &spec, Parameter &pa
     if (reynolds_number < 0)
       reynolds_number = density * velocity / viscosity;
 
-    if (parameter.get_int("turbulence_method") == 1 || parameter.get_int("turbulence_method") == 2) {
-      // RANS or DES simulation
-      if (parameter.get_int("RANS_model") == 2) {
-        // SST
-        mut = std::get<real>(info.at("turb_viscosity_ratio")) * viscosity;
-        if (info.find("turbulence_intensity") != info.end()) {
-          // For SST model, we need k and omega. If SA, we compute this for nothing.
-          const real turbulence_intensity = std::get<real>(info.at("turbulence_intensity"));
-          sv[n_spec] = 1.5 * velocity * velocity * turbulence_intensity * turbulence_intensity;
-          sv[n_spec + 1] = density * sv[n_spec] / mut;
-        }
-      }
-    }
-
-    if ((n_spec > 0 && parameter.get_int("reaction") == 2) || parameter.get_int("species") == 2) {
-      // flamelet model or z and z prime are transported
-      if (parameter.get_int("turbulence_method") == 1 || parameter.get_int("turbulence_method") == 2) {
-        // RANS/DES simulation
-        const auto i_fl{parameter.get_int("i_fl")};
-        sv[i_fl] = std::get<real>(info.at("mixture_fraction"));
-        sv[i_fl + 1] = 0;
-      }
-    }
-
     if (int n_ps = parameter.get_int("n_ps"); n_ps > 0) {
       int i_ps = parameter.get_int("i_ps");
       for (int i = 0; i < n_ps; ++i) {
