@@ -32,20 +32,20 @@ __global__ void cfd::update_sponge_layer_value(DZone *zone, const DParameter *pa
   const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
   if (i >= extent[0] || j >= extent[1] || k >= extent[2]) return;
 
-  const int n_iter = param->sponge_iter;
-  const auto n_scalar_iter = param->sponge_scalar_iter;
-
-  auto &sponge = zone->sponge_mean_cv;
-  auto &cv = zone->cv;
-
-  sponge(i, j, k, 0) = (sponge(i, j, k, 0) * n_iter + cv(i, j, k, 0)) / (n_iter + 1);
-  sponge(i, j, k, 1) = (sponge(i, j, k, 1) * n_iter + cv(i, j, k, 1)) / (n_iter + 1);
-  sponge(i, j, k, 2) = (sponge(i, j, k, 2) * n_iter + cv(i, j, k, 2)) / (n_iter + 1);
-  sponge(i, j, k, 3) = (sponge(i, j, k, 3) * n_iter + cv(i, j, k, 3)) / (n_iter + 1);
-  sponge(i, j, k, 4) = (sponge(i, j, k, 4) * n_iter + cv(i, j, k, 4)) / (n_iter + 1);
-  for (int l = 0; l < param->n_scalar; l++) {
-    sponge(i, j, k, 5 + l) = (sponge(i, j, k, 5 + l) * n_scalar_iter[l] + cv(i, j, k, 5 + l)) / (n_scalar_iter[l] + 1);
-  }
+  // const int n_iter = param->sponge_iter;
+  // const auto n_scalar_iter = param->sponge_scalar_iter;
+  //
+  // auto &sponge = zone->sponge_mean_cv;
+  // auto &cv = zone->cv;
+  //
+  // sponge(i, j, k, 0) = (sponge(i, j, k, 0) * n_iter + cv(i, j, k, 0)) / (n_iter + 1);
+  // sponge(i, j, k, 1) = (sponge(i, j, k, 1) * n_iter + cv(i, j, k, 1)) / (n_iter + 1);
+  // sponge(i, j, k, 2) = (sponge(i, j, k, 2) * n_iter + cv(i, j, k, 2)) / (n_iter + 1);
+  // sponge(i, j, k, 3) = (sponge(i, j, k, 3) * n_iter + cv(i, j, k, 3)) / (n_iter + 1);
+  // sponge(i, j, k, 4) = (sponge(i, j, k, 4) * n_iter + cv(i, j, k, 4)) / (n_iter + 1);
+  // for (int l = 0; l < param->n_scalar; l++) {
+  //   sponge(i, j, k, 5 + l) = (sponge(i, j, k, 5 + l) * n_scalar_iter[l] + cv(i, j, k, 5 + l)) / (n_scalar_iter[l] + 1);
+  // }
 }
 
 void cfd::update_sponge_iter(DParameter *param, Parameter &parameter) {
@@ -59,105 +59,105 @@ void cfd::update_sponge_iter(DParameter *param, Parameter &parameter) {
 }
 
 __global__ void cfd::update_sponge_iter_dev(DParameter *param) {
-  ++param->sponge_iter;
-  for (int i = 0; i < param->n_scalar; i++) {
-    ++param->sponge_scalar_iter[i];
-  }
+  // ++param->sponge_iter;
+  // for (int i = 0; i < param->n_scalar; i++) {
+  //   ++param->sponge_scalar_iter[i];
+  // }
 }
 
 __device__ void cfd::sponge_layer_source(DZone *zone, int i, int j, int k, const DParameter *param) {
-  real sigma = 0;
-  if (param->spongeX == 1 || param->spongeX == 3) {
-    // X inlet sponge layer
-    const real x1 = param->spongeXMinusStart;
-    const real x = zone->x(i, j, k);
-    if (x < x1) {
-      const real x2 = param->spongeXMinusEnd;
-      real xi = (x - x1) / (x2 - x1);
-      if (xi > 1)
-        xi = 1;
-      const real S = sponge_function(xi, param->sponge_function);
-      sigma += param->sponge_sigma0 * S;
-    }
-  }
-  if (param->spongeX == 2 || param->spongeX == 3) {
-    // X outflow sponge layer
-    const real x1 = param->spongeXPlusStart;
-    const real x = zone->x(i, j, k);
-    if (x > x1) {
-      const real x2 = param->spongeXPlusEnd;
-      real xi = (x - x1) / (x2 - x1);
-      if (xi > 1)
-        xi = 1;
-      const real S = sponge_function(xi, param->sponge_function);
-      sigma += param->sponge_sigma1 * S;
-    }
-  }
-  if (param->spongeY == 1 || param->spongeY == 3) {
-    // Y- sponge layer
-    const real y1 = param->spongeYMinusStart;
-    const real y = zone->y(i, j, k);
-    if (y < y1) {
-      const real y2 = param->spongeYMinusEnd;
-      real xi = (y - y1) / (y2 - y1);
-      if (xi > 1)
-        xi = 1;
-      const real S = sponge_function(xi, param->sponge_function);
-      sigma += param->sponge_sigma2 * S;
-    }
-  }
-  if (param->spongeY == 2 || param->spongeY == 3) {
-    // Y+ sponge layer
-    const real y1 = param->spongeYPlusStart;
-    const real y = zone->y(i, j, k);
-    if (y > y1) {
-      const real y2 = param->spongeYPlusEnd;
-      real xi = (y - y1) / (y2 - y1);
-      if (xi > 1)
-        xi = 1;
-      const real S = sponge_function(xi, param->sponge_function);
-      sigma += param->sponge_sigma3 * S;
-    }
-  }
-  if (param->spongeZ == 1 || param->spongeZ == 3) {
-    // Z- sponge layer
-    const real z1 = param->spongeZMinusStart;
-    const real z = zone->z(i, j, k);
-    if (z < z1) {
-      const real z2 = param->spongeZMinusEnd;
-      real xi = (z - z1) / (z2 - z1);
-      if (xi > 1)
-        xi = 1;
-      const real S = sponge_function(xi, param->sponge_function);
-      sigma += param->sponge_sigma4 * S;
-    }
-  }
-  if (param->spongeZ == 2 || param->spongeZ == 3) {
-    // Z+ sponge layer
-    const real z1 = param->spongeZPlusStart;
-    const real z = zone->z(i, j, k);
-    if (z > z1) {
-      const real z2 = param->spongeZPlusEnd;
-      real xi = (z - z1) / (z2 - z1);
-      if (xi > 1)
-        xi = 1;
-      const real S = sponge_function(xi, param->sponge_function);
-      sigma += param->sponge_sigma5 * S;
-    }
-  }
-//  if (abs(sigma) > 1e-5)
-//    printf("sigma(%d,%d)=%e\n", i, j, sigma);
-
-  for (int l = 0; l < param->n_var; ++l) {
-    if (isnan(zone->cv(i, j, k, l))) {
-      printf("dq(%d,%d,%d)=%e, sigma=%e, cv=%e, sponge=%e\n", i, j, l, zone->dq(i, j, k, l), sigma,
-             zone->cv(i, j, k, l), zone->sponge_mean_cv(i, j, k, l));
-    }
-    zone->dq(i, j, k, l) -= sigma * (zone->cv(i, j, k, l) - zone->sponge_mean_cv(i, j, k, l));
-//    if (abs(zone->dq(i,j,k,l))>1e-10)
-//      printf("dq(%d,%d,%d)=%e, sigma=%e, cv=%e, sponge=%e\n", i, j, l, zone->dq(i, j, k, l), sigma,
-//             zone->cv(i, j, k, l), zone->sponge_mean_cv(i, j, k, l));
-  }
+//   real sigma = 0;
+//   if (param->spongeX == 1 || param->spongeX == 3) {
+//     // X inlet sponge layer
+//     const real x1 = param->spongeXMinusStart;
+//     const real x = zone->x(i, j, k);
+//     if (x < x1) {
+//       const real x2 = param->spongeXMinusEnd;
+//       real xi = (x - x1) / (x2 - x1);
+//       if (xi > 1)
+//         xi = 1;
+//       const real S = sponge_function(xi, param->sponge_function);
+//       sigma += param->sponge_sigma0 * S;
+//     }
+//   }
+//   if (param->spongeX == 2 || param->spongeX == 3) {
+//     // X outflow sponge layer
+//     const real x1 = param->spongeXPlusStart;
+//     const real x = zone->x(i, j, k);
+//     if (x > x1) {
+//       const real x2 = param->spongeXPlusEnd;
+//       real xi = (x - x1) / (x2 - x1);
+//       if (xi > 1)
+//         xi = 1;
+//       const real S = sponge_function(xi, param->sponge_function);
+//       sigma += param->sponge_sigma1 * S;
+//     }
+//   }
+//   if (param->spongeY == 1 || param->spongeY == 3) {
+//     // Y- sponge layer
+//     const real y1 = param->spongeYMinusStart;
+//     const real y = zone->y(i, j, k);
+//     if (y < y1) {
+//       const real y2 = param->spongeYMinusEnd;
+//       real xi = (y - y1) / (y2 - y1);
+//       if (xi > 1)
+//         xi = 1;
+//       const real S = sponge_function(xi, param->sponge_function);
+//       sigma += param->sponge_sigma2 * S;
+//     }
+//   }
+//   if (param->spongeY == 2 || param->spongeY == 3) {
+//     // Y+ sponge layer
+//     const real y1 = param->spongeYPlusStart;
+//     const real y = zone->y(i, j, k);
+//     if (y > y1) {
+//       const real y2 = param->spongeYPlusEnd;
+//       real xi = (y - y1) / (y2 - y1);
+//       if (xi > 1)
+//         xi = 1;
+//       const real S = sponge_function(xi, param->sponge_function);
+//       sigma += param->sponge_sigma3 * S;
+//     }
+//   }
+//   if (param->spongeZ == 1 || param->spongeZ == 3) {
+//     // Z- sponge layer
+//     const real z1 = param->spongeZMinusStart;
+//     const real z = zone->z(i, j, k);
+//     if (z < z1) {
+//       const real z2 = param->spongeZMinusEnd;
+//       real xi = (z - z1) / (z2 - z1);
+//       if (xi > 1)
+//         xi = 1;
+//       const real S = sponge_function(xi, param->sponge_function);
+//       sigma += param->sponge_sigma4 * S;
+//     }
+//   }
+//   if (param->spongeZ == 2 || param->spongeZ == 3) {
+//     // Z+ sponge layer
+//     const real z1 = param->spongeZPlusStart;
+//     const real z = zone->z(i, j, k);
+//     if (z > z1) {
+//       const real z2 = param->spongeZPlusEnd;
+//       real xi = (z - z1) / (z2 - z1);
+//       if (xi > 1)
+//         xi = 1;
+//       const real S = sponge_function(xi, param->sponge_function);
+//       sigma += param->sponge_sigma5 * S;
+//     }
+//   }
+// //  if (abs(sigma) > 1e-5)
+// //    printf("sigma(%d,%d)=%e\n", i, j, sigma);
+//
+//   for (int l = 0; l < param->n_var; ++l) {
+//     if (isnan(zone->cv(i, j, k, l))) {
+//       printf("dq(%d,%d,%d)=%e, sigma=%e, cv=%e, sponge=%e\n", i, j, l, zone->dq(i, j, k, l), sigma,
+//              zone->cv(i, j, k, l), zone->sponge_mean_cv(i, j, k, l));
+//     }
+//     zone->dq(i, j, k, l) -= sigma * (zone->cv(i, j, k, l) - zone->sponge_mean_cv(i, j, k, l));
+// //    if (abs(zone->dq(i,j,k,l))>1e-10)
+// //      printf("dq(%d,%d,%d)=%e, sigma=%e, cv=%e, sponge=%e\n", i, j, l, zone->dq(i, j, k, l), sigma,
+// //             zone->cv(i, j, k, l), zone->sponge_mean_cv(i, j, k, l));
+//   }
 }
 
 __device__ real cfd::sponge_function(real xi, int method) {

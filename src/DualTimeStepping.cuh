@@ -101,11 +101,15 @@ void dual_time_stepping(Driver<mix_model> &driver) {
   bool monitor_inner_iteration;
   std::array<real, 4> res_scale_inner{1, 1, 1, 1};
   const int iteration_adjust_step{parameter.get_int("iteration_adjust_step")};
+  const auto need_physical_time{parameter.get_bool("need_physical_time")};
+  const auto hybrid_inviscid_scheme{parameter.get_string("hybrid_inviscid_scheme")};
 
   while (!finished) {
     ++step;
 
-    update_physical_time<<<1, 1>>>(param, physical_time);
+    if (need_physical_time) {
+      update_physical_time<<<1, 1>>>(param, physical_time);
+    }
 
     // Start a single iteration
     // First, store the value of last step if we need to compute residual
@@ -127,6 +131,13 @@ void dual_time_stepping(Driver<mix_model> &driver) {
       monitor_inner_iteration = true;
     } else {
       monitor_inner_iteration = false;
+    }
+
+    // Calculate the shock sensor, and save the results to zone->shock_sensor(i,j,k).
+    if (hybrid_inviscid_scheme != "NO") {
+      for (auto b = 0; b < n_block; ++b) {
+        calculate_shock_sensor<<<bpg[b], tpb>>>(field[b].d_ptr, param);
+      }
     }
 
     // dual-time stepping inner iteration
@@ -192,6 +203,7 @@ void dual_time_stepping(Driver<mix_model> &driver) {
 
     // Finally, test if the simulation reaches convergence state
     physical_time += dt;
+    parameter.update_parameter("solution_time", physical_time);
     if (step % output_screen == 0 || step == 1) {
       real err_max = compute_residual(driver, step);
       if (driver.myid == 0) {

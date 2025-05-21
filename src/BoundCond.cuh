@@ -653,6 +653,61 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
   auto &bv = zone->bv;
   auto &sv = zone->sv;
 
+  int jet_label = -1;
+  // if (i == 53 && j == 0 && k == 194) {
+  //   printf("problem type = %d in wall, x=%f, z=%f, r=%f, xc=%f, zc=%f\n", param->problem_type, zone->x(i, j, k),
+  //          zone->z(i, j, k), param->jet_radius, param->xc_jet[0], param->zc_jet[0]);
+  // }
+  // __syncthreads();
+  if (param->problem_type == 2) {
+    // jicf problem
+    const auto x = zone->x(i, j, k), z = zone->z(i, j, k);
+    const auto r = param->jet_radius;
+    for (int i_jet = 0; i_jet < param->n_jet; i_jet++) {
+      const real xc = param->xc_jet[i_jet];
+      const real zc = param->zc_jet[i_jet];
+      const auto dis = sqrt((x - xc) * (x - xc) + (z - zc) * (z - zc));
+      if (dis <= r) {
+        jet_label = i_jet;
+        // printf("(%d,%d,%d),x=%f,z=%f,dis=%f,xc=%f,zc=%f,r=%f,jet_label=%d\n", i, j, k, x, z, dis, xc, zc, r, jet_label);
+        break;
+      }
+    }
+  }
+  if (jet_label >= 0) {
+    // in jet region, the values are assigned from the jet
+    const auto rho_jet = param->jet_rho[jet_label], u_jet = param->jet_u[jet_label],
+        v_jet = param->jet_v[jet_label], w_jet = param->jet_w[jet_label];
+    const auto p_jet = param->jet_p[jet_label], t_jet = param->jet_T[jet_label];
+    bv(i, j, k, 0) = rho_jet;
+    bv(i, j, k, 1) = u_jet;
+    bv(i, j, k, 2) = v_jet;
+    bv(i, j, k, 3) = w_jet;
+    bv(i, j, k, 4) = p_jet;
+    bv(i, j, k, 5) = t_jet;
+    for (int l = 0; l < param->n_spec; l++) {
+      sv(i, j, k, l) = param->jet_sv(jet_label, l);
+    }
+    compute_cv_from_bv_1_point<mix_model>(zone, param, i, j, k);
+
+    // For ghost grids
+    for (int g = 1; g <= ngg; ++g) {
+      const int i_gh[]{i + g * dir[0], j + g * dir[1], k + g * dir[2]};
+
+      bv(i_gh[0], i_gh[1], i_gh[2], 0) = rho_jet;
+      bv(i_gh[0], i_gh[1], i_gh[2], 1) = u_jet;
+      bv(i_gh[0], i_gh[1], i_gh[2], 2) = v_jet;
+      bv(i_gh[0], i_gh[1], i_gh[2], 3) = w_jet;
+      bv(i_gh[0], i_gh[1], i_gh[2], 4) = p_jet;
+      bv(i_gh[0], i_gh[1], i_gh[2], 5) = t_jet;
+      for (int l = 0; l < param->n_spec; l++) {
+        sv(i_gh[0], i_gh[1], i_gh[2], l) = param->jet_sv(jet_label, l);
+      }
+      compute_cv_from_bv_1_point<mix_model>(zone, param, i_gh[0], i_gh[1], i_gh[2]);
+    }
+    return;
+  }
+
   real t_wall{bv(i, j, k, 5)};
 
   const int idx[]{i - dir[0], j - dir[1], k - dir[2]};
@@ -692,7 +747,6 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
     }
     mw = 1 / mw;
   }
-  int if_fluctuation = wall->fluctuation_type;
 
   const real rho_wall = p * mw / (t_wall * R_u);
   bv(i, j, k, 0) = rho_wall;
@@ -741,6 +795,7 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
   }
 
   real v_blow{0};
+  int if_fluctuation = wall->fluctuation_type;
   if (if_fluctuation == 1) {
     // Pirozzoli & Li fluctuations
     real phil[10] = {0.03, 0.47, 0.43, 0.73, 0.86, 0.36, 0.96, 0.47, 0.36, 0.61};
@@ -935,7 +990,7 @@ void DBoundCond::apply_boundary_conditions(const Block &block, Field &field, DPa
         dim3 TPB{32, 8};
         dim3 BPG{(my + 2 * ngg - 1) / TPB.x + 1, (mz + 2 * ngg - 1) / TPB.y + 1};
         apply_inflow_df<mix_model> <<<BPG, TPB>>>(field.d_ptr, &inflow[l], param, fluctuation_dPtr,
-                                                        df_label[l]);
+                                                  df_label[l]);
       }
     } else {
       for (size_t i = 0; i < nb; i++) {
@@ -953,7 +1008,7 @@ void DBoundCond::apply_boundary_conditions(const Block &block, Field &field, DPa
         }
         dim3 TPB{tpb[0], tpb[1], tpb[2]}, BPG{bpg[0], bpg[1], bpg[2]};
         apply_inflow<mix_model> <<<BPG, TPB>>>(field.d_ptr, &inflow[l], i_face, param,
-                                                     profile_dPtr_withGhost, rng_d_ptr, fluctuation_dPtr);
+                                               profile_dPtr_withGhost, rng_d_ptr, fluctuation_dPtr);
       }
     }
   }

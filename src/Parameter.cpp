@@ -701,6 +701,18 @@ void cfd::Parameter::deduce_sim_info(const Species &spec) {
 
   get_variable_names(spec);
 
+  // Convert canonical problem names to internal labels
+  auto canonical_problem = get_string("canonical_problem");
+  canonical_problem = gxl::to_upper(canonical_problem);
+  int problem_type = 0;
+  if (canonical_problem == "MIXINGLAYER"){
+    problem_type = 1;
+  } else if (canonical_problem == "JICF"){
+    problem_type = 2;
+  }
+  update_parameter("problem_type", problem_type);
+  // printf("canonical problem = %s, problem type = %d\n", canonical_problem.c_str(), problem_type);
+
   const int myid = get_int("myid");
   if (myid == 0) {
     fmt::print("\n{:*^80}\n", "Simulation Details");

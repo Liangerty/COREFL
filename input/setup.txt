@@ -1,6 +1,7 @@
 bool parallel = 0      // specify the mode of computation. 0 - serial, 1 - parallel.
 
 int  problem_type = 1  // the type of problem. 0 - general problem, 1 - mixing layer.
+string canonical_problem = jicf     // The type of the problem. Generally, use "general", other choices include jicf, mixingLayer
 
 // Grid info
 int mesh_file_type = 0  // Read the Plot3D file exported from Pointwise. 0 - Preprocessed by readGrid, 1 - directly read the Plot3D file.
@@ -23,38 +24,26 @@ int output_time_series = 0 // frequency of output time series data. 0 - Not outp
 bool limit_flow = 0     // 0 - no limit, 1 - limit the flow field.
 
 // flow info.
-// for mixing layer computations(problem type=1), specify the following info.
-real ma_c = 0.3            // the convective Mach number Ma_c
-real delta_omega = 1e-4     // the inlet vorticity thickness(m)
-real velocity_ratio = 1.5   // the velocity ratio between the two streams
-bool compatible_mixing_layer = 0 // 1 - the mixing layer compatible as the Chen Qian's PhD thesis
-struct upper_stream = {
-    real mach = 1.1
-    real temperature = 210
-    real pressure = 100000
-    real H2 = 1
-    real mixture_fraction = 1
-    real turb_viscosity_ratio =	1
-    real turbulence_intensity = 0.01
-    real ps1 = 1
-    real ps2 = 1
-    real ps3 = 1
-    real ps4 = 1
+// for jicf computations(problem type=1), specify the following info.
+// The jets are assumed to locate on the lower wall, y = 0 of the wall boundary condition!
+// This part, we would not make it so general. If you want to increase the number of jets, the xc_jet, zc_jet arrays should also be modified in BoundCond.h.
+int n_jet = 1       // number of jets. 
+array real xc_jet {
+    0
 }
-struct lower_stream = {
-    real temperature = 210
-    real pressure = 100000
-    real O2 = 0.232
-    real N2 = 0.768
-    real mixture_fraction = 0
-    real turb_viscosity_ratio =	1
-    real turbulence_intensity = 0.01
-    real ps1 = 0
-    real ps2 = 0
-    real ps3 = 0
-    real ps4 = 0
+array real zc_jet {
+    0
 }
-bool upper_faster = 0   // 1 - upper stream has larger mach number, 0 - lower stream has larger mach number.
+real jet_radius = 0.001     // in meters
+struct jet-0 {
+    real    mach        =   1
+    real    temperature =   248
+    real    pressure    =   1072700
+    real    u           =   0
+    real    v           =   1
+    real    w           =   0
+    real    H2          =   1
+}
 
 // numerics
 // temporal scheme

@@ -266,6 +266,21 @@ void cfd::Block::compute_jac_metric(int myid) {
         if (jac <= 0) {
           fmt::print("Negative Jacobian from process {}\nBlock {}, index is ({}, {}, {}).\nStop simulation.\n", myid,
                      block_id, i, j, k);
+          fmt::print("dxd1=({} - {})/2={}, dyd1=({} - {})/2={}, dzd1=({} - {})/2={}\n",
+                     x(i + 1, j, k), x(i - 1, j, k), dxd1,
+                     y(i + 1, j, k), y(i - 1, j, k), dyd1,
+                     z(i + 1, j, k), z(i - 1, j, k), dzd1);
+          fmt::print("dxd2=({} - {})/2={}, dyd2=({} - {})/2={}, dzd2=({} - {})/2={}\n",
+                      x(i, j + 1, k), x(i, j - 1, k), dxd2,
+                      y(i, j + 1, k), y(i, j - 1, k), dyd2,
+                      z(i, j + 1, k), z(i, j - 1, k), dzd2);
+          fmt::print("dxd3=({} - {})/2={}, dyd3=({} - {})/2={}, dzd3=({} - {})/2={}\n",
+                      x(i, j, k + 1), x(i, j, k - 1), dxd3,
+                      y(i, j, k + 1), y(i, j, k - 1), dyd3,
+                      z(i, j, k + 1), z(i, j, k - 1), dzd3);
+          // for (int zz = 0; zz < mz; ++zz) {
+          //   fmt::print("z({},{},{}) = {}\n", i, j, zz, z(i, j, zz));
+          // }
           MPI_Abort(MPI_COMM_WORLD, 1);
         }
         jacobian(i, j, k) = jac;

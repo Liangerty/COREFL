@@ -1,6 +1,7 @@
 #include "DParameter.cuh"
 #include "ChemData.h"
 #include <filesystem>
+#include "Constants.h"
 
 cfd::DParameter::DParameter(Parameter &parameter, const Species &species, Reaction *reaction) :
   myid{parameter.get_int("myid")},
@@ -24,15 +25,15 @@ cfd::DParameter::DParameter(Parameter &parameter, const Species &species, Reacti
   p_ref{parameter.get_real("p_inf")}, weno_eps_scale{
     parameter.get_real("rho_inf") * parameter.get_real("v_inf") * parameter.get_real("rho_inf") *
     parameter.get_real("v_inf")
-  }, perform_spanwise_average{parameter.get_bool("perform_spanwise_average")},
-  sponge_layer{parameter.get_bool("sponge_layer")}, sponge_function{parameter.get_int("sponge_function")},
-  sponge_iter{parameter.get_int("sponge_iter")}, spongeXMinusStart{parameter.get_real("spongeXMinusStart")},
-  spongeXMinusEnd{parameter.get_real("spongeXMinusEnd")}, spongeXPlusStart{parameter.get_real("spongeXPlusStart")},
-  spongeXPlusEnd{parameter.get_real("spongeXPlusEnd")}, spongeYMinusStart{parameter.get_real("spongeYMinusStart")},
-  spongeYMinusEnd{parameter.get_real("spongeYMinusEnd")}, spongeYPlusStart{parameter.get_real("spongeYPlusStart")},
-  spongeYPlusEnd{parameter.get_real("spongeYPlusEnd")}, spongeZMinusStart{parameter.get_real("spongeZMinusStart")},
-  spongeZMinusEnd{parameter.get_real("spongeZMinusEnd")}, spongeZPlusStart{parameter.get_real("spongeZPlusStart")},
-  spongeZPlusEnd{parameter.get_real("spongeZPlusEnd")} {
+  }, perform_spanwise_average{parameter.get_bool("perform_spanwise_average")}
+/*,sponge_layer{parameter.get_bool("sponge_layer")}, sponge_function{parameter.get_int("sponge_function")},
+sponge_iter{parameter.get_int("sponge_iter")}, spongeXMinusStart{parameter.get_real("spongeXMinusStart")},
+spongeXMinusEnd{parameter.get_real("spongeXMinusEnd")}, spongeXPlusStart{parameter.get_real("spongeXPlusStart")},
+spongeXPlusEnd{parameter.get_real("spongeXPlusEnd")}, spongeYMinusStart{parameter.get_real("spongeYMinusStart")},
+spongeYMinusEnd{parameter.get_real("spongeYMinusEnd")}, spongeYPlusStart{parameter.get_real("spongeYPlusStart")},
+spongeYPlusEnd{parameter.get_real("spongeYPlusEnd")}, spongeZMinusStart{parameter.get_real("spongeZMinusStart")},
+spongeZMinusEnd{parameter.get_real("spongeZMinusEnd")}, spongeZPlusStart{parameter.get_real("spongeZPlusStart")},
+spongeZPlusEnd{parameter.get_real("spongeZPlusEnd")}*/ {
   if (parameter.get_int("myid") == 0) {
     if (inviscid_scheme == 51 || inviscid_scheme == 52 || inviscid_scheme == 71 || inviscid_scheme == 72)
       printf("\t->-> %-20e : WENO scale factor\n", weno_eps_scale);
@@ -176,6 +177,93 @@ cfd::DParameter::DParameter(Parameter &parameter, const Species &species, Reacti
                cudaMemcpyHostToDevice);
   }
 
+  if (parameter.get_string("canonical_problem") == "jicf") {
+    n_jet = parameter.get_int("n_jet");
+    jet_radius = parameter.get_real("jet_radius");
+    if (n_jet > 0) {
+      cudaMalloc(&xc_jet, n_jet * sizeof(real));
+      cudaMemcpy(xc_jet, parameter.get_real_array("xc_jet").data(), n_jet * sizeof(real), cudaMemcpyHostToDevice);
+      cudaMalloc(&zc_jet, n_jet * sizeof(real));
+      cudaMemcpy(zc_jet, parameter.get_real_array("zc_jet").data(), n_jet * sizeof(real), cudaMemcpyHostToDevice);
+
+      // jet info
+      std::vector<real> jet_uh(n_jet), jet_vh(n_jet), jet_wh(n_jet), jet_Th(n_jet), jet_ph(n_jet), jet_rhoh(n_jet);
+      gxl::MatrixDyn<real> jet_svh;
+      jet_svh.resize(n_jet, n_spec);
+      for (int i = 0; i < n_jet; i++) {
+        auto struct_name = "jet-" + std::to_string(i);
+        auto info = parameter.get_struct(struct_name);
+        auto jet1_mach = std::get<real>(info.at("mach"));
+        auto jet1_u = std::get<real>(info.at("u"));
+        auto jet1_v = std::get<real>(info.at("v"));
+        auto jet1_w = std::get<real>(info.at("w"));
+        auto jet1_T = std::get<real>(info.at("temperature"));
+        auto jet1_p = std::get<real>(info.at("pressure"));
+        real jet1_rho;
+        auto jet1_sv = new real[n_spec];
+        memset(jet1_sv, 0, n_spec * sizeof(real));
+        if (n_spec > 0) {
+          // const auto& spec_list = spec.spec_list;
+          real mw_inv = 0;
+          for (const auto &[name, idx]: spec.spec_list) {
+            if (info.find(name) != info.cend()) {
+              jet1_sv[idx] = std::get<real>(info.at(name));
+              // printf("%s = %e\n", name.c_str(), jet1_sv[idx]);
+            }
+          }
+          for (int l = 0; l < n_spec; ++l) {
+            mw_inv += jet1_sv[l] / spec.mw[l];
+          }
+          jet1_rho = jet1_p / (R_u * mw_inv * jet1_T);
+          // printf("rho = %e\n", jet1_rho);
+          std::vector<real> cpi(n_spec, 0);
+          spec.compute_cp(jet1_T, cpi.data());
+          real cp{0}, cv{0};
+          for (int l = 0; l < n_spec; ++l) {
+            cp += jet1_sv[l] * cpi[l];
+            cv += jet1_sv[l] * (cpi[l] - R_u / spec.mw[l]);
+          }
+          real gamma = cp / cv; // specific heat ratio
+          real c = sqrt(gamma * R_u * jet1_T * mw_inv);
+          // printf("cp = %f, cv = %f, gamma = %f, c=%f\n", cp, cv, gamma, c);
+          jet1_u *= jet1_mach * c;
+          jet1_v *= jet1_mach * c;
+          jet1_w *= jet1_mach * c;
+        } else {
+          jet1_rho = jet1_p / (R_air * jet1_T);
+          real c = sqrt(gamma_air * R_air * jet1_T);
+          jet1_u *= jet1_mach * c;
+          jet1_v *= jet1_mach * c;
+          jet1_w *= jet1_mach * c;
+        }
+        jet_uh[i] = jet1_u;
+        jet_vh[i] = jet1_v;
+        jet_wh[i] = jet1_w;
+        jet_Th[i] = jet1_T;
+        jet_ph[i] = jet1_p;
+        jet_rhoh[i] = jet1_rho;
+        for (int l = 0; l < n_spec; ++l) {
+          jet_svh(i, l) = jet1_sv[l];
+        }
+        // printf("rho=%e, u=%e, v=%e, w=%e, T=%e, p=%e\n", jet1_rho, jet1_u, jet1_v, jet1_w, jet1_T, jet1_p);
+      }
+      cudaMalloc(&jet_u, n_jet * sizeof(real));
+      cudaMemcpy(jet_u, jet_uh.data(), n_jet * sizeof(real), cudaMemcpyHostToDevice);
+      cudaMalloc(&jet_v, n_jet * sizeof(real));
+      cudaMemcpy(jet_v, jet_vh.data(), n_jet * sizeof(real), cudaMemcpyHostToDevice);
+      cudaMalloc(&jet_w, n_jet * sizeof(real));
+      cudaMemcpy(jet_w, jet_wh.data(), n_jet * sizeof(real), cudaMemcpyHostToDevice);
+      cudaMalloc(&jet_T, n_jet * sizeof(real));
+      cudaMemcpy(jet_T, jet_Th.data(), n_jet * sizeof(real), cudaMemcpyHostToDevice);
+      cudaMalloc(&jet_p, n_jet * sizeof(real));
+      cudaMemcpy(jet_p, jet_ph.data(), n_jet * sizeof(real), cudaMemcpyHostToDevice);
+      cudaMalloc(&jet_rho, n_jet * sizeof(real));
+      cudaMemcpy(jet_rho, jet_rhoh.data(), n_jet * sizeof(real), cudaMemcpyHostToDevice);
+      jet_sv.init_with_size(n_jet, n_spec);
+      cudaMemcpy(jet_sv.data(), jet_svh.data(), n_jet * n_spec * sizeof(real), cudaMemcpyHostToDevice);
+    }
+  }
+
   // If mixing layer and multi-component, we need the mixture fraction info.
   if (problem_type == 1 && n_spec > 0) {
     beta_diff_inv = parameter.get_real("beta_diff_inv");
@@ -224,40 +312,40 @@ cfd::DParameter::DParameter(Parameter &parameter, const Species &species, Reacti
     limit_flow.sv_inf[l] = sv_inf[l];
   }
 
-  if (parameter.get_bool("sponge_layer")) {
-    spongeX = parameter.get_int("spongeX");
-    spongeY = parameter.get_int("spongeY");
-    spongeZ = parameter.get_int("spongeZ");
-    if (parameter.get_int("n_scalar") > 0) {
-      cudaMalloc(&sponge_scalar_iter, n_scalar * sizeof(int));
-      cudaMemcpy(sponge_scalar_iter, parameter.get_int_array("sponge_scalar_iter").data(), n_scalar * sizeof(int),
-                 cudaMemcpyHostToDevice);
-    }
-    if (spongeX == 1 || spongeX == 3) {
-      sponge_sigma0 = parameter.get_real("spongeCoefficient") * v_char / (spongeXMinusStart - spongeXMinusEnd);
-      printf("sponge_sigma0=%e\n", sponge_sigma0);
-    }
-    if (spongeX == 2 || spongeX == 3) {
-      sponge_sigma1 = parameter.get_real("spongeCoefficient") * v_char / (spongeXPlusEnd - spongeXPlusStart);
-      printf("sponge_sigma1=%e\n", sponge_sigma1);
-    }
-    if (spongeY == 1 || spongeY == 3) {
-      sponge_sigma2 = parameter.get_real("spongeCoefficient") * v_char / (spongeYMinusStart - spongeYMinusEnd);
-      printf("sponge_sigma2=%e\n", sponge_sigma2);
-    }
-    if (spongeY == 2 || spongeY == 3) {
-      sponge_sigma3 = parameter.get_real("spongeCoefficient") * v_char / (spongeYPlusEnd - spongeYPlusStart);
-      printf("sponge_sigma3=%e\n", sponge_sigma3);
-    }
-    if (spongeZ == 1 || spongeZ == 3) {
-      sponge_sigma4 = parameter.get_real("spongeCoefficient") * v_char / (spongeZMinusStart - spongeZMinusEnd);
-      printf("sponge_sigma4=%e\n", sponge_sigma4);
-    }
-    if (spongeZ == 2 || spongeZ == 3) {
-      sponge_sigma5 = parameter.get_real("spongeCoefficient") * v_char / (spongeZPlusEnd - spongeZPlusStart);
-      printf("sponge_sigma5=%e\n", sponge_sigma5);
-    }
-  }
+  // if (parameter.get_bool("sponge_layer")) {
+  //   spongeX = parameter.get_int("spongeX");
+  //   spongeY = parameter.get_int("spongeY");
+  //   spongeZ = parameter.get_int("spongeZ");
+  //   if (parameter.get_int("n_scalar") > 0) {
+  //     cudaMalloc(&sponge_scalar_iter, n_scalar * sizeof(int));
+  //     cudaMemcpy(sponge_scalar_iter, parameter.get_int_array("sponge_scalar_iter").data(), n_scalar * sizeof(int),
+  //                cudaMemcpyHostToDevice);
+  //   }
+  //   if (spongeX == 1 || spongeX == 3) {
+  //     sponge_sigma0 = parameter.get_real("spongeCoefficient") * v_char / (spongeXMinusStart - spongeXMinusEnd);
+  //     printf("sponge_sigma0=%e\n", sponge_sigma0);
+  //   }
+  //   if (spongeX == 2 || spongeX == 3) {
+  //     sponge_sigma1 = parameter.get_real("spongeCoefficient") * v_char / (spongeXPlusEnd - spongeXPlusStart);
+  //     printf("sponge_sigma1=%e\n", sponge_sigma1);
+  //   }
+  //   if (spongeY == 1 || spongeY == 3) {
+  //     sponge_sigma2 = parameter.get_real("spongeCoefficient") * v_char / (spongeYMinusStart - spongeYMinusEnd);
+  //     printf("sponge_sigma2=%e\n", sponge_sigma2);
+  //   }
+  //   if (spongeY == 2 || spongeY == 3) {
+  //     sponge_sigma3 = parameter.get_real("spongeCoefficient") * v_char / (spongeYPlusEnd - spongeYPlusStart);
+  //     printf("sponge_sigma3=%e\n", sponge_sigma3);
+  //   }
+  //   if (spongeZ == 1 || spongeZ == 3) {
+  //     sponge_sigma4 = parameter.get_real("spongeCoefficient") * v_char / (spongeZMinusStart - spongeZMinusEnd);
+  //     printf("sponge_sigma4=%e\n", sponge_sigma4);
+  //   }
+  //   if (spongeZ == 2 || spongeZ == 3) {
+  //     sponge_sigma5 = parameter.get_real("spongeCoefficient") * v_char / (spongeZPlusEnd - spongeZPlusStart);
+  //     printf("sponge_sigma5=%e\n", sponge_sigma5);
+  //   }
+  // }
 }
 
 //cfd::DParameter::~DParameter() {
