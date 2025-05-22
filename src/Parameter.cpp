@@ -462,6 +462,7 @@ void cfd::Parameter::deduce_known_info() {
 
 void cfd::Parameter::setup_default_settings() {
   int_parameters["problem_type"] = 0;
+  string_parameters["canonical_problem"] = "default";
 
   int_parameters["mesh_file_type"] = 0;
   int_parameters["gridIsBinary"] = 0;

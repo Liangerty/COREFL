@@ -341,7 +341,7 @@ template<> __device__ void hybrid_weno_part<MixtureModel::Air>(const real *pv, c
 }
 
 __device__ void hybrid_weno_part_cp(const real *pv, const real *rhoE, int i_shared, const DParameter *param,
-  const real *metric, const real *jac, const real *uk, const real *cGradK, real *fci) {
+  const real *metric, const real *jac, const real *uk, const real *cGradK, real *fci, real *f_1st) {
   const int n_var = param->n_var;
 
   constexpr real eps{1e-40};
@@ -409,6 +409,9 @@ __device__ void hybrid_weno_part_cp(const real *pv, const real *rhoE, int i_shar
       vPlus[m] = 0.5 * jac[is] * (f + lam);
       vMinus[m] = 0.5 * jac[is] * (f - lam);
     }
+    if (param->positive_preserving && l > 4) {
+      f_1st[l - 5] = 0.5 * (vPlus[weno_scheme - 1] + vMinus[weno_scheme]);
+    }
     if (weno_size == 6)
       fci[l] = WENO5_new(vPlus, vMinus, eps_here);
     else
@@ -417,7 +420,7 @@ __device__ void hybrid_weno_part_cp(const real *pv, const real *rhoE, int i_shar
 }
 
 __device__ void hybrid_ud_part(const real *pv, const real *rhoE, int i_shared, const DParameter *param,
-  const real *metric, const real *jac, const real *uk, const real *cGradK, real *fci) {
+  const real *metric, const real *jac, const real *uk, const real *cGradK, real *fci, real *f_1st) {
   const int n_var = param->n_var;
 
   int weno_scheme = 3, weno_size = 6;
@@ -465,6 +468,11 @@ __device__ void hybrid_ud_part(const real *pv, const real *rhoE, int i_shared, c
       vPlus[m] = 0.5 * jac[is] * (f + lam);
       vMinus[m] = 0.5 * jac[is] * (f - lam);
     }
+
+    if (param->positive_preserving && l > 4) {
+      f_1st[l - 5] = 0.5 * (vPlus[weno_scheme - 1] + vMinus[weno_scheme]);
+    }
+
     if (weno_size == 6) {
       const real fP = 2 * vPlus[0] - 13 * vPlus[1] + 47 * vPlus[2] + 27 * vPlus[3] - 3 * vPlus[4];
       const real fM = -3 * vMinus[1] + 27 * vMinus[2] + 47 * vMinus[3] - 13 * vMinus[4] + 2 * vMinus[5];
@@ -476,6 +484,51 @@ __device__ void hybrid_ud_part(const real *pv, const real *rhoE, int i_shared, c
                       25 * vMinus[6] - 3 * vMinus[7];
       fci[l] = (fP + fM) / 420;
     }
+  }
+}
+
+__device__ void
+positive_preserving_limiter_new(const real *f_1st, int n_var, int tid, real *fc, const DParameter *param, int i_shared,
+  real dt, int idx_in_mesh, int max_extent, const real *pv, const real *jac) {
+  const real alpha = param->dim == 3 ? 1.0 / 3.0 : 0.5;
+
+  const int ns = n_var - 5;
+  const auto svL = &pv[i_shared * n_var + 5];
+  const auto svR = &pv[(i_shared + 1) * n_var + 5];
+  const auto rhoL = pv[i_shared * n_var], rhoR = pv[(i_shared + 1) * n_var];
+  real *fc_yq_i = &fc[tid * n_var + 5];
+
+  for (int l = 0; l < ns; ++l) {
+    real theta_p = 1.0, theta_m = 1.0;
+    if (idx_in_mesh > -1) {
+      const real up = 0.5 * alpha * svL[l] * rhoL * jac[i_shared] - dt * fc_yq_i[l];
+      if (up < 0) {
+        const real up_lf = 0.5 * alpha * svL[l] * rhoL * jac[i_shared] - dt * f_1st[tid * ns + l];
+        if (abs(up - up_lf) > 1e-20) {
+          theta_p = (0 - up_lf) / (up - up_lf);
+          if (theta_p > 1)
+            theta_p = 1.0;
+          else if (theta_p < 0)
+            theta_p = 0;
+        }
+      }
+    }
+
+    if (idx_in_mesh < max_extent - 1) {
+      const real um = 0.5 * alpha * svR[l] * rhoR * jac[i_shared + 1] + dt * fc_yq_i[l];
+      if (um < 0) {
+        const real um_lf = 0.5 * alpha * svR[l] * rhoR * jac[i_shared + 1] + dt * f_1st[tid * ns + l];
+        if (abs(um - um_lf) > 1e-20) {
+          theta_m = (0 - um_lf) / (um - um_lf);
+          if (theta_m > 1)
+            theta_m = 1.0;
+          else if (theta_m < 0)
+            theta_m = 0;
+        }
+      }
+    }
+
+    fc_yq_i[l] = min(theta_p, theta_m) * (fc_yq_i[l] - f_1st[tid * ns + l]) + f_1st[tid * ns + l];
   }
 }
 
@@ -502,6 +555,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_x(DZone *zone, DParameter
   real *rhoE = &cGradK[n_point];
   real *uk = &rhoE[n_point];
   real *fc = &uk[n_point];
+  real *f_1st = nullptr;
+  if (param->positive_preserving)
+    f_1st = &fc[block_dim * n_var];
 
   const int tid = static_cast<int>(threadIdx.x);
 
@@ -647,10 +703,21 @@ __global__ void compute_convective_term_hybrid_ud_weno_x(DZone *zone, DParameter
 
   if (if_shock) {
     //The inviscid term at this point is calculated by WENO scheme.
-    hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var]);
+    hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var],
+                        &f_1st[tid * (n_var - 5)]);
   } else {
     //The inviscid term at this point is calculated by ep scheme.
-    hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var]);
+    hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+  }
+  __syncthreads();
+
+  if (param->positive_preserving) {
+    real dt{0};
+    if (param->dt > 0)
+      dt = param->dt;
+    else
+      dt = zone->dt_local(i, j, k);
+    positive_preserving_limiter_new(f_1st, n_var, tid, fc, param, i_shared, dt, i, max_extent, pv, jac);
   }
   __syncthreads();
 
@@ -684,6 +751,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_y(DZone *zone, DParameter
   real *rhoE = &cGradK[n_point];
   real *uk = &rhoE[n_point];
   real *fc = &uk[n_point];
+  real *f_1st = nullptr;
+  if (param->positive_preserving)
+    f_1st = &fc[block_dim * n_var];
 
   const int tid = static_cast<int>(threadIdx.y);
 
@@ -829,9 +899,19 @@ __global__ void compute_convective_term_hybrid_ud_weno_y(DZone *zone, DParameter
 
   if (if_shock) { //The inviscid term at this point is calculated by WENO scheme.
     // hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var]);
-    hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var]);
+    hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
   } else { //The inviscid term at this point is calculated by ep scheme.
-    hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var]);
+    hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+  }
+  __syncthreads();
+
+  if (param->positive_preserving) {
+    real dt{0};
+    if (param->dt > 0)
+      dt = param->dt;
+    else
+      dt = zone->dt_local(i, j, k);
+    positive_preserving_limiter_new(f_1st, n_var, tid, fc, param, i_shared, dt, j, max_extent, pv, jac);
   }
   __syncthreads();
 
@@ -865,6 +945,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_z(DZone *zone, DParameter
   real *rhoE = &cGradK[n_point];
   real *uk = &rhoE[n_point];
   real *fc = &uk[n_point];
+  real *f_1st = nullptr;
+  if (param->positive_preserving)
+    f_1st = &fc[block_dim * n_var];
 
   bool if_shock = false;
   for (int ii = -ngg + 1; ii <= ngg; ++ii) {
@@ -1011,9 +1094,19 @@ __global__ void compute_convective_term_hybrid_ud_weno_z(DZone *zone, DParameter
   __syncthreads();
 
   if (if_shock) { //The inviscid term at this point is calculated by WENO scheme.
-    hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var]);
+    hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
   } else { //The inviscid term at this point is calculated by ep scheme.
-    hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var]);
+    hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+  }
+  __syncthreads();
+
+  if (param->positive_preserving) {
+    real dt{0};
+    if (param->dt > 0)
+      dt = param->dt;
+    else
+      dt = zone->dt_local(i, j, k);
+    positive_preserving_limiter_new(f_1st, n_var, tid, fc, param, i_shared, dt, k, max_extent, pv, jac);
   }
   __syncthreads();
 
@@ -1058,5 +1151,4 @@ template void compute_convective_term_hybrid_ud_weno<MixtureModel::Air>(const Bl
 
 template void compute_convective_term_hybrid_ud_weno<MixtureModel::Mixture>(const Block &block, DZone *zone,
   DParameter *param, int n_var, const Parameter &parameter);
-
 }
