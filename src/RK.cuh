@@ -293,8 +293,18 @@ __global__ void update_cv_and_bv_rk(DZone *zone, DParameter *param, real dt, int
   //V^2
 
   auto &sv = zone->sv;
+  real sum_part_den{0};
+  for (int l = 0; l < param->n_spec; ++l) {
+    sum_part_den += cv(i, j, k, l + 5);
+  }
+  sum_part_den = 1.0 / sum_part_den;
+  const auto denComDivDenReal = cv(i, j, k, 0) * sum_part_den;
+  for (int l = 0; l < param->n_spec; ++l) {
+    sv(i, j, k, l) = cv(i, j, k, 5 + l) * sum_part_den;
+    cv(i, j, k, 5 + l) *= denComDivDenReal;
+  }
   // For multiple species or RANS methods, there will be scalars to be computed
-  for (int l = 0; l < param->n_scalar; ++l) {
+  for (int l = param->n_spec; l < param->n_scalar; ++l) {
     sv(i, j, k, l) = cv(i, j, k, 5 + l) * density_inv;
   }
 

@@ -11,9 +11,9 @@ if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
   set(CMAKE_CUDA_ARCHITECTURES 60)
 endif()
 
-add_compile_definitions(MAX_SPEC_NUMBER=3)
-add_compile_definitions(MAX_REAC_NUMBER=1)
-add_compile_definitions(MAX_PASSIVE_SCALAR_NUMBER=5)
+add_compile_definitions(MAX_SPEC_NUMBER=9)
+add_compile_definitions(MAX_REAC_NUMBER=19)
+add_compile_definitions(MAX_PASSIVE_SCALAR_NUMBER=1)
 
 project(COREFL-CPC CUDA CXX)
 
