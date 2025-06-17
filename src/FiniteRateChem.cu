@@ -4,7 +4,7 @@
 #include "Constants.h"
 
 namespace cfd {
-__global__ void finite_rate_chemistry(DZone *zone, const DParameter *param){
+__global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
   const int extent[3]{zone->mx, zone->my, zone->mz};
   const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
   const auto j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
@@ -40,8 +40,8 @@ __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param){
   rate_of_progress(kf, kb, c, q, q1, q2, param);
 
   // compute the chemical source
-  real omega[MAX_REAC_NUMBER * 2];
-  real *omega_d = &omega[MAX_REAC_NUMBER];
+  real omega[MAX_SPEC_NUMBER * 2];
+  real *omega_d = &omega[MAX_SPEC_NUMBER];
   chemical_source(q1, q2, omega_d, omega, param);
 
   for (int l = 0; l < ns; ++l) {
@@ -85,6 +85,11 @@ __device__ void forward_reaction_rate(real t, real *kf, const real *concentratio
       } else {
         const real kf_low = arrhenius(t, A2[i], b2[i], Ea2[i]);
         const real kf_high = kf[i];
+        if (kf_high < 1e-25 && kf_low < 1e-25) {
+          // If both kf_high and kf_low are too small, set kf to zero
+          kf[i] = 0;
+          continue;
+        }
         const real reduced_pressure = kf_low * cc / kf_high;
         real F = 1.0;
         if (type[i] > 5) {
@@ -138,8 +143,8 @@ backward_reaction_rate(real t, const real *kf, const real *concentration, const 
 
   real gibbs_rt[MAX_SPEC_NUMBER];
   compute_gibbs_div_rt(t, param, gibbs_rt);
-  constexpr real temp_p = p_atm / R_u * 1e-3;   // Convert the unit to mol*K/cm3
-  const real temp_t = temp_p / t; // Unit is mol/cm3
+  constexpr real temp_p = p_atm / R_u * 1e-3; // Convert the unit to mol*K/cm3
+  const real temp_t = temp_p / t;             // Unit is mol/cm3
   const auto &stoi_f = param->stoi_f, &stoi_b = param->stoi_b;
   const auto order = param->reac_order;
   for (int i = 0; i < param->n_reac; ++i) {
@@ -152,7 +157,6 @@ backward_reaction_rate(real t, const real *kf, const real *concentration, const 
       kb[i] = kf[i] / kc;
     }
   }
-
 }
 
 __device__ void
@@ -194,8 +198,8 @@ __device__ void chemical_source(const real *q1, const real *q2, real *omega_d, r
       creation += q2[j] * stoi_f(j, i) + q1[j] * stoi_b(j, i);
       omega_d[i] += q1[j] * stoi_f(j, i) + q2[j] * stoi_b(j, i);
     }
-    creation *= mw[i] * 1e+3;              // Unit is kg/(m3*s)
-    omega_d[i] *= mw[i] * 1e+3;        // Unit is kg/(m3*s)
+    creation *= mw[i] * 1e+3;         // Unit is kg/(m3*s)
+    omega_d[i] *= mw[i] * 1e+3;       // Unit is kg/(m3*s)
     omega[i] = creation - omega_d[i]; // Unit is kg/(m3*s)
   }
 }
@@ -430,5 +434,4 @@ __global__ void DA(DZone *zone, int n_spec) {
     zone->dq(i, j, k, 5 + l) /= 1 - dt * chem_jac(i, j, k, l);
   }
 }
-
 } // cfd
