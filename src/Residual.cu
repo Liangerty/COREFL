@@ -32,7 +32,7 @@ unsteady_screen_output(int step, real err_max, gxl::Time &time, const std::array
   printf("Total elapsed CPU time is %16.8fs\n", time.elapsed_time);
 }
 
-__global__ void check_nan(DZone *zone, int blk, int myid) {
+__global__ void check_nan(DZone *zone, int blk, int myid, int n_scalar) {
   const int mx{zone->mx}, my{zone->my}, mz{zone->mz};
   const int i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
   const int j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
@@ -40,11 +40,26 @@ __global__ void check_nan(DZone *zone, int blk, int myid) {
   if (i >= mx || j >= my || k >= mz) return;
 
   auto &bv = zone->bv;
+  auto &sv = zone->sv;
+  std::string yks;
+  char* buf[10];
+  for (int l = 0; l < n_scalar; ++l) {
+    if (isnan(sv(i, j, k, l))) {
+      sprintf(buf[l], "%e", sv(i, j, k, l));
+    } else {
+      sprintf(buf[l], "%f", sv(i, j, k, l));
+    }
+    yks += buf[l];
+    if (l < n_scalar - 1) {
+      yks += ",";
+    }
+  }
 
   if (isnan(bv(i, j, k, 0)) || isnan(bv(i, j, k, 1)) || isnan(bv(i, j, k, 2)) || isnan(bv(i, j, k, 3)) ||
       isnan(bv(i, j, k, 4)) || isnan(bv(i, j, k, 5))) {
-    printf("Proc %d, block %d, (%d, %d, %d), bv = {%e, %e, %e, %e, %e, %e}.\n", myid, blk, i, j, k, bv(i, j, k, 0),
-           bv(i, j, k, 1), bv(i, j, k, 2), bv(i, j, k, 3), bv(i, j, k, 4), bv(i, j, k, 5));
+    printf("P[%d]B[%d](%d, %d, %d), bv = {%e,%e,%e,%e,%e,%e}, sv=(%s)\n", myid, blk, i, j,
+           k, bv(i, j, k, 0), bv(i, j, k, 1), bv(i, j, k, 2), bv(i, j, k, 3), bv(i, j, k, 4), bv(i, j, k, 5),
+            yks.c_str());
   }
 }
 } // cfd

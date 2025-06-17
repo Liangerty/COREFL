@@ -11,10 +11,17 @@ input/boundary_condition/inner   0.txt
 input/boundary_condition/parallel   0.txt
 input/chemistry/air.inp
 input/chemistry/H2_mech_mixing.inp
-input/chemistry/H2_mech.inp
+input/chemistry/H2_mech ok.inp
 input/chemistry/therm.dat
 input/chemistry/tran.dat
 input/grid/grid   0.dat
 cmake-build-debug-visual-studio/*
 cmake-build-release-visual-studio/*
 corefl.exe
+corefl.ilk
+corefl.pdb
+history.dat
+.gitignore
+output/flowfield.plt
+output/message/reference_state.txt
+output/message/residual_scale.txt

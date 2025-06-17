@@ -70,7 +70,7 @@ __global__ void reduction_of_dv_squared(real *arr, int size) {
 
 __global__ void reduction_of_dv_squared(real *arr, int size);
 
-__global__ void check_nan(DZone *zone, int blk, int myid);
+__global__ void check_nan(DZone *zone, int blk, int myid, int n_scalar);
 
 template<MixtureModel mix_model>
 real compute_residual(Driver<mix_model> &driver, int step) {
@@ -163,15 +163,17 @@ real compute_residual(Driver<mix_model> &driver, int step) {
   }
 
   bool have_nan = false;
-  if (isnan(err_max)) {
-    have_nan = true;
+  for (int i = 0; i < 4; ++i) {
+    if (isnan(abs(res[i]))) {
+      have_nan = true;
+    }
   }
   if (have_nan) {
     for (int b = 0; b < n_block; ++b) {
       const auto mx{mesh[b].mx}, my{mesh[b].my}, mz{mesh[b].mz};
       dim3 bpg = {(mx - 1) / tpb.x + 1, (my - 1) / tpb.y + 1, (mz - 1) / tpb.z + 1};
       // compute the square of the difference of the basic variables
-      // check_nan<<<bpg, tpb>>>(field[b].d_ptr, b, driver.myid);
+      check_nan<<<bpg, tpb>>>(field[b].d_ptr, b, driver.myid, parameter.get_int("n_scalar"));
     }
   }
   cudaDeviceSynchronize();
