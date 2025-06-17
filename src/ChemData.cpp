@@ -639,7 +639,7 @@ int cfd::Species::is_polar(real dipole_moment) {
 }
 
 real cfd::Species::compute_xi(int j, int k, real *dipole_moment, const real *sigma, const real *eps_kb,
-                              const real *alpha) {
+  const real *alpha) {
   // labels for n(non-polar), p(polar)
   int n{0}, p{0};
   if (is_polar(dipole_moment[j])) {
@@ -831,6 +831,10 @@ void cfd::Reaction::read_reaction_line(std::string input, int idx, const Species
       it_big = it_eq;
     }
     it_small = it_eq;
+  } else if (it_big == std::string::npos) {
+    // There exists < but no >, the < may be added by the replace operation above.
+    // The original is just a single =, which means the reaction is reversible.
+    it_big = it_eq;
   }
   std::string reactantString, productString;
   reactantString.assign(reacEq, 0, it_small);
