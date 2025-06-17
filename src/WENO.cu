@@ -534,7 +534,7 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
   const int n_var = param->n_var;
 
   // 0: acans; 1: li xinliang(own flux splitting); 2: my(same spectral radius)
-  constexpr int method = 1;
+  constexpr int method = 2;
 
   const auto m_l = &metric[i_shared * 3], m_r = &metric[(i_shared + 1) * 3];
   if constexpr (method == 1) {
@@ -803,27 +803,49 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
 
     real spec_rad[3] = {}, spectralRadThis, spectralRadNext;
     bool pp_limiter{param->positive_preserving};
-    for (int l = -2; l < 4; ++l) {
-      const real *Q = &cv[(i_shared + l) * (n_var + 2)];
-      real c = Q[n_var + 1];
-      real grad_k = sqrt(metric[(i_shared + l) * 3] * metric[(i_shared + l) * 3] +
-                         metric[(i_shared + l) * 3 + 1] * metric[(i_shared + l) * 3 + 1] +
-                         metric[(i_shared + l) * 3 + 2] * metric[(i_shared + l) * 3 + 2]);
-      real Uk = (metric[(i_shared + l) * 3] * Q[1] + metric[(i_shared + l) * 3 + 1] * Q[2] +
-                 metric[(i_shared + l) * 3 + 2] * Q[3]) / Q[0];
-      real ukPc = abs(Uk + c * grad_k);
-      real ukMc = abs(Uk - c * grad_k);
-      spec_rad[0] = max(spec_rad[0], ukMc);
-      spec_rad[1] = max(spec_rad[1], abs(Uk));
-      spec_rad[2] = max(spec_rad[2], ukPc);
-      if (pp_limiter && l == 0)
-        spectralRadThis = ukPc;
-      if (pp_limiter && l == 1)
-        spectralRadNext = ukPc;
+    if (param->inviscid_scheme == 52) {
+      for (int l = -2; l < 4; ++l) {
+        const real *Q = &cv[(i_shared + l) * (n_var + 2)];
+        real c = Q[n_var + 1];
+        real grad_k = sqrt(metric[(i_shared + l) * 3] * metric[(i_shared + l) * 3] +
+                           metric[(i_shared + l) * 3 + 1] * metric[(i_shared + l) * 3 + 1] +
+                           metric[(i_shared + l) * 3 + 2] * metric[(i_shared + l) * 3 + 2]);
+        real Uk = (metric[(i_shared + l) * 3] * Q[1] + metric[(i_shared + l) * 3 + 1] * Q[2] +
+                   metric[(i_shared + l) * 3 + 2] * Q[3]) / Q[0];
+        real ukPc = abs(Uk + c * grad_k);
+        real ukMc = abs(Uk - c * grad_k);
+        spec_rad[0] = max(spec_rad[0], ukMc);
+        spec_rad[1] = max(spec_rad[1], abs(Uk));
+        spec_rad[2] = max(spec_rad[2], ukPc);
+        if (pp_limiter && l == 0)
+          spectralRadThis = ukPc;
+        if (pp_limiter && l == 1)
+          spectralRadNext = ukPc;
+      }
+    } else if (param->inviscid_scheme == 72) {
+      for (int l = -3; l < 5; ++l) {
+        const real *Q = &cv[(i_shared + l) * (n_var + 2)];
+        real c = Q[n_var + 1];
+        real grad_k = sqrt(metric[(i_shared + l) * 3] * metric[(i_shared + l) * 3] +
+                           metric[(i_shared + l) * 3 + 1] * metric[(i_shared + l) * 3 + 1] +
+                           metric[(i_shared + l) * 3 + 2] * metric[(i_shared + l) * 3 + 2]);
+        real Uk = (metric[(i_shared + l) * 3] * Q[1] + metric[(i_shared + l) * 3 + 1] * Q[2] +
+                   metric[(i_shared + l) * 3 + 2] * Q[3]) / Q[0];
+        real ukPc = abs(Uk + c * grad_k);
+        real ukMc = abs(Uk - c * grad_k);
+        spec_rad[0] = max(spec_rad[0], ukMc);
+        spec_rad[1] = max(spec_rad[1], abs(Uk));
+        spec_rad[2] = max(spec_rad[2], ukPc);
+        if (pp_limiter && l == 0)
+          spectralRadThis = ukPc;
+        if (pp_limiter && l == 1)
+          spectralRadNext = ukPc;
+      }
     }
-    spec_rad[0] = max(spec_rad[0], abs((Uk_bar - cm) * gradK));
-    spec_rad[1] = max(spec_rad[1], abs(Uk_bar * gradK));
-    spec_rad[2] = max(spec_rad[2], abs((Uk_bar + cm) * gradK));
+
+    // spec_rad[0] = max(spec_rad[0], abs((Uk_bar - cm) * gradK));
+    // spec_rad[1] = max(spec_rad[1], abs(Uk_bar * gradK));
+    // spec_rad[2] = max(spec_rad[2], abs((Uk_bar + cm) * gradK));
 
     if (pp_limiter) {
       for (int l = 0; l < n_var - 5; ++l) {

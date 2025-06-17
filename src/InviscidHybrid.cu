@@ -6,7 +6,7 @@
 
 namespace cfd {
 template<MixtureModel mix_model> __device__ void hybrid_weno_part(const real *pv, const real *rhoE, int i_shared,
-  const DParameter *param, const real *metric, const real *jac, const real *uk, const real *cGradK, real *fci) {
+  const DParameter *param, const real *metric, const real *jac, const real *uk, const real *cGradK, real *fci, real *f_1st) {
   const int n_var = param->n_var;
   // compute the roe average
   const auto *pvl = &pv[i_shared * n_var], *pvr = &pv[(i_shared + 1) * n_var];
@@ -80,12 +80,35 @@ template<MixtureModel mix_model> __device__ void hybrid_weno_part(const real *pv
     weno_scheme = 4;
     weno_size = 8;
   }
-
+  real spec_rad[3]{}, specRadThis, specRadNext;
+  bool pp_limiter{param->positive_preserving};
+  for (int m = 0; m < weno_size; m++) {
+    const int is = i_shared + m - weno_scheme + 1;
+    const real Uk = uk[is];
+    const real UkPc = abs(Uk + cGradK[is]);
+    const real UkMc = abs(Uk - cGradK[is]);
+    spec_rad[0] = max(spec_rad[0], UkMc);
+    spec_rad[1] = max(spec_rad[1], abs(Uk));
+    spec_rad[2] = max(spec_rad[2], UkPc);
+    if (pp_limiter && is == i_shared)
+      specRadThis = UkPc;
+    if (pp_limiter && is == i_shared + 1)
+      specRadNext = UkPc;
+  }
+  if (pp_limiter) {
+    for (int l = 0; l < n_var - 5; l++) { // f_1st[l - 5] = 0.5 * (vPlus[weno_scheme - 1] + vMinus[weno_scheme]);
+      f_1st[l] = 0.5 * jac[i_shared] * pv[i_shared * n_var] * pv[i_shared * n_var + 5 + l] * (uk[i_shared] + specRadThis)
+       + 0.5 * jac[i_shared + 1] * pv[(i_shared + 1) * n_var] * pv[(i_shared + 1) * n_var + 5 + l] * (uk[i_shared + 1] - specRadNext);
+    }
+    
+  }
+    
   for (int l = 0; l < 5; ++l) {
-    real coeff_alpha_s{0.5};
+    real coeff_alpha_s{0.5}, lambda{spec_rad[1]};
     real L[5];
     switch (l) {
       case 0:
+        lambda = spec_rad[0];
         L[0] = (alpha + Uk_bar * cm) * cm2_inv * 0.5;
         L[1] = -(gm1 * um + kx * cm) * cm2_inv * 0.5;
         L[2] = -(gm1 * vm + ky * cm) * cm2_inv * 0.5;
@@ -117,6 +140,7 @@ template<MixtureModel mix_model> __device__ void hybrid_weno_part(const real *pv
         L[4] = -kz * gm1 * cm2_inv;
         break;
       case 4:
+        lambda = spec_rad[2];
         L[0] = (alpha - Uk_bar * cm) * cm2_inv * 0.5;
         L[1] = -(gm1 * um - kx * cm) * cm2_inv * 0.5;
         L[2] = -(gm1 * vm - ky * cm) * cm2_inv * 0.5;
@@ -132,8 +156,8 @@ template<MixtureModel mix_model> __device__ void hybrid_weno_part(const real *pv
       const int is = i_shared + m - weno_scheme + 1;
       const auto *bv = &pv[is * n_var];
       real Uk = uk[is];
-      const real lambda = abs(Uk) + cGradK[is];
-      real F[5 + MAX_SPEC_NUMBER + MAX_PASSIVE_SCALAR_NUMBER];
+      // const real lambda = abs(Uk) + cGradK[is];
+      real F[5]; //  + MAX_SPEC_NUMBER + MAX_PASSIVE_SCALAR_NUMBER
       F[0] = Uk * bv[0];
       F[1] = Uk * bv[1] * bv[0] + bv[4] * metric[is * 3];
       F[2] = Uk * bv[2] * bv[0] + bv[4] * metric[is * 3 + 1];
@@ -164,7 +188,7 @@ template<MixtureModel mix_model> __device__ void hybrid_weno_part(const real *pv
       const int is = i_shared + m - weno_scheme + 1;
       const auto *bv = &pv[is * n_var];
       const real Uk = uk[is];
-      const real lambda = abs(Uk) + cGradK[is];
+      const real lambda = spec_rad[1];
       vPlus[m] = 0.5 * jac[is] * bv[0] * (-svm[l] + bv[5 + l]) * (Uk + lambda);
       vMinus[m] = 0.5 * jac[is] * bv[0] * (-svm[l] + bv[5 + l]) * (Uk - lambda);
     }
@@ -196,149 +220,149 @@ template<MixtureModel mix_model> __device__ void hybrid_weno_part(const real *pv
   fci[4] -= add * cm * cm / gm1;
 }
 
-template<> __device__ void hybrid_weno_part<MixtureModel::Air>(const real *pv, const real *rhoE, int i_shared,
-  const DParameter *param, const real *metric, const real *jac, const real *uk, const real *cGradK, real *fci) {
-  const int n_var = param->n_var;
-  // compute the roe average
-  const auto *pvl = &pv[i_shared * n_var], *pvr = &pv[(i_shared + 1) * n_var];
-  const real rlc = sqrt(pvl[0]) / (sqrt(pvl[0]) + sqrt(pvr[0]));
-  const real rrc = 1.0 - rlc;
-  const real um = rlc * pvl[1] + rrc * pvr[1];
-  const real vm = rlc * pvl[2] + rrc * pvr[2];
-  const real wm = rlc * pvl[3] + rrc * pvr[3];
-  const real hm = rlc * (pvl[4] + rhoE[i_shared]) / pvl[0] + rrc * (pvr[4] + rhoE[i_shared + 1]) / pvr[0];
-  constexpr real gm1{gamma_air - 1};
-  const real cm{sqrt(gm1 * (hm - 0.5 * (um * um + vm * vm + wm * wm)))};
+// template<> __device__ void hybrid_weno_part<MixtureModel::Air>(const real *pv, const real *rhoE, int i_shared,
+//   const DParameter *param, const real *metric, const real *jac, const real *uk, const real *cGradK, real *fci) {
+//   const int n_var = param->n_var;
+//   // compute the roe average
+//   const auto *pvl = &pv[i_shared * n_var], *pvr = &pv[(i_shared + 1) * n_var];
+//   const real rlc = sqrt(pvl[0]) / (sqrt(pvl[0]) + sqrt(pvr[0]));
+//   const real rrc = 1.0 - rlc;
+//   const real um = rlc * pvl[1] + rrc * pvr[1];
+//   const real vm = rlc * pvl[2] + rrc * pvr[2];
+//   const real wm = rlc * pvl[3] + rrc * pvr[3];
+//   const real hm = rlc * (pvl[4] + rhoE[i_shared]) / pvl[0] + rrc * (pvr[4] + rhoE[i_shared + 1]) / pvr[0];
+//   constexpr real gm1{gamma_air - 1};
+//   const real cm{sqrt(gm1 * (hm - 0.5 * (um * um + vm * vm + wm * wm)))};
 
-  // Next, we compute the left characteristic matrix at i+1/2.
-  const real jac_l{jac[i_shared]}, jac_r{jac[i_shared + 1]};
-  const real kxJ{metric[i_shared * 3] * jac_l + metric[(i_shared + 1) * 3] * jac_r};
-  const real kyJ{metric[i_shared * 3 + 1] * jac_l + metric[(i_shared + 1) * 3 + 1] * jac_r};
-  const real kzJ{metric[i_shared * 3 + 2] * jac_l + metric[(i_shared + 1) * 3 + 2] * jac_r};
-  real kx{kxJ / (jac_l + jac_r)};
-  real ky{kyJ / (jac_l + jac_r)};
-  real kz{kzJ / (jac_l + jac_r)};
-  const real gradK{sqrt(kx * kx + ky * ky + kz * kz)};
-  kx /= gradK;
-  ky /= gradK;
-  kz /= gradK;
-  const real Uk_bar{kx * um + ky * vm + kz * wm};
-  const real alpha{gm1 * 0.5 * (um * um + vm * vm + wm * wm)};
+//   // Next, we compute the left characteristic matrix at i+1/2.
+//   const real jac_l{jac[i_shared]}, jac_r{jac[i_shared + 1]};
+//   const real kxJ{metric[i_shared * 3] * jac_l + metric[(i_shared + 1) * 3] * jac_r};
+//   const real kyJ{metric[i_shared * 3 + 1] * jac_l + metric[(i_shared + 1) * 3 + 1] * jac_r};
+//   const real kzJ{metric[i_shared * 3 + 2] * jac_l + metric[(i_shared + 1) * 3 + 2] * jac_r};
+//   real kx{kxJ / (jac_l + jac_r)};
+//   real ky{kyJ / (jac_l + jac_r)};
+//   real kz{kzJ / (jac_l + jac_r)};
+//   const real gradK{sqrt(kx * kx + ky * ky + kz * kz)};
+//   kx /= gradK;
+//   ky /= gradK;
+//   kz /= gradK;
+//   const real Uk_bar{kx * um + ky * vm + kz * wm};
+//   const real alpha{gm1 * 0.5 * (um * um + vm * vm + wm * wm)};
 
-  // The matrix we consider here does not contain the turbulent variables, such as tke and omega.
-  const real cm2_inv{1.0 / (cm * cm)};
-  // Compute the characteristic flux with L.
-  real fChar[5];
-  constexpr real eps{1e-40};
-  const real eps_scaled = eps * param->weno_eps_scale * 0.25 * (kxJ * kxJ + kyJ * kyJ + kzJ * kzJ);
+//   // The matrix we consider here does not contain the turbulent variables, such as tke and omega.
+//   const real cm2_inv{1.0 / (cm * cm)};
+//   // Compute the characteristic flux with L.
+//   real fChar[5];
+//   constexpr real eps{1e-40};
+//   const real eps_scaled = eps * param->weno_eps_scale * 0.25 * (kxJ * kxJ + kyJ * kyJ + kzJ * kzJ);
 
-  constexpr int max_weno_size = 8; // For WENO7
-  int weno_scheme = 3, weno_size = 6;
-  if (param->inviscid_scheme == 71 || param->inviscid_scheme == 72) {
-    weno_scheme = 4;
-    weno_size = 8;
-  }
+//   constexpr int max_weno_size = 8; // For WENO7
+//   int weno_scheme = 3, weno_size = 6;
+//   if (param->inviscid_scheme == 71 || param->inviscid_scheme == 72) {
+//     weno_scheme = 4;
+//     weno_size = 8;
+//   }
 
-  for (int l = 0; l < 5; ++l) {
-    real L[5];
-    switch (l) {
-      case 0:
-        L[0] = (alpha + Uk_bar * cm) * cm2_inv * 0.5;
-        L[1] = -(gm1 * um + kx * cm) * cm2_inv * 0.5;
-        L[2] = -(gm1 * vm + ky * cm) * cm2_inv * 0.5;
-        L[3] = -(gm1 * wm + kz * cm) * cm2_inv * 0.5;
-        L[4] = gm1 * cm2_inv * 0.5;
-        break;
-      case 1:
-        L[0] = kx * (1 - alpha * cm2_inv) - (kz * vm - ky * wm) / cm;
-        L[1] = kx * gm1 * um * cm2_inv;
-        L[2] = (kx * gm1 * vm + kz * cm) * cm2_inv;
-        L[3] = (kx * gm1 * wm - ky * cm) * cm2_inv;
-        L[4] = -kx * gm1 * cm2_inv;
-        break;
-      case 2:
-        L[0] = ky * (1 - alpha * cm2_inv) - (kx * wm - kz * um) / cm;
-        L[1] = (ky * gm1 * um - kz * cm) * cm2_inv;
-        L[2] = ky * gm1 * vm * cm2_inv;
-        L[3] = (ky * gm1 * wm + kx * cm) * cm2_inv;
-        L[4] = -ky * gm1 * cm2_inv;
-        break;
-      case 3:
-        L[0] = kz * (1 - alpha * cm2_inv) - (ky * um - kx * vm) / cm;
-        L[1] = (kz * gm1 * um + ky * cm) * cm2_inv;
-        L[2] = (kz * gm1 * vm - kx * cm) * cm2_inv;
-        L[3] = kz * gm1 * wm * cm2_inv;
-        L[4] = -kz * gm1 * cm2_inv;
-        break;
-      case 4:
-        L[0] = (alpha - Uk_bar * cm) * cm2_inv * 0.5;
-        L[1] = -(gm1 * um - kx * cm) * cm2_inv * 0.5;
-        L[2] = -(gm1 * vm - ky * cm) * cm2_inv * 0.5;
-        L[3] = -(gm1 * wm - kz * cm) * cm2_inv * 0.5;
-        L[4] = gm1 * cm2_inv * 0.5;
-        break;
-      default:
-        break;
-    }
+//   for (int l = 0; l < 5; ++l) {
+//     real L[5];
+//     switch (l) {
+//       case 0:
+//         L[0] = (alpha + Uk_bar * cm) * cm2_inv * 0.5;
+//         L[1] = -(gm1 * um + kx * cm) * cm2_inv * 0.5;
+//         L[2] = -(gm1 * vm + ky * cm) * cm2_inv * 0.5;
+//         L[3] = -(gm1 * wm + kz * cm) * cm2_inv * 0.5;
+//         L[4] = gm1 * cm2_inv * 0.5;
+//         break;
+//       case 1:
+//         L[0] = kx * (1 - alpha * cm2_inv) - (kz * vm - ky * wm) / cm;
+//         L[1] = kx * gm1 * um * cm2_inv;
+//         L[2] = (kx * gm1 * vm + kz * cm) * cm2_inv;
+//         L[3] = (kx * gm1 * wm - ky * cm) * cm2_inv;
+//         L[4] = -kx * gm1 * cm2_inv;
+//         break;
+//       case 2:
+//         L[0] = ky * (1 - alpha * cm2_inv) - (kx * wm - kz * um) / cm;
+//         L[1] = (ky * gm1 * um - kz * cm) * cm2_inv;
+//         L[2] = ky * gm1 * vm * cm2_inv;
+//         L[3] = (ky * gm1 * wm + kx * cm) * cm2_inv;
+//         L[4] = -ky * gm1 * cm2_inv;
+//         break;
+//       case 3:
+//         L[0] = kz * (1 - alpha * cm2_inv) - (ky * um - kx * vm) / cm;
+//         L[1] = (kz * gm1 * um + ky * cm) * cm2_inv;
+//         L[2] = (kz * gm1 * vm - kx * cm) * cm2_inv;
+//         L[3] = kz * gm1 * wm * cm2_inv;
+//         L[4] = -kz * gm1 * cm2_inv;
+//         break;
+//       case 4:
+//         L[0] = (alpha - Uk_bar * cm) * cm2_inv * 0.5;
+//         L[1] = -(gm1 * um - kx * cm) * cm2_inv * 0.5;
+//         L[2] = -(gm1 * vm - ky * cm) * cm2_inv * 0.5;
+//         L[3] = -(gm1 * wm - kz * cm) * cm2_inv * 0.5;
+//         L[4] = gm1 * cm2_inv * 0.5;
+//         break;
+//       default:
+//         break;
+//     }
 
-    real vPlus[max_weno_size] = {}, vMinus[max_weno_size] = {};
-    for (int m = 0; m < weno_size; ++m) {
-      const int is = i_shared + m - weno_scheme + 1;
-      const auto *bv = &pv[is * n_var];
-      const real Uk = uk[is];
-      const real lambda = abs(Uk) + cGradK[is];
-      real F[5];
-      F[0] = Uk * bv[0];
-      F[1] = Uk * bv[1] * bv[0] + bv[4] * metric[is * 3];
-      F[2] = Uk * bv[2] * bv[0] + bv[4] * metric[is * 3 + 1];
-      F[3] = Uk * bv[3] * bv[0] + bv[4] * metric[is * 3 + 2];
-      F[4] = Uk * (rhoE[is] + bv[4]);
+//     real vPlus[max_weno_size] = {}, vMinus[max_weno_size] = {};
+//     for (int m = 0; m < weno_size; ++m) {
+//       const int is = i_shared + m - weno_scheme + 1;
+//       const auto *bv = &pv[is * n_var];
+//       const real Uk = uk[is];
+//       const real lambda = abs(Uk) + cGradK[is];
+//       real F[5];
+//       F[0] = Uk * bv[0];
+//       F[1] = Uk * bv[1] * bv[0] + bv[4] * metric[is * 3];
+//       F[2] = Uk * bv[2] * bv[0] + bv[4] * metric[is * 3 + 1];
+//       F[3] = Uk * bv[3] * bv[0] + bv[4] * metric[is * 3 + 2];
+//       F[4] = Uk * (rhoE[is] + bv[4]);
 
-      vPlus[m] = L[0] * (F[0] + lambda * bv[0]) + L[1] * (F[1] + lambda * bv[1] * bv[0]) +
-                 L[2] * (F[2] + lambda * bv[2] * bv[0]) + L[3] * (F[3] + lambda * bv[3] * bv[0]) +
-                 L[4] * (F[4] + lambda * rhoE[is]);
-      vMinus[m] = L[0] * (F[0] - lambda * bv[0]) + L[1] * (F[1] - lambda * bv[1] * bv[0]) +
-                  L[2] * (F[2] - lambda * bv[2] * bv[0]) + L[3] * (F[3] - lambda * bv[3] * bv[0]) +
-                  L[4] * (F[4] - lambda * rhoE[is]);
-      vPlus[m] *= 0.5 * jac[is];
-      vMinus[m] *= 0.5 * jac[is];
-    }
-    if (weno_size == 6)
-      fChar[l] = WENO5_new(vPlus, vMinus, eps_scaled);
-    else
-      fChar[l] = WENO7_new(vPlus, vMinus, eps_scaled);
-  }
-  for (int l = 0; l < param->n_scalar; ++l) {
-    // For passive scalars, just use the component form
-    real vPlus[max_weno_size] = {}, vMinus[max_weno_size] = {};
-    for (int m = 0; m < weno_size; ++m) {
-      const int is = i_shared + m - weno_scheme + 1;
-      const auto *bv = &pv[is * n_var];
-      const real Uk = uk[is];
-      const real lambda = abs(Uk) + cGradK[is];
-      vPlus[m] = 0.5 * jac[is] * bv[0] * bv[5 + l] * (Uk + lambda);
-      vMinus[m] = 0.5 * jac[is] * bv[0] * bv[5 + l] * (Uk - lambda);
-    }
-    if (weno_size == 5)
-      fci[5 + l] = WENO5_new(vPlus, vMinus, eps_scaled);
-    else
-      fci[5 + l] = WENO7_new(vPlus, vMinus, eps_scaled);
-  }
-  // Project the flux back to physical space
-  // We do not compute the right characteristic matrix here, because we explicitly write the components below.
-  fci[0] = fChar[0] + kx * fChar[1] + ky * fChar[2] + kz * fChar[3] + fChar[4];
-  fci[1] = (um - kx * cm) * fChar[0] + kx * um * fChar[1] + (ky * um - kz * cm) * fChar[2] +
-           (kz * um + ky * cm) * fChar[3] + (um + kx * cm) * fChar[4];
-  fci[2] = (vm - ky * cm) * fChar[0] + (kx * vm + kz * cm) * fChar[1] + ky * vm * fChar[2] +
-           (kz * vm - kx * cm) * fChar[3] + (vm + ky * cm) * fChar[4];
-  fci[3] = (wm - kz * cm) * fChar[0] + (kx * wm - ky * cm) * fChar[1] + (ky * wm + kx * cm) * fChar[2] +
-           kz * wm * fChar[3] + (wm + kz * cm) * fChar[4];
+//       vPlus[m] = L[0] * (F[0] + lambda * bv[0]) + L[1] * (F[1] + lambda * bv[1] * bv[0]) +
+//                  L[2] * (F[2] + lambda * bv[2] * bv[0]) + L[3] * (F[3] + lambda * bv[3] * bv[0]) +
+//                  L[4] * (F[4] + lambda * rhoE[is]);
+//       vMinus[m] = L[0] * (F[0] - lambda * bv[0]) + L[1] * (F[1] - lambda * bv[1] * bv[0]) +
+//                   L[2] * (F[2] - lambda * bv[2] * bv[0]) + L[3] * (F[3] - lambda * bv[3] * bv[0]) +
+//                   L[4] * (F[4] - lambda * rhoE[is]);
+//       vPlus[m] *= 0.5 * jac[is];
+//       vMinus[m] *= 0.5 * jac[is];
+//     }
+//     if (weno_size == 6)
+//       fChar[l] = WENO5_new(vPlus, vMinus, eps_scaled);
+//     else
+//       fChar[l] = WENO7_new(vPlus, vMinus, eps_scaled);
+//   }
+//   for (int l = 0; l < param->n_scalar; ++l) {
+//     // For passive scalars, just use the component form
+//     real vPlus[max_weno_size] = {}, vMinus[max_weno_size] = {};
+//     for (int m = 0; m < weno_size; ++m) {
+//       const int is = i_shared + m - weno_scheme + 1;
+//       const auto *bv = &pv[is * n_var];
+//       const real Uk = uk[is];
+//       const real lambda = abs(Uk) + cGradK[is];
+//       vPlus[m] = 0.5 * jac[is] * bv[0] * bv[5 + l] * (Uk + lambda);
+//       vMinus[m] = 0.5 * jac[is] * bv[0] * bv[5 + l] * (Uk - lambda);
+//     }
+//     if (weno_size == 5)
+//       fci[5 + l] = WENO5_new(vPlus, vMinus, eps_scaled);
+//     else
+//       fci[5 + l] = WENO7_new(vPlus, vMinus, eps_scaled);
+//   }
+//   // Project the flux back to physical space
+//   // We do not compute the right characteristic matrix here, because we explicitly write the components below.
+//   fci[0] = fChar[0] + kx * fChar[1] + ky * fChar[2] + kz * fChar[3] + fChar[4];
+//   fci[1] = (um - kx * cm) * fChar[0] + kx * um * fChar[1] + (ky * um - kz * cm) * fChar[2] +
+//            (kz * um + ky * cm) * fChar[3] + (um + kx * cm) * fChar[4];
+//   fci[2] = (vm - ky * cm) * fChar[0] + (kx * vm + kz * cm) * fChar[1] + ky * vm * fChar[2] +
+//            (kz * vm - kx * cm) * fChar[3] + (vm + ky * cm) * fChar[4];
+//   fci[3] = (wm - kz * cm) * fChar[0] + (kx * wm - ky * cm) * fChar[1] + (ky * wm + kx * cm) * fChar[2] +
+//            kz * wm * fChar[3] + (wm + kz * cm) * fChar[4];
 
-  fci[4] = (hm - Uk_bar * cm) * fChar[0] + (kx * (hm - cm * cm / gm1) + (kz * vm - ky * wm) * cm) * fChar[1] +
-           (ky * (hm - cm * cm / gm1) + (kx * wm - kz * um) * cm) * fChar[2] +
-           (kz * (hm - cm * cm / gm1) + (ky * um - kx * vm) * cm) * fChar[3] +
-           (hm + Uk_bar * cm) * fChar[4];
-}
+//   fci[4] = (hm - Uk_bar * cm) * fChar[0] + (kx * (hm - cm * cm / gm1) + (kz * vm - ky * wm) * cm) * fChar[1] +
+//            (ky * (hm - cm * cm / gm1) + (kx * wm - kz * um) * cm) * fChar[2] +
+//            (kz * (hm - cm * cm / gm1) + (ky * um - kx * vm) * cm) * fChar[3] +
+//            (hm + Uk_bar * cm) * fChar[4];
+// }
 
 __device__ void hybrid_weno_part_cp(const real *pv, const real *rhoE, int i_shared, const DParameter *param,
   const real *metric, const real *jac, const real *uk, const real *cGradK, real *fci, real *f_1st) {
@@ -703,8 +727,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_x(DZone *zone, DParameter
 
   if (if_shock) {
     //The inviscid term at this point is calculated by WENO scheme.
-    hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var],
-                        &f_1st[tid * (n_var - 5)]);
+    hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+    // hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var],
+                        // &f_1st[tid * (n_var - 5)]);
   } else {
     //The inviscid term at this point is calculated by ep scheme.
     hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
@@ -898,8 +923,8 @@ __global__ void compute_convective_term_hybrid_ud_weno_y(DZone *zone, DParameter
   __syncthreads();
 
   if (if_shock) { //The inviscid term at this point is calculated by WENO scheme.
-    // hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var]);
-    hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+    hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+    // hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
   } else { //The inviscid term at this point is calculated by ep scheme.
     hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
   }
@@ -1094,7 +1119,8 @@ __global__ void compute_convective_term_hybrid_ud_weno_z(DZone *zone, DParameter
   __syncthreads();
 
   if (if_shock) { //The inviscid term at this point is calculated by WENO scheme.
-    hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+    hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+    // hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
   } else { //The inviscid term at this point is calculated by ep scheme.
     hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
   }
