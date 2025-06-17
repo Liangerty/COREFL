@@ -45,6 +45,7 @@ struct DZone {
 
   // chemical jacobian matrix or diagonal
   ggxl::VectorField3D<real> chem_src_jac;
+  ggxl::Array3D<real> reaction_timeScale;
 
   // Turbulent variables
   ggxl::Array3D<real> mut;                // turbulent viscosity

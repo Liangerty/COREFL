@@ -65,28 +65,74 @@ __global__ void cfd::local_time_step(DZone *zone, DParameter *param) {
   //     inviscid_spectral_radius[0] + inviscid_spectral_radius[1] + inviscid_spectral_radius[2];
 
   // Next, compute the viscous spectral radius
-  real gamma{gamma_air};
+  real max_length{grad_xi};
+  max_length = max(max_length, grad_eta);
+  if (dim == 3)
+    max_length = max(max_length, grad_zeta);
+
+  real max_diffuse_vel{0.0};
+  const real iRho = 1.0 / bv(i, j, k, 0);
+  if constexpr (mixture == MixtureModel::Air) {
+    max_diffuse_vel = max(gamma_air, 4.0 / 3.0) * iRho;
+    max_diffuse_vel *= zone->mul(i, j, k) / param->Pr;
+  } else {
+    // real nu = zone->mul(i, j, k) * iRho;
+    // real alp = zone->thermal_conductivity(i, j, k) * iRho * zone->gamma(i, j, k) / zone->cp(i, j, k);
+    // real D[MAX_SPEC_NUMBER];
+    max_diffuse_vel = zone->mul(i, j, k) * iRho;
+    max_diffuse_vel = max(max_diffuse_vel,
+                          zone->thermal_conductivity(i, j, k) * iRho * zone->gamma(i, j, k) / zone->cp(i, j, k));
+    real max_rhoD{0};
+    for (int l = 0; l < param->n_spec; ++l) {
+      max_rhoD = max(max_rhoD, zone->rho_D(i, j, k, l));
+      // D[l] = zone->rho_D(i, j, k, l) * iRho;
+    }
+    max_diffuse_vel = max(max_diffuse_vel, max_rhoD * iRho);
+    // if (print) {
+    //   printf("i=%d, nu=%e, alp=%e, D=(%e,%e,%e,%e,%e,%e,%e,%e,%e)\n", i, nu, alp, D[0], D[1], D[2], D[3], D[4],
+    //          D[5], D[6], D[7], D[8]);
+    // }
+  }
+
+  max_spectral_radius = max(max_spectral_radius, max_length * max_length * max_diffuse_vel);
+  real dt = param->cfl / max_spectral_radius;
+
   if constexpr (mixture != MixtureModel::Air) {
-    gamma = zone->gamma(i, j, k);
+    if (param->n_reac > 0) {
+      // We need to take the reactions timescale into account
+      const real reaction_dt = param->cfl * zone->reaction_timeScale(i, j, k);
+      // if (print) {
+      //   printf("i=%d, dt=%e, reaction_dt=%e\n", i, dt, reaction_dt);
+      // }
+      if (reaction_dt > 1e-20 && reaction_dt < 1e-5)
+        dt = min(dt, reaction_dt);
+    }
   }
-  const real coeff_1 = max(gamma, 4.0 / 3.0) / bv(i, j, k, 0);
-  real coeff_2 = zone->mul(i, j, k) / param->Pr;
-  auto &vis_spec_rad = zone->visc_spectr_rad(i, j, k);
-  vis_spec_rad[0] = grad_xi * grad_xi * coeff_1 * coeff_2;
-  vis_spec_rad[1] = grad_eta * grad_eta * coeff_1 * coeff_2;
-  // real spectral_radius_viscous = grad_xi * grad_xi + grad_eta * grad_eta;
-  max_spectral_radius = max(max_spectral_radius, vis_spec_rad[0]);
-  max_spectral_radius = max(max_spectral_radius, vis_spec_rad[1]);
-  if (dim == 3) {
-    // spectral_radius_viscous += grad_zeta * grad_zeta;
-    vis_spec_rad[2] = grad_zeta * grad_zeta * coeff_1 * coeff_2;
-    max_spectral_radius = max(max_spectral_radius, vis_spec_rad[2]);
-  }
+
+  zone->dt_local(i, j, k) = dt;
+
+  // real gamma{gamma_air};
+  // if constexpr (mixture != MixtureModel::Air) {
+  //   gamma = zone->gamma(i, j, k);
+  // }
+  // const real coeff_1 = max(gamma, 4.0 / 3.0) / bv(i, j, k, 0);
+  // real coeff_2 = zone->mul(i, j, k) / param->Pr;
+  // auto &vis_spec_rad = zone->visc_spectr_rad(i, j, k);
+  // vis_spec_rad[0] = grad_xi * grad_xi * coeff_1 * coeff_2;
+  // vis_spec_rad[1] = grad_eta * grad_eta * coeff_1 * coeff_2;
+  // // real spectral_radius_viscous = grad_xi * grad_xi + grad_eta * grad_eta;
+  // max_spectral_radius = max(max_spectral_radius, vis_spec_rad[0]);
+  // max_spectral_radius = max(max_spectral_radius, vis_spec_rad[1]);
+  // if (dim == 3) {
+  //   // spectral_radius_viscous += grad_zeta * grad_zeta;
+  //   vis_spec_rad[2] = grad_zeta * grad_zeta * coeff_1 * coeff_2;
+  //   max_spectral_radius = max(max_spectral_radius, vis_spec_rad[2]);
+  // }
   // spectral_radius_viscous *= coeff_1 * coeff_2;
 
   // zone->dt_local(i, j, k) = param->cfl / (spectral_radius_inv + spectral_radius_viscous);
-  zone->dt_local(i, j, k) = param->cfl / max_spectral_radius;
-//  zone->udv(i, j, k, 0) = zone->dt_local(i, j, k);
+  // zone->dt_local(i, j, k) = param->cfl / max_spectral_radius;
+  //  zone->udv(i, j, k, 0) = zone->dt_local(i, j, k);
 }
 
 template<MixtureModel mixture>

@@ -44,9 +44,13 @@ __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
   real *omega_d = &omega[MAX_SPEC_NUMBER];
   chemical_source(q1, q2, omega_d, omega, param);
 
+  real time_scale{1e+6};
   for (int l = 0; l < ns; ++l) {
     zone->dq(i, j, k, l + 5) += zone->jac(i, j, k) * omega[l];
+    if (sv(i, j, k, l) > 1e-25 && abs(omega_d[l]) > 1e-25)
+      time_scale = min(time_scale, abs(density * sv(i, j, k, l) / omega_d[l]));
   }
+  zone->reaction_timeScale(i, j, k) = time_scale;
 
   // If implicit treat
   switch (param->chemSrcMethod) {

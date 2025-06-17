@@ -522,6 +522,7 @@ void cfd::Field::setup_device_memory(const Parameter &parameter) {
     h_ptr->cp.allocate_memory(mx, my, mz, ngg);
     if (parameter.get_int("reaction") == 1) {
       // Finite rate chemistry
+      h_ptr->reaction_timeScale.allocate_memory(mx, my, mz, ngg);
       if (const int chemSrcMethod = parameter.get_int("chemSrcMethod"); chemSrcMethod == 1) {
         // EPI
         h_ptr->chem_src_jac.allocate_memory(mx, my, mz, n_spec * n_spec, 0);
