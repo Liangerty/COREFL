@@ -456,7 +456,7 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
 
 template<MixtureModel mix_model>
 void compute_convective_term_weno(const Block &block, DZone *zone, DParameter *param, int n_var,
-                                  const Parameter &parameter) {
+  const Parameter &parameter) {
   // The implementation of classic WENO.
   const int extent[3]{block.mx, block.my, block.mz};
 
@@ -530,7 +530,7 @@ __device__ void compute_flux(const real *Q, const DParameter *param, const real 
 template<MixtureModel mix_model>
 __device__ void
 compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *metric, const real *jac, real *fc,
-                     int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add, real *f_1st) {
+  int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add, real *f_1st) {
   const int n_var = param->n_var;
 
   // 0: acans; 1: li xinliang(own flux splitting); 2: my(same spectral radius)
@@ -955,8 +955,8 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
 template<>
 __device__ void
 compute_weno_flux_ch<MixtureModel::Air>(const real *cv, DParameter *param, int tid, const real *metric,
-                                        const real *jac, real *fc, int i_shared, real *Fp, real *Fm,
-                                        const int *ig_shared, int n_add, [[maybe_unused]] real *f_1st) {
+  const real *jac, real *fc, int i_shared, real *Fp, real *Fm,
+  const int *ig_shared, int n_add, [[maybe_unused]] real *f_1st) {
   const int n_var = param->n_var;
 
   // 0: acans; 1: li xinliang(own flux splitting); 2: my(same spectral radius)
@@ -1047,7 +1047,8 @@ compute_weno_flux_ch<MixtureModel::Air>(const real *cv, DParameter *param, int t
   real fChar[5];
   constexpr real eps{1e-8};
   // const real eps_scaled = eps * 2813.079264884305;  // If we want to be completely the same as Tian's case, this should be U_1^2 * rho^2, which is dU^2*rho^2 now.
-  const real eps_scaled = eps * param->weno_eps_scale;  // If we want to be completely the same as Tian's case, this should be U_1^2 * rho^2, which is dU^2*rho^2 now.
+  const real eps_scaled = eps * param->weno_eps_scale;
+  // If we want to be completely the same as Tian's case, this should be U_1^2 * rho^2, which is dU^2*rho^2 now.
   // constexpr real eps{1e-40};
   // const real jac1{jac[i_shared]}, jac2{jac[i_shared + 1]};
   // const real eps_scaled = eps * param->weno_eps_scale * 0.25 *
@@ -1265,7 +1266,7 @@ compute_weno_flux_ch<MixtureModel::Air>(const real *cv, DParameter *param, int t
 
 __device__ void
 compute_weno_flux_cp(const real *cv, DParameter *param, int tid, const real *metric, const real *jac, real *fc,
-                     int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add, real *f_1st) {
+  int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add, real *f_1st) {
   const int n_var = param->n_var;
 
   compute_flux(&cv[i_shared * (n_var + 2)], param, &metric[i_shared * 3], jac[i_shared], &Fp[i_shared * n_var],
@@ -1345,7 +1346,7 @@ compute_weno_flux_cp(const real *cv, DParameter *param, int tid, const real *met
 
 __device__ void
 positive_preserving_limiter(const real *f_1st, int n_var, int tid, real *fc, const DParameter *param, int i_shared,
-                            real dt, int idx_in_mesh, int max_extent, const real *cv, const real *jac) {
+  real dt, int idx_in_mesh, int max_extent, const real *cv, const real *jac) {
   const real alpha = param->dim == 3 ? 1.0 / 3.0 : 0.5;
 
   const int ns = n_var - 5;
@@ -1623,9 +1624,9 @@ __device__ real WENO7_new(const real *vp, const real *vm, real eps) {
 
 template void
 compute_convective_term_weno<MixtureModel::Air>(const Block &block, DZone *zone, DParameter *param, int n_var,
-                                                const Parameter &parameter);
+  const Parameter &parameter);
 
 template void
 compute_convective_term_weno<MixtureModel::Mixture>(const Block &block, DZone *zone, DParameter *param,
-                                                    int n_var, const Parameter &parameter);
+  int n_var, const Parameter &parameter);
 }

@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
     parameter.update_parameter("turbulence_method", 0);
     turbulent_method = 0;
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 
   if (species == 1) {
     // Multiple species

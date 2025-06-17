@@ -307,7 +307,7 @@ __global__ void update_bv(DZone *zone, DParameter *param, real dt) {
   }
 }
 
-__global__ void calculate_shock_sensor(DZone *zone, const DParameter *param);
+__global__ void compute_shock_sensor(DZone *zone, const DParameter *param);
 
 __global__ void eliminate_k_gradient(DZone *zone, const DParameter *param);
 }

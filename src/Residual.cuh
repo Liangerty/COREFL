@@ -32,16 +32,16 @@ __global__ void reduction_of_dv_squared(real *arr, int size) {
   __syncthreads();
 
   // ! Maybe not correct
-//  int block2 = gxl::pow2ceil(blockDim.x); // next power of 2
-//  for (int stride = block2 / 2; stride > 0; stride >>= 1) {
-//    if (t < stride && t + stride < blockDim.x) {
-//#pragma unroll
-//      for (int l = 0; l < N; ++l) {
-//        s[t * N + l] += s[(t + stride) * N + l];
-//      }
-//    }
-//    __syncthreads();
-//  }
+  //  int block2 = gxl::pow2ceil(blockDim.x); // next power of 2
+  //  for (int stride = block2 / 2; stride > 0; stride >>= 1) {
+  //    if (t < stride && t + stride < blockDim.x) {
+  //#pragma unroll
+  //      for (int l = 0; l < N; ++l) {
+  //        s[t * N + l] += s[(t + stride) * N + l];
+  //      }
+  //    }
+  //    __syncthreads();
+  //  }
 
   for (int stride = blockDim.x / 2, lst = blockDim.x & 1; stride >= 1; lst = stride & 1, stride >>= 1) {
     stride += lst;
@@ -124,11 +124,11 @@ real compute_residual(Driver<mix_model> &driver, int step) {
     }
     MPI_Allreduce(res_temp.data(), res.data(), 4, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   }
-//  printf("total grid number:%d\n", mesh.n_grid_total);
+  //  printf("total grid number:%d\n", mesh.n_grid_total);
   for (auto &e: res) {
-//    printf("before, e=%e\n", e);
+    //    printf("before, e=%e\n", e);
     e = std::sqrt(e / mesh.n_grid_total);
-//    printf("after, e=%e\n", e);
+    //    printf("after, e=%e\n", e);
   }
 
   std::array<real, 4> &res_scale{driver.res_scale};
@@ -189,5 +189,5 @@ real compute_residual(Driver<mix_model> &driver, int step) {
 void steady_screen_output(int step, real err_max, gxl::Time &time, const std::array<real, 4> &res);
 
 void unsteady_screen_output(int step, real err_max, gxl::Time &time, const std::array<real, 4> &res, real dt,
-                            real solution_time);
+  real solution_time);
 } // cfd

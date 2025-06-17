@@ -136,7 +136,7 @@ void dual_time_stepping(Driver<mix_model> &driver) {
     // Calculate the shock sensor, and save the results to zone->shock_sensor(i,j,k).
     if (hybrid_inviscid_scheme != "NO") {
       for (auto b = 0; b < n_block; ++b) {
-        calculate_shock_sensor<<<bpg[b], tpb>>>(field[b].d_ptr, param);
+        compute_shock_sensor<<<bpg[b], tpb>>>(field[b].d_ptr, param);
       }
     }
 

@@ -17,10 +17,10 @@ void steady_screen_output(int step, real err_max, gxl::Time &time, const std::ar
 
 void
 unsteady_screen_output(int step, real err_max, gxl::Time &time, const std::array<real, 4> &res, real dt,
-                       real solution_time) {
+  real solution_time) {
   time.get_elapsed_time();
   FILE *history = std::fopen("history.dat", "a");
-  fprintf(history, "%d\t%11.4e\n", step, err_max);
+  fprintf(history, "%d\t%13.7e\t%11.4e\n", step, dt, err_max);
   fclose(history);
 
   printf("\n%38s    converged to: %11.4e\n", "rho", res[0]);

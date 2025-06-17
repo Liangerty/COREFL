@@ -44,6 +44,7 @@ spongeZPlusEnd{parameter.get_real("spongeZPlusEnd")}*/ {
   }
 
   if (parameter.get_string("hybrid_inviscid_scheme") != "NO") {
+    shock_sensor = parameter.get_int("shock_sensor");
     sensor_eps = parameter.get_real("shockSensor_epsilon");
     sensor_threshold = parameter.get_real("shockSensor_threshold");
   }

@@ -40,6 +40,7 @@ struct DParameter {
   bool positive_preserving = false; // If we want to use positive preserving limiter
   bool gradPInDiffusionFlux = false;
   real entropy_fix_factor = 0; // The factor for entropy fix
+  int shock_sensor = 0; // The tag for shock sensor.0 - Modified Ducros sensor; 1 - Modified Jameson sensor; 2 - Sensor based on density and pressure jump
   real sensor_eps = -1;     // The eps value for shock sensor
   real sensor_threshold = 0.1; // The criteria for hybrid scheme.
 

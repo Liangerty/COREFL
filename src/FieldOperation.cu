@@ -66,15 +66,7 @@ __global__ void cfd::eliminate_k_gradient(DZone *zone, const DParameter *param) 
   }
 }
 
-__global__ void cfd::calculate_shock_sensor(DZone *zone, const DParameter *param) {
-  // Calculate the shock sensor, and save the results to the 3-D Array 'shock_sensor'.
-  // The closer is the shock_sensor to 1, the stronger is the shock.
-  const int extent[3]{zone->mx, zone->my, zone->mz};
-  const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
-  const auto j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
-  const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
-  if (i >= extent[0] || j >= extent[1] || k >= extent[2]) return;
-
+__device__ real ducros_sensor(const cfd::DZone *zone, real eps, int i, int j, int k) {
   const auto &bv = zone->bv;
   const auto &metric = zone->metric(i, j, k);
   const auto xi_x = metric(1, 1), xi_y = metric(1, 2), xi_z = metric(1, 3);
@@ -105,7 +97,7 @@ __global__ void cfd::calculate_shock_sensor(DZone *zone, const DParameter *param
   const real dwDz = dwd1 * xi_z + dwd2 * eta_z + dwd3 * zeta_z;
   real divV2 = duDx + dvDy + dwDz;
   if (divV2 > 0) {
-    zone->shock_sensor(i, j, k) = 0;
+    return 0;
   } else {
     const real duDy = dud1 * xi_y + dud2 * eta_y + dud3 * zeta_y;
     const real duDz = dud1 * xi_z + dud2 * eta_z + dud3 * zeta_z;
@@ -119,6 +111,64 @@ __global__ void cfd::calculate_shock_sensor(DZone *zone, const DParameter *param
                                  (dvDx - duDy) * (dvDx - duDy);
     // const real delta0 = 0.001;
     // const real epsilon = param->v_ref * param->v_ref / (delta0 * delta0);
-    zone->shock_sensor(i, j, k) = divV2 / (divV2 + velocity_curl_2 + param->sensor_eps);
+    return divV2 / (divV2 + velocity_curl_2 + eps);
   }
+}
+
+__device__ real jameson_sensor(const cfd::DZone *zone, int i, int j, int k) {
+  // According to (Dang,2022,PoF)
+  const auto &bv = zone->bv;
+
+  const real twoP = bv(i, j, k, 4) * 2;
+  const real pI = bv(i + 1, j, k, 4) + bv(i - 1, j, k, 4);
+  const real pJ = bv(i, j + 1, k, 4) + bv(i, j - 1, k, 4);
+  const real pK = bv(i, j, k + 1, 4) + bv(i, j, k - 1, 4);
+
+  const real phiI = abs(pI - twoP) / (pI + twoP);
+  const real phiJ = abs(pJ - twoP) / (pJ + twoP);
+  const real phiK = abs(pK - twoP) / (pK + twoP);
+  return phiI + phiJ + phiK;
+}
+
+__device__ real density_pressure_jump_sensor(const cfd::DZone *zone, real eps, int i, int j, int k) {
+  // According to (Martinez Ferrer et, al., 2014, Computers & Fluids)
+  const auto &bv = zone->bv;
+
+  // The original sensor is: abs(\rho_{i+1} - \rho_i)/\rho_i < 0.05 && abs(p_{i+1} - p_i)/p_i < 0.05
+  // As the original method seems to rely on the cartesian coordinate, and the sensor is different on 3 directions.
+  // Here, we modify it to be the max of the three directions, and max between density and pressure jump.
+  real sensor{0};
+  const real rho = bv(i, j, k, 0), rhoI = 1.0 / rho;
+  const real p = bv(i, j, k, 4), pI = 1.0 / p;
+  sensor = max(sensor, abs(bv(i + 1, j, k, 0) - rho) * rhoI);
+  sensor = max(sensor, abs(bv(i, j + 1, k, 0) - rho) * rhoI);
+  sensor = max(sensor, abs(bv(i, j, k + 1, 0) - rho) * rhoI);
+  sensor = max(sensor, abs(bv(i + 1, j, k, 4) - p) * pI);
+  sensor = max(sensor, abs(bv(i, j + 1, k, 4) - p) * pI);
+  sensor = max(sensor, abs(bv(i, j, k + 1, 4) - p) * pI);
+
+  return sensor;
+}
+
+__global__ void cfd::compute_shock_sensor(DZone *zone, const DParameter *param) {
+  // Calculate the shock sensor, and save the results to the 3-D Array 'shock_sensor'.
+  // The closer is the shock_sensor to 1, the stronger is the shock.
+  const int extent[3]{zone->mx, zone->my, zone->mz};
+  const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
+  const auto j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
+  const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
+  if (i >= extent[0] || j >= extent[1] || k >= extent[2]) return;
+
+  real sensor{1};
+  if (param->shock_sensor == 1) {
+    // modified Jameson sensor.
+    sensor = jameson_sensor(zone, i, j, k);
+  } else if (param->shock_sensor == 2) {
+    // density and pressure jump sensor
+    sensor = density_pressure_jump_sensor(zone, param->sensor_eps, i, j, k);
+  } else {
+    // modified Ducros sensor is used by default
+    sensor = ducros_sensor(zone, param->sensor_eps, i, j, k);
+  }
+  zone->shock_sensor(i, j, k) = sensor;
 }

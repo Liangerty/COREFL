@@ -15,7 +15,7 @@ real cfd::compute_viscosity(real temperature, real mw_total, real const *Y, cons
   gxl::MatrixDyn<real> partition_fun(spec.n_spec, spec.n_spec);
   for (int i = 0; i < spec.n_spec; ++i) {
     x[i] = Y[i] * mw_total / spec.mw[i];
-    const real t_dl{temperature * spec.LJ_potent_inv[i]};  // dimensionless temperature
+    const real t_dl{temperature * spec.LJ_potent_inv[i]}; // dimensionless temperature
     const real collision_integral{1.147 * std::pow(t_dl, -0.145) + std::pow(t_dl + 0.5, -2)};
     vis_spec[i] = spec.vis_coeff[i] * std::sqrt(temperature) / collision_integral;
   }
@@ -42,7 +42,7 @@ real cfd::compute_viscosity(real temperature, real mw_total, real const *Y, cons
 
 __device__ void
 cfd::compute_transport_property(int i, int j, int k, real temperature, real mw_total, const real *cp, DParameter *param,
-                                DZone *zone) {
+  DZone *zone) {
   const auto n_spec{param->n_spec};
   const real *mw = param->mw;
 
