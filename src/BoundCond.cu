@@ -10,7 +10,7 @@
 namespace cfd {
 template<typename BCType>
 void register_bc(BCType *&bc, int n_bc, std::vector<int> &indices, BCInfo *&bc_info, Species &species,
-                 Parameter &parameter) {
+  Parameter &parameter) {
   if (n_bc <= 0) {
     return;
   }
@@ -35,7 +35,7 @@ void register_bc(BCType *&bc, int n_bc, std::vector<int> &indices, BCInfo *&bc_i
 
 template<>
 void register_bc<Wall>(Wall *&bc, int n_bc, std::vector<int> &indices, BCInfo *&bc_info, Species &species,
-                       Parameter &parameter) {
+  Parameter &parameter) {
   if (n_bc <= 0) {
     return;
   }
@@ -59,7 +59,7 @@ void register_bc<Wall>(Wall *&bc, int n_bc, std::vector<int> &indices, BCInfo *&
 
 template<>
 void register_bc<Inflow>(Inflow *&bc, int n_bc, std::vector<int> &indices, BCInfo *&bc_info, Species &species,
-                         Parameter &parameter) {
+  Parameter &parameter) {
   if (n_bc <= 0) {
     return;
   }
@@ -85,7 +85,7 @@ void register_bc<Inflow>(Inflow *&bc, int n_bc, std::vector<int> &indices, BCInf
 template<>
 void
 register_bc<FarField>(FarField *&bc, int n_bc, std::vector<int> &indices, BCInfo *&bc_info, Species &species,
-                      Parameter &parameter) {
+  Parameter &parameter) {
   if (n_bc <= 0) {
     return;
   }
@@ -110,7 +110,7 @@ register_bc<FarField>(FarField *&bc, int n_bc, std::vector<int> &indices, BCInfo
 
 template<>
 void register_bc<SubsonicInflow>(SubsonicInflow *&bc, int n_bc, std::vector<int> &indices, BCInfo *&bc_info,
-                                 Species &species, Parameter &parameter) {
+  Species &species, Parameter &parameter) {
   if (n_bc <= 0) {
     return;
   }
@@ -136,7 +136,7 @@ void register_bc<SubsonicInflow>(SubsonicInflow *&bc, int n_bc, std::vector<int>
 template<>
 void
 register_bc<BackPressure>(BackPressure *&bc, int n_bc, std::vector<int> &indices, BCInfo *&bc_info, Species &species,
-                          Parameter &parameter) {
+  Parameter &parameter) {
   if (n_bc <= 0) {
     return;
   }
@@ -302,7 +302,7 @@ void DBoundCond::initialize_bc_on_GPU(Mesh &mesh, std::vector<Field> &field, Spe
 
   MpiParallel::barrier();
 
-  initialize_profile_and_rng(parameter, mesh, species);
+  initialize_profile_and_rng(parameter, mesh, species, field);
 
   df_label.resize(n_inflow, -1);
   initialize_digital_filter(parameter, mesh);
@@ -484,7 +484,7 @@ void DBoundCond::link_bc_to_boundaries(Mesh &mesh, std::vector<Field> &field) co
 }
 
 void count_boundary_of_type_bc(const std::vector<Boundary> &boundary, int n_bc, int **sep, int blk_idx, int n_block,
-                               BCInfo *bc_info) {
+  BCInfo *bc_info) {
   if (n_bc <= 0) {
     return;
   }
@@ -512,7 +512,7 @@ void count_boundary_of_type_bc(const std::vector<Boundary> &boundary, int n_bc, 
 }
 
 void link_boundary_and_condition(const std::vector<Boundary> &boundary, const BCInfo *bc, int n_bc, int **sep,
-                                 int i_zone) {
+  int i_zone) {
   const auto n_boundary{boundary.size()};
   for (size_t l = 0; l < n_bc; l++) {
     const int label = bc[l].label;
@@ -586,8 +586,8 @@ void SubsonicInflow::copy_to_gpu(SubsonicInflow *d_inflow, const Parameter &para
 }
 
 void initialize_profile_with_inflow(const Boundary &boundary, const Block &block, const Parameter &parameter,
-                                    const Species &species, ggxl::VectorField3D<real> &profile,
-                                    const std::string &profile_related_bc_name) {
+  const Species &species, ggxl::VectorField3D<real> &profile,
+  const std::string &profile_related_bc_name) {
   const int direction = boundary.face;
   const int extent[3]{block.mx, block.my, block.mz};
   const int ngg = block.ngg;
@@ -643,7 +643,7 @@ void initialize_profile_with_inflow(const Boundary &boundary, const Block &block
 
 
 void init_mixingLayer_prof_compatible_cpu(const Boundary &boundary, Parameter &parameter, const Block &b,
-                                          const Species &species, ggxl::VectorField3D<real> &profile) {
+  const Species &species, ggxl::VectorField3D<real> &profile) {
   const int direction = boundary.face;
   const int ngg = b.ngg;
   const int mx = b.mx, my = b.my, mz = b.mz;
@@ -907,8 +907,8 @@ void init_mixingLayer_prof_compatible_cpu(const Boundary &boundary, Parameter &p
 }
 
 void read_profile(const Boundary &boundary, const std::string &file, const Block &block, Parameter &parameter,
-                  const Species &species, ggxl::VectorField3D<real> &profile,
-                  const std::string &profile_related_bc_name) {
+  const Species &species, ggxl::VectorField3D<real> &profile,
+  const std::string &profile_related_bc_name) {
   if (file == "MYSELF") {
     // The profile is initialized by the inflow condition.
     initialize_profile_with_inflow(boundary, block, parameter, species, profile, profile_related_bc_name);
@@ -929,7 +929,7 @@ void read_profile(const Boundary &boundary, const std::string &file, const Block
 
 std::vector<int>
 identify_variable_labels(const Parameter &parameter, std::vector<std::string> &var_name, const Species &species,
-                         bool &has_pressure, bool &has_temperature, bool &has_tke) {
+  bool &has_pressure, bool &has_temperature, bool &has_tke) {
   std::vector<int> labels;
   const int n_spec = species.n_spec;
   const int n_turb = parameter.get_int("n_turb");
@@ -994,8 +994,8 @@ identify_variable_labels(const Parameter &parameter, std::vector<std::string> &v
 
 void
 read_dat_profile(const Boundary &boundary, const std::string &file, const Block &block, Parameter &parameter,
-                 const Species &species, ggxl::VectorField3D<real> &profile,
-                 const std::string &profile_related_bc_name) {
+  const Species &species, ggxl::VectorField3D<real> &profile,
+  const std::string &profile_related_bc_name) {
   std::ifstream file_in(file);
   if (!file_in.is_open()) {
     printf("Cannot open file %s\n", file.c_str());
@@ -1442,8 +1442,8 @@ initialize_rng(curandState *rng_states, int size, int64_t time_stamp) {
 }
 
 void read_lst_profile(const Boundary &boundary, const std::string &file, const Block &block, const Parameter &parameter,
-                      const Species &species, ggxl::VectorField3D<real> &profile,
-                      const std::string &profile_related_bc_name) {
+  const Species &species, ggxl::VectorField3D<real> &profile,
+  const std::string &profile_related_bc_name) {
   std::ifstream file_in(file);
   if (!file_in.is_open()) {
     printf("Cannot open file %s\n", file.c_str());
@@ -1730,7 +1730,8 @@ void read_lst_profile(const Boundary &boundary, const std::string &file, const B
 }
 
 void
-DBoundCond::initialize_profile_and_rng(Parameter &parameter, Mesh &mesh, const Species &species) {
+DBoundCond::initialize_profile_and_rng(Parameter &parameter, Mesh &mesh, const Species &species,
+  std::vector<Field> &field) {
   if (const int n_profile = parameter.get_int("n_profile"); n_profile > 0) {
     profile_hPtr_withGhost.resize(n_profile);
     for (int i = 0; i < n_profile; ++i) {
@@ -1829,11 +1830,145 @@ DBoundCond::initialize_profile_and_rng(Parameter &parameter, Mesh &mesh, const S
       }
     }
   }
+
+  // If random number generators are needed for all points
+  if (const int n_rand = parameter.get_int("random_number_per_point"); n_rand > 0) {
+    const int initialize = parameter.get_int("initial");
+    const int n_fluc_val = parameter.get_int("fluctuation_variable_number");
+    for (int blk = 0; blk < mesh.n_block; ++blk) {
+      const int mx = mesh[blk].mx, my = mesh[blk].my, mz = mesh[blk].mz, ngg = mesh[blk].ngg;
+      bool init = true;
+      if (initialize == 1) {
+        std::string filename = "./output/rng-p" + std::to_string(parameter.get_int("myid")) + ".bin";
+        MPI_File fp;
+        MPI_File_open(MPI_COMM_SELF, filename.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fp);
+        if (fp == nullptr) {
+          printf("Warning: cannot open the file %s, the random number states will be restarted.\n", filename.c_str());
+          break;
+        }
+        int n1_read, n2_read, n3_read;
+        MPI_Offset offset = 0;
+        MPI_File_read_at(fp, offset, &n1_read, 1, MPI_INT, MPI_STATUS_IGNORE);
+        offset += 4;
+        MPI_File_read_at(fp, offset, &n2_read, 1, MPI_INT, MPI_STATUS_IGNORE);
+        offset += 4;
+        MPI_File_read_at(fp, offset, &n3_read, 1, MPI_INT, MPI_STATUS_IGNORE);
+        offset += 4;
+        int ngg_read;
+        MPI_File_read_at(fp, offset, &ngg_read, 1, MPI_INT, MPI_STATUS_IGNORE);
+        offset += 4;
+        if (mx != n1_read || my != n2_read || mz != n3_read || ngg != ngg_read) {
+          printf(
+            "Warning: the grid size in the file %s is not consistent with the current grid size, the random number states will be restarted.\n",
+            filename.c_str());
+          break;
+        }
+
+        init = false;
+        MPI_Datatype ty;
+        int lSize[3]{mx + 2 * ngg, my + 2 * ngg, mz + 2 * ngg};
+        int start[3]{0, 0, 0};
+        // The old data type is curandState
+        MPI_Datatype mpi_curandState;
+        MPI_Type_contiguous(sizeof(curandState), MPI_BYTE, &mpi_curandState);
+        MPI_Type_commit(&mpi_curandState);
+        MPI_Type_create_subarray(3, lSize, lSize, start, MPI_ORDER_FORTRAN, mpi_curandState, &ty);
+        MPI_Type_commit(&ty);
+        MPI_File_read_at(fp, offset, field[blk].rng_state.data(), n_rand, ty, MPI_STATUS_IGNORE);
+        offset += static_cast<MPI_Offset>((mx + 2 * ngg) * (my + 2 * ngg) * (mz + 2 * ngg) * n_rand * sizeof(
+                                            curandState));
+        cudaMemcpy(field[blk].h_ptr->rng_state.data(), field[blk].rng_state.data(),
+                   (my + 2 * ngg) * (mz + 2 * ngg) * 3 * sizeof(curandState), cudaMemcpyHostToDevice);
+        MPI_Type_free(&ty);
+        MPI_Type_free(&mpi_curandState);
+
+        // The fluctuation values
+        ggxl::VectorField3DHost<real> hData;
+        hData.resize(mx, my, mz, n_fluc_val, ngg);
+        if (ngg_read >= ngg) {
+          MPI_Datatype tty;
+          int LSz[3]{mx + 2 * ngg_read, my + 2 * ngg_read, mz + 2 * ngg_read};
+          int sSize[3]{mx + 2 * ngg, my + 2 * ngg, mz + 2 * ngg};
+          int START[3]{ngg_read - ngg, ngg_read - ngg, ngg_read - ngg};
+          MPI_Type_create_subarray(3, LSz, sSize, START, MPI_ORDER_FORTRAN, MPI_DOUBLE, &tty);
+          MPI_Type_commit(&tty);
+
+          MPI_File_read_at(fp, offset, hData.data(), n_fluc_val, tty, MPI_STATUS_IGNORE);
+          MPI_Type_free(&tty);
+        } else {
+          for (int l = 0; l < n_fluc_val; ++l) {
+            for (int k = -ngg_read; k < mz + ngg_read; ++k) {
+              for (int j = -ngg_read; j < my + ngg_read; ++j) {
+                for (int i = -ngg_read; i < mx + ngg_read; ++i) {
+                  MPI_File_read_at(fp, offset, &hData(i, j, k, l), 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+                  offset += sizeof(real);
+                }
+              }
+            }
+          }
+        }
+        cudaMemcpy(field[blk].h_ptr->fluc_val.data(), hData.data(), hData.size() * n_fluc_val * sizeof(real),
+                   cudaMemcpyHostToDevice);
+        hData.deallocate_memory();
+      }
+
+      if (init) {
+        dim3 TPB = {16, 8, 8};
+        dim3 BPG = {(mx + 2 * ngg - 1) / TPB.x + 1, (my + 2 * ngg - 1) / TPB.y + 1, (mz + 2 * ngg - 1) / TPB.z + 1};
+        initialize_rng<<<BPG, TPB>>>(field[blk].d_ptr, n_rand);
+      }
+    }
+  }
+}
+
+__global__ void initialize_rng(DZone *zone, int n_rand) {
+  const int ngg = zone->ngg, n1 = zone->mx, n2 = zone->my, n3 = zone->mz;
+  const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x) - ngg;
+  const auto j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y) - ngg;
+  const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z) - ngg;
+  if (i >= n1 + ngg || j >= n2 + ngg || k >= n3 + ngg)
+    return;
+
+  auto &rng = zone->rng_state;
+  for (int l = 0; l < n_rand; ++l)
+    curand_init((i + ngg) * n1 + (j + ngg) * n2 + (k + ngg) * n3, l, 0, &rng(i, j, k, l));
+}
+
+void write_rng(const Mesh &mesh, Parameter &parameter, std::vector<Field> &field) {
+  const int myid = parameter.get_int("myid");
+  printf("Process %d is writing the white noise to the file.\n", myid);
+
+  auto err = cudaGetLastError();
+  if (err != cudaSuccess) {
+    printf("Error: %s\n", cudaGetErrorString(err));
+    MpiParallel::exit();
+  }
+  std::string filename = "./output/rng-p" + std::to_string(myid) + ".bin";
+  FILE *fp = fopen(filename.c_str(), "wb");
+  if (fp == nullptr) {
+    printf("Error: cannot open the file %s.\n", filename.c_str());
+    MpiParallel::exit();
+  }
+  const int n_rand = parameter.get_int("random_number_per_point");
+  const int n_val = parameter.get_int("fluctuation_variable_number");
+  for (int blk = 0; blk < mesh.n_block; ++blk) {
+    const int mx = mesh[blk].mx, my = mesh[blk].my, mz = mesh[blk].mz, ngg = mesh[blk].ngg;
+    fwrite(&mx, sizeof(int), 1, fp);
+    fwrite(&my, sizeof(int), 1, fp);
+    fwrite(&mz, sizeof(int), 1, fp);
+    fwrite(&ngg, sizeof(int), 1, fp);
+
+    fwrite(field[blk].rng_state.data(), sizeof(curandState),
+           (mx + 2 * ngg) * (my + 2 * ngg) * (mz + 2 * ngg) * n_rand, fp);
+    fwrite(field[blk].fluc_val.data(), sizeof(real),
+           (mx + 2 * ngg) * (my + 2 * ngg) * (mz + 2 * ngg) * n_val, fp);
+    fclose(fp);
+  }
 }
 
 __global__ void
 initialize_rest_rng(ggxl::VectorField2D<curandState> *rng_states, int iFace, int64_t time_stamp, int dy, int dz,
-                    int ngg, int my, int mz) {
+  int ngg, int my, int mz) {
   const int j = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x) - DBoundCond::DF_N - ngg;
   const int k = static_cast<int>(blockIdx.y * blockDim.y + threadIdx.y) - DBoundCond::DF_N - ngg;
   if (j >= my + DBoundCond::DF_N + ngg || k >= mz + DBoundCond::DF_N + ngg) {

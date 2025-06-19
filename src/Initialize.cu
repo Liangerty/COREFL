@@ -58,7 +58,7 @@ void initialize_from_start(Parameter &parameter, const Mesh &mesh, std::vector<F
 }
 
 void initialize_spec_from_inflow(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field,
-                                 Species &species) {
+  Species &species) {
   // This can also be implemented like the from_start one, which can have patches.
   // But currently, for easy to implement, initialize the whole flowfield to the inflow composition,
   // which means that other species would have to be computed from boundary conditions.
@@ -105,7 +105,7 @@ void initialize_spec_from_inflow(Parameter &parameter, const Mesh &mesh, std::ve
 }
 
 void initialize_turb_from_inflow(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field,
-                                 Species &species) {
+  Species &species) {
   // This can also be implemented like the from_start one, which can have patches.
   // But currently, for easy to implement, initialize the whole flowfield to the main inflow turbulent state.
   // If the need for initialize turbulence in groups is strong,
@@ -134,7 +134,7 @@ void initialize_turb_from_inflow(Parameter &parameter, const Mesh &mesh, std::ve
 }
 
 void initialize_mixture_fraction_from_species(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field,
-                                              Species &species) {
+  Species &species) {
   // This is called when we need to compute the mixture fraction from a given species field.
   // We need to know the form of coupling functions,
   // the boundary conditions of the 2 streams to know how to compute the mixture fraction
@@ -226,7 +226,7 @@ void expand_2D_to_3D(Parameter &parameter, const Mesh &mesh, std::vector<Field> 
 }
 
 void initialize_mixing_layer(Parameter &parameter, const Mesh &mesh, std::vector<Field> &field,
-                             const Species &species) {
+  const Species &species) {
   std::vector<real> var_info;
   get_mixing_layer_info(parameter, species, var_info);
 
@@ -258,7 +258,7 @@ void initialize_mixing_layer(Parameter &parameter, const Mesh &mesh, std::vector
 
 __global__ void
 initialize_mixing_layer_with_info(DZone *zone, const real *var_info, int n_spec, real delta_omega, int n_turb, int n_fl,
-                                  int n_ps) {
+  int n_ps) {
   const int ngg{zone->ngg}, mx{zone->mx}, my{zone->my}, mz{zone->mz};
   const int i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x) - ngg;
   const int j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y) - ngg;
@@ -326,7 +326,7 @@ initialize_mixing_layer_with_info(DZone *zone, const real *var_info, int n_spec,
 
 __global__ void
 initialize_mixing_layer_with_profile(ggxl::VectorField3D<real> *profile_dPtr, int profile_idx, DZone *zone,
-                                     int n_scalar) {
+  int n_scalar) {
   const int ngg{zone->ngg}, mx{zone->mx}, my{zone->my}, mz{zone->mz};
   const int i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x) - ngg;
   const int j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y) - ngg;

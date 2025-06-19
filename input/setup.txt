@@ -104,6 +104,16 @@ struct periodic  {
     int label = 8
 }
 
+// fluctuation info
+int random_number_per_point = 2 // 0 - no fluctuation, 1 - one random number per point, 2 - two random numbers per point, etc.
+int fluctuation_variable_number = 1 // The number of variables that are fluctuated.
+int fluctuation_form = 1 // 1 - The fluctuation of Ferrer et,al.
+int N_spanwise_waves = 3 // The number of spanwise waves in the fluctuation
+real fluctuation_intensity = 0.04 // The intensity of the fluctuation
+real x0 = 7.92e-4
+real y0 = 0
+real z0 = 0
+
 // Additional passive scalar
 int n_ps = 0 // number of additional scalars
 array real sc_passive_scalar {

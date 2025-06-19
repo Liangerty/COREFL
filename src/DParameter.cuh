@@ -131,6 +131,13 @@ struct DParameter {
   real *jet_rho = nullptr; // The density of the jet
   ggxl::MatrixDyn<real> jet_sv; // The species of the jet
 
+  int fluctuation_form = 0;
+  real fluctuation_intensity = 0;
+  real convective_velocity = 0; // The convective velocity of the mixing layer
+  real delta_omega0 = 0; // The initial value of the vorticity thickness of the mixing layer
+  int N_spanwise_wave = 1; // The number of spanwise waves in the mixing layer
+  real x0_fluc, y0_fluc, z0_fluc; // The position of the fluctuation in the mixing layer
+
   // Sponge layer info
   // bool sponge_layer = false;
   // int sponge_function = 0; // 0 - (Nektar++, CPC, 2024)

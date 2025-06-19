@@ -10,7 +10,7 @@ list(APPEND src_file
     ChemData.h ChemData.cpp Constants.h
     DataCommunication.cuh DataCommunication.cu Define.h DParameter.cu DParameter.cuh DPLUR.cuh DPLUR.cu Driver.cu Driver.cuh DualTimeStepping.cuh DualTimeStepping.cu
     Element.h Element.cpp
-    Field.h Field.cu FieldOperation.cuh FieldOperation.cu FiniteRateChem.cu FiniteRateChem.cuh FieldIO.h
+    Field.h Field.cu FieldOperation.cuh FieldOperation.cu FiniteRateChem.cu FiniteRateChem.cuh FieldIO.h Fluctuation.cu Fluctuation.cuh
     ImplicitTreatmentHPP.cuh Initialize.cuh Initialize.cu InviscidScheme.cuh InviscidScheme.cu IOManager.h InviscidHybrid.cu
     kernels.cuh kernels.cu kernels.h
     Limiter.cuh Mesh.cu Mesh.cuh

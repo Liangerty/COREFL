@@ -276,6 +276,8 @@ spongeZPlusEnd{parameter.get_real("spongeZPlusEnd")}*/ {
 
   // the following parameters have been computed in "write_reference_state".
   if (problem_type == 1) {
+    convective_velocity = parameter.get_real("convective_velocity");
+    delta_omega0 = parameter.get_real("delta_omega");
     if (int i = parameter.get_int("characteristic_velocity_ml"); i == 0) {
       v_char = parameter.get_real("convective_velocity");
     } else {
@@ -285,6 +287,13 @@ spongeZPlusEnd{parameter.get_real("spongeZPlusEnd")}*/ {
   } else {
     v_char = parameter.get_real("v_inf");
   }
+
+  fluctuation_form = parameter.get_int("fluctuation_form");
+  fluctuation_intensity = parameter.get_real("fluctuation_intensity");
+  N_spanwise_wave = parameter.get_int("N_spanwise_waves");
+  x0_fluc = parameter.get_real("x0_fluc");
+  y0_fluc = parameter.get_real("y0_fluc");
+  z0_fluc = parameter.get_real("z0_fluc");
 
   memset(limit_flow.ll, 0, sizeof(real) * LimitFlow::max_n_var);
   memset(limit_flow.ul, 0, sizeof(real) * LimitFlow::max_n_var);

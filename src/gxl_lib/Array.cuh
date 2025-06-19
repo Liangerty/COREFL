@@ -427,7 +427,7 @@ void VectorField3DHost<T, major>::resize(int ni, int nj, int nk, int nl, int ngg
   if (err != cudaSuccess) {
     printf(
       "The VectorField3DHost isn't allocated by cudaHostAlloc, not enough page-locked memory. Use malloc instead\n");
-    data_ = static_cast<real *>(malloc(sz * n4 * sizeof(T)));
+    data_ = static_cast<T *>(malloc(sz * n4 * sizeof(T)));
   }
   cudaMemset(data_, 0, sz * n4 * sizeof(T));
 }

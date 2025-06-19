@@ -476,6 +476,15 @@ void cfd::Parameter::setup_default_settings() {
 
   // info about additional variables
   string_array["available_field_var"] = {};
+
+  int_parameters["fluctuation_form"] = 0;
+  int_parameters["random_number_per_point"] = 0;
+  int_parameters["fluctuation_variable_number"] = 0;
+  real_parameters["fluctuation_intensity"] = 0;
+  int_parameters["N_spanwise_waves"] = 1;
+  real_parameters["x0_fluc"] = 0;
+  real_parameters["y0_fluc"] = 0;
+  real_parameters["z0_fluc"] = 0;
 }
 
 void cfd::Parameter::diagnose_parallel_info() {
@@ -573,9 +582,9 @@ void cfd::Parameter::deduce_sim_info(const Species &spec) {
   auto canonical_problem = get_string("canonical_problem");
   canonical_problem = gxl::to_upper(canonical_problem);
   int problem_type = 0;
-  if (canonical_problem == "MIXINGLAYER"){
+  if (canonical_problem == "MIXINGLAYER") {
     problem_type = 1;
-  } else if (canonical_problem == "JICF"){
+  } else if (canonical_problem == "JICF") {
     problem_type = 2;
   }
   update_parameter("problem_type", problem_type);
@@ -584,6 +593,7 @@ void cfd::Parameter::deduce_sim_info(const Species &spec) {
   const int myid = get_int("myid");
   if (myid == 0) {
     fmt::print("\n{:*^80}\n", "Simulation Details");
+    printf("\t->-> %-20s : canonical problem\n", canonical_problem.c_str());
     printf("\t->-> %-20d : number of equations to solve\n", n_var);
     printf("\t->-> %-20d : number of scalar variables\n", n_scalar);
     if (const auto n_ps = get_int("n_ps"); n_ps > 0) {

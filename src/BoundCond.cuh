@@ -118,7 +118,7 @@ private:
 
   void apply_convolution(int iFace, int my, int mz, int ngg) const;
 
-  void initialize_profile_and_rng(Parameter &parameter, Mesh &mesh, const Species &species);
+  void initialize_profile_and_rng(Parameter &parameter, Mesh &mesh, const Species &species, std::vector<Field> &field);
 
   void compute_fluctuations(const DParameter *param, DZone *zone, const Inflow *inflowHere, int iFace, int my, int mz,
     int ngg) const;
@@ -134,6 +134,10 @@ __global__ void initialize_rng(curandState *rng_states, int size, int64_t time_s
 
 __global__ void initialize_rest_rng(ggxl::VectorField2D<curandState> *rng_states, int iFace, int64_t time_stamp, int dy,
   int dz, int ngg, int my, int mz);
+
+__global__ void initialize_rng(DZone *zone, int n_rand);
+
+void write_rng(const Mesh &mesh, Parameter &parameter, std::vector<Field> &field);
 
 template<MixtureModel mix_model>
 __global__ void apply_symmetry(DZone *zone, int i_face, DParameter *param) {

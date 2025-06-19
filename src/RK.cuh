@@ -5,6 +5,7 @@
 #include "Monitor.cuh"
 #include "SpongeLayer.cuh"
 #include "Parallel.h"
+#include "Fluctuation.cuh"
 
 namespace cfd {
 namespace SSPRK3 {
@@ -84,6 +85,8 @@ void RK3(Driver<mix_model> &driver) {
   const bool if_collect_statistics{parameter.get_bool("if_collect_statistics")};
   const int collect_statistics_iter_start{parameter.get_int("start_collect_statistics_iter")};
   auto &statistics_collector{driver.stat_collector};
+  const int n_rand = parameter.get_int("random_number_per_point");
+  const int fluctuation_form = parameter.get_int("fluctuation_form");
 
   const auto need_physical_time{parameter.get_bool("need_physical_time")};
   const auto have_sponge_layer{parameter.get_bool("sponge_layer")};
@@ -135,6 +138,13 @@ void RK3(Driver<mix_model> &driver) {
       update_dt_global<<<1, 1>>>(param, dt);
     }
 
+    // Compute the fluctuation values. This is updated every step, not every sub-iter in RK
+    if (fluctuation_form > 0) {
+      for (int b = 0; b < n_block; ++b) {
+        compute_fluctuation(mesh[b], field[b].d_ptr, param, fluctuation_form, parameter);
+      }
+    }
+
     // Rk inner iteration
     for (int rk = 0; rk < 3; ++rk) {
       for (auto b = 0; b < n_block; ++b) {
@@ -168,6 +178,8 @@ void RK3(Driver<mix_model> &driver) {
         // so we need to explicitly specify the "template" keyword here.
         // If we call this function in the "driver" member function, we can omit the "template" keyword, as shown in Driver.cu, line 88.
         driver.bound_cond.template apply_boundary_conditions<mix_model>(mesh[b], field[b], param, step);
+
+        update_values_with_fluctuations<<<bpg[b], tpb>>>(field[b].d_ptr, param);
       }
       // Third, transfer data between and within processes
       data_communication<mix_model>(mesh, field, parameter, step, param);
@@ -232,6 +244,8 @@ void RK3(Driver<mix_model> &driver) {
         update_copy = true;
       }
       ioManager.print_field(step, parameter, physical_time);
+      if (n_rand > 0)
+        write_rng(mesh, parameter, field);
       if (if_collect_statistics && step > collect_statistics_iter_start)
         statistics_collector.export_statistical_data();
       post_process(driver);

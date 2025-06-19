@@ -5,6 +5,7 @@
 #include "Parameter.h"
 #include "Mesh.h"
 #include "ChemData.h"
+#include <curand_kernel.h>
 
 namespace cfd {
 struct Inflow;
@@ -35,6 +36,9 @@ struct DZone {
   ggxl::VectorField3D<real> bv_last; // Basic variable of last step
   ggxl::Array3D<real> mach;          // Mach number
   ggxl::Array3D<real> mul;           // Dynamic viscosity
+
+  ggxl::VectorField3D<curandState> rng_state; // Random number generators for fluctuations
+  ggxl::VectorField3D<real> fluc_val; // The fluctuation values
 
   // Mixture variables
   ggxl::VectorField3D<real> rho_D; // the mass diffusivity of species
@@ -124,6 +128,8 @@ struct Field {
   ggxl::VectorField3DHost<real> ov;
   // other variables used in the computation, e.g., the Mach number, the mut in turbulent computation, scalar dissipation rate in flamelet, etc.
   ggxl::VectorField3DHost<real> udv; // User defined variables.
+  ggxl::VectorField3DHost<curandState> rng_state; // Random number generators for fluctuations
+  ggxl::VectorField3DHost<real> fluc_val; // The fluctuation values
 
   // The following data is used for collecting statistics, whose memory is only allocated when we activate the statistics.
   //  ggxl::VectorField3DHost<real> firstOrderMoment, secondOrderMoment, userDefinedStatistics;
