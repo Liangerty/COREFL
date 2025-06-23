@@ -4,6 +4,202 @@
 #include "Constants.h"
 
 namespace cfd {
+__device__ void forward_reaction_rate_1(real t, real *kf, const real *concentration) {
+  // According to chemistry/2004-Li-IntJ.Chem.Kinet.inp
+  constexpr real iR_c = 1.0 / R_c;
+  const real iT = 1.0 / t;
+  const real iRcT = iR_c * iT;
+  kf[0] = 3.55e+15 * pow(t, -0.41) * exp(-1.66e+4 * iRcT);
+  kf[1] = 5.08e+4 * pow(t, 2.67) * exp(-6290 * iRcT);
+  kf[2] = 2.16e+8 * pow(t, 1.51) * exp(-3430 * iRcT);
+  kf[3] = 2.97e+6 * pow(t, 2.02) * exp(-13400 * iRcT);
+  kf[4] = 4.58e+19 * pow(t, -1.40) * exp(-1.0438e+5 * iRcT);
+  const real cc = concentration[0] * 2.5 + concentration[1] + concentration[2] +
+                  concentration[3] + concentration[4] + concentration[5] +
+                  concentration[6] + concentration[7] * 12 + concentration[8];
+  kf[4] *= cc; // H2 + M = H + H + M
+  kf[5] = 6.16e+15 * sqrt(iT) * cc;
+  kf[6] = 4.71e+18 * iT * cc;
+  kf[7] = 3.80e+22 * iT * iT * cc;
+  real kf_high = 1.48e+12 * pow(t, 0.6);
+  real kf_low = 6.37e+20 * pow(t, -1.72) * exp(-5.2e+2 * iRcT);
+  if (kf_high < 1e-25 && kf_low < 1e-25) {
+    // If both kf_high and kf_low are too small, set kf to zero
+    kf[8] = 0;
+  } else {
+    const real cc_here = concentration[0] * 2 + concentration[1] + concentration[2] * 0.78 +
+                         concentration[3] + concentration[4] + concentration[5] +
+                         concentration[6] + concentration[7] * 11 + concentration[8];
+    const real reduced_pressure = kf_low * cc_here / kf_high;
+    constexpr real f_cent = 0.8;
+    const real logFc = log10(f_cent);
+    const real c = -0.4 - 0.67 * logFc;
+    const real n = 0.75 - 1.27 * logFc;
+    const real logPr = log10(reduced_pressure);
+    const real tempo = (logPr + c) / (n - 0.14 * (logPr + c));
+    const real p = logFc / (1.0 + tempo * tempo);
+    kf[8] = kf_high * reduced_pressure / (1.0 + reduced_pressure) * pow(10, p);
+  }
+  kf[9] = 1.66e+13 * exp(-820 * iRcT);
+  kf[10] = 7.08e+13 * exp(-300 * iRcT);
+  kf[11] = 3.25e+13;                                                    // O + H2 = H + OH
+  kf[12] = 2.89e+13 * exp(500 * iRcT);                                  // HO2 + OH = H2O + O2
+  kf[13] = 4.20e+14 * exp(-11980 * iRcT) + 1.30e+11 * exp(1630 * iRcT); // HO2 + HO2 = H2O2 + O2
+  kf_high = 2.95e+14 * exp(-48400 * iRcT);
+  kf_low = 1.20e+17 * exp(-45500 * iRcT);
+  if (kf_high < 1e-25 && kf_low < 1e-25) {
+    // If both kf_high and kf_low are too small, set kf to zero
+    kf[14] = 0;
+  } else {
+    const real reduced_pressure = kf_low * cc / kf_high;
+    constexpr real f_cent = 0.5;
+    const real logFc = log10(f_cent);
+    const real c = -0.4 - 0.67 * logFc;
+    const real n = 0.75 - 1.27 * logFc;
+    const real logPr = log10(reduced_pressure);
+    const real tempo = (logPr + c) / (n - 0.14 * (logPr + c));
+    const real p = logFc / (1.0 + tempo * tempo);
+    kf[14] = kf_high * reduced_pressure / (1.0 + reduced_pressure) * pow(10, p);
+  }
+  kf[15] = 2.41e+13 * exp(-3970 * iRcT);        // H2O2 + H = H2O + OH
+  kf[16] = 4.82e+13 * exp(-7950 * iRcT);        // H2O2 + H = HO2 + H2
+  kf[17] = 9.55e+6 * t * t * exp(-3970 * iRcT); // H2O2 + O = OH + HO2
+  kf[18] = 1e+12 + 5.8e+14 * exp(-9560 * iRcT); // H2O2 + OH = HO2 + H2O
+}
+
+__device__ void
+backward_reaction_rate_1(real t, const real *kf, real *kb) {
+  real gibbs_rt[MAX_SPEC_NUMBER];
+  compute_gibbs_div_rt(t, param, gibbs_rt);
+  // if (print) {
+  //   printf("T=%e, GRT=%e,%e,%e,%e,%e,%e,%e,%e,%e\n", t,
+  //          gibbs_rt[0], gibbs_rt[1], gibbs_rt[2], gibbs_rt[3], gibbs_rt[4],
+  //          gibbs_rt[5], gibbs_rt[6], gibbs_rt[7], gibbs_rt[8]);
+  // }
+  // compute_gibbs_div_rt_1(t, gibbs_rt);
+  // if (print) {
+  //   printf("T=%e, GNT=%e,%e,%e,%e,%e,%e,%e,%e,%e\n", t,
+  //          gibbs_rt[0], gibbs_rt[1], gibbs_rt[2], gibbs_rt[3], gibbs_rt[4],
+  //          gibbs_rt[5], gibbs_rt[6], gibbs_rt[7], gibbs_rt[8]);
+  // }
+
+  constexpr real temp_p = p_atm / R_u * 1e-3; // Convert the unit to mol*K/cm3
+  const real temp_t = temp_p / t;             // Unit is mol/cm3
+  const real iTemp_t = 1.0 / temp_t;
+
+  kb[0] = kf[0] * exp(-gibbs_rt[1] - gibbs_rt[2] + gibbs_rt[3] + gibbs_rt[4]);
+  kb[1] = kf[1] * exp(-gibbs_rt[0] - gibbs_rt[3] + gibbs_rt[1] + gibbs_rt[4]);
+  kb[2] = kf[2] * exp(-gibbs_rt[0] - gibbs_rt[4] + gibbs_rt[7] + gibbs_rt[1]);
+  kb[3] = kf[3] * exp(-gibbs_rt[3] - gibbs_rt[7] + gibbs_rt[4] + gibbs_rt[4]);
+  kb[4] = kf[4] * iTemp_t * exp(-gibbs_rt[0] + gibbs_rt[1] + gibbs_rt[1]);
+  kb[5] = kf[5] * temp_t * exp(-gibbs_rt[3] - gibbs_rt[3] + gibbs_rt[2]);
+  kb[6] = kf[6] * temp_t * exp(-gibbs_rt[3] - gibbs_rt[1] + gibbs_rt[4]);
+  kb[7] = kf[7] * temp_t * exp(-gibbs_rt[1] - gibbs_rt[4] + gibbs_rt[7]);
+  kb[8] = kf[8] * temp_t * exp(-gibbs_rt[1] - gibbs_rt[2] + gibbs_rt[5]);
+  kb[9] = kf[9] * exp(-gibbs_rt[5] - gibbs_rt[1] + gibbs_rt[0] + gibbs_rt[2]);
+  kb[10] = kf[10] * exp(-gibbs_rt[5] - gibbs_rt[1] + gibbs_rt[4] + gibbs_rt[4]);
+  kb[11] = kf[11] * exp(-gibbs_rt[5] - gibbs_rt[3] + gibbs_rt[2] + gibbs_rt[4]);
+  kb[12] = kf[12] * exp(-gibbs_rt[5] - gibbs_rt[4] + gibbs_rt[7] + gibbs_rt[2]);
+  kb[13] = kf[13] * exp(-gibbs_rt[5] - gibbs_rt[5] + gibbs_rt[6] + gibbs_rt[2]);
+  kb[14] = kf[14] * iTemp_t * exp(-gibbs_rt[6] + gibbs_rt[4] + gibbs_rt[4]);
+  kb[15] = kf[15] * exp(-gibbs_rt[6] - gibbs_rt[1] + gibbs_rt[7] + gibbs_rt[4]);
+  kb[16] = kf[16] * exp(-gibbs_rt[6] - gibbs_rt[1] + gibbs_rt[5] + gibbs_rt[0]);
+  kb[17] = kf[17] * exp(-gibbs_rt[6] - gibbs_rt[3] + gibbs_rt[4] + gibbs_rt[5]);
+  kb[18] = kf[18] * exp(-gibbs_rt[6] - gibbs_rt[4] + gibbs_rt[5] + gibbs_rt[7]);
+}
+
+__device__ void rate_of_progress_1(const real *kf, const real *kb, const real *c, real *q, real *q1, real *q2) {
+  q1[0] = kf[0] * c[2] * c[1];
+  q2[0] = kb[0] * c[3] * c[4];
+  q[0] = q1[0] - q2[0];
+  q1[1] = kf[1] * c[0] * c[3];
+  q2[1] = kb[1] * c[1] * c[4];
+  q[1] = q1[1] - q2[1];
+  q1[2] = kf[2] * c[0] * c[4];
+  q2[2] = kb[2] * c[7] * c[1];
+  q[2] = q1[2] - q2[2];
+  q1[3] = kf[3] * c[3] * c[7];
+  q2[3] = kb[3] * c[4] * c[4];
+  q[3] = q1[3] - q2[3];
+  q1[4] = kf[4] * c[0];
+  q2[4] = kb[4] * c[1] * c[1];
+  q[4] = q1[4] - q2[4];
+  q1[5] = kf[5] * c[3] * c[3];
+  q2[5] = kb[5] * c[2];
+  q[5] = q1[5] - q2[5];
+  q1[6] = kf[6] * c[3] * c[1];
+  q2[6] = kb[6] * c[4];
+  q[6] = q1[6] - q2[6];
+  q1[7] = kf[7] * c[1] * c[4];
+  q2[7] = kb[7] * c[7];
+  q[7] = q1[7] - q2[7];
+  q1[8] = kf[8] * c[1] * c[2];
+  q2[8] = kb[8] * c[5];
+  q[8] = q1[8] - q2[8];
+  q1[9] = kf[9] * c[5] * c[1];
+  q2[9] = kb[9] * c[0] * c[2];
+  q[9] = q1[9] - q2[9];
+  q1[10] = kf[10] * c[5] * c[1];
+  q2[10] = kb[10] * c[4] * c[4];
+  q[10] = q1[10] - q2[10];
+  q1[11] = kf[11] * c[5] * c[3];
+  q2[11] = kb[11] * c[2] * c[4];
+  q[11] = q1[11] - q2[11];
+  q1[12] = kf[12] * c[5] * c[4];
+  q2[12] = kb[12] * c[7] * c[2];
+  q[12] = q1[12] - q2[12];
+  q1[13] = kf[13] * c[5] * c[5];
+  q2[13] = kb[13] * c[6] * c[2];
+  q[13] = q1[13] - q2[13];
+  q1[14] = kf[14] * c[6];
+  q2[14] = kb[14] * c[4] * c[4];
+  q[14] = q1[14] - q2[14];
+  q1[15] = kf[15] * c[6] * c[1];
+  q2[15] = kb[15] * c[7] * c[4];
+  q[15] = q1[15] - q2[15];
+  q1[16] = kf[16] * c[6] * c[1];
+  q2[16] = kb[16] * c[5] * c[0];
+  q[16] = q1[16] - q2[16];
+  q1[17] = kf[17] * c[6] * c[3];
+  q2[17] = kb[17] * c[4] * c[5];
+  q[17] = q1[17] - q2[17];
+  q1[18] = kf[18] * c[6] * c[4];
+  q2[18] = kb[18] * c[5] * c[7];
+  q[18] = q1[18] - q2[18];
+}
+
+__device__ void chemical_source_1(const real *q1, const real *q2, real *d, real *omega) {
+  real c = 0;
+  c = (q2[1] + q2[2] + q2[4] + q1[9] + q1[16]) * 2016;
+  d[0] = (q1[1] + q1[2] + q1[4] + q2[9] + q2[16]) * 2016;
+  omega[0] = c - d[0]; // Unit is kg/(m3*s)
+  c = (q2[0] + q2[6] + q2[7] + q2[8] + q2[9] + q2[10] + q2[15] + q2[16] + q1[1] + q1[2] + q1[4] * 2) * 1008;
+  d[1] = (q1[0] + q1[6] + q1[7] + q1[8] + q1[9] + q1[10] + q1[15] + q1[16] + q2[1] + q2[2] + q2[4] * 2) * 1008;
+  omega[1] = c - d[1]; // Unit is kg/(m3*s)
+  c = (q2[0] + q2[8] + q1[5] + q1[9] + q1[11] + q1[12] + q1[13]) * 31998;
+  d[2] = (q1[0] + q1[8] + q2[5] + q2[9] + q2[11] + q2[12] + q2[13]) * 31998;
+  omega[2] = c - d[2]; // Unit is kg/(m3*s)
+  c = (q2[1] + q2[3] + q2[5] * 2 + q2[6] + q2[11] + q2[17] + q1[0]) * 15999;
+  d[3] = (q1[1] + q1[3] + q1[5] * 2 + q1[6] + q1[11] + q1[17] + q2[0]) * 15999;
+  omega[3] = c - d[3]; // Unit is kg/(m3*s)
+  c = (q2[2] + q2[7] + q2[12] + q2[18] + q1[0] + q1[1] + q1[3] * 2 + q1[6] + q1[10] * 2 + q1[11] + q1[14] * 2 + q1[15] +
+       q1[17]) * 17007;
+  d[4] = (q1[2] + q1[7] + q1[12] + q1[18] + q2[0] + q2[1] + q2[3] * 2 + q2[6] + q2[10] * 2 + q2[11] + q2[14] * 2
+          + q2[15] + q2[17]) * 17007;
+  omega[4] = c - d[4];
+  c = (q2[9] + q2[10] + q2[11] + q2[12] + q2[13] * 2 + q1[8] + q1[16] + q1[17] + q1[18]) * 33006;
+  d[5] = (q1[9] + q1[10] + q1[11] + q1[12] + q1[13] * 2 + q2[8] + q2[16] + q2[17] + q2[18]) * 33006;
+  omega[5] = c - d[5]; // Unit is kg/(m3*s)
+  c = (q2[14] + q2[15] + q2[16] + q2[17] + q2[18] + q1[13]) * 34014;
+  d[6] = (q1[14] + q1[15] + q1[16] + q1[17] + q1[18] + q2[13]) * 34014;
+  omega[6] = c - d[6]; // Unit is kg/(m3*s)
+  c = (q2[3] + q1[2] + q1[7] + q1[12] + q1[15] + q1[18]) * 18015;
+  d[7] = (q1[3] + q2[2] + q2[7] + q2[12] + q2[15] + q2[18]) * 18015;
+  omega[7] = c - d[7]; // Unit is kg/(m3*s)
+  d[8] = 0;
+  omega[8] = 0;
+}
+
 __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
   const int extent[3]{zone->mx, zone->my, zone->mz};
   const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
@@ -27,22 +223,67 @@ __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
   // compute the forward reaction rate
   const real t{bv(i, j, k, 5)};
   real kf[MAX_REAC_NUMBER];
-  forward_reaction_rate(t, kf, c, param);
+  // forward_reaction_rate(t, kf, c, param);
+  // if (i == 300 && j == 163 && k == 11) {
+  //   printf("kf=%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n   %e,%e,%e,%e,%e,%e,%e,%e,%e\n",
+  //          kf[0], kf[1], kf[2], kf[3], kf[4], kf[5], kf[6], kf[7], kf[8], kf[9],
+  //          kf[10], kf[11], kf[12], kf[13], kf[14], kf[15], kf[16], kf[17], kf[18]);
+  // }
+  forward_reaction_rate_1(t, kf, c);
+  // if (i == 300 && j == 163 && k == 11) {
+  //   printf("kf=%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n   %e,%e,%e,%e,%e,%e,%e,%e,%e\n",
+  //          kf[0], kf[1], kf[2], kf[3], kf[4], kf[5], kf[6], kf[7], kf[8], kf[9],
+  //          kf[10], kf[11], kf[12], kf[13], kf[14], kf[15], kf[16], kf[17], kf[18]);
+  // }
+
 
   // compute the backward reaction rate
   real kb[MAX_REAC_NUMBER] = {};
-  backward_reaction_rate(t, kf, c, param, kb);
+  // backward_reaction_rate(t, kf, c, param, kb);
+  // if (i == 300 && j == 163 && k == 11) {
+  //   printf("kb=%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n   %e,%e,%e,%e,%e,%e,%e,%e,%e\n",
+  //          kb[0], kb[1], kb[2], kb[3], kb[4], kb[5], kb[6], kb[7], kb[8], kb[9],
+  //          kb[10], kb[11], kb[12], kb[13], kb[14], kb[15], kb[16], kb[17], kb[18]);
+  // }
+  bool pri = false;
+  if (i == 300 && (j == 10 || j == 300) && k == 11) {
+    pri = true;
+  }
+  backward_reaction_rate_1(t, kf, kb);
+  // if (i == 300 && j == 163 && k == 11) {
+  //   printf("kb=%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n   %e,%e,%e,%e,%e,%e,%e,%e,%e\n",
+  //          kb[0], kb[1], kb[2], kb[3], kb[4], kb[5], kb[6], kb[7], kb[8], kb[9],
+  //          kb[10], kb[11], kb[12], kb[13], kb[14], kb[15], kb[16], kb[17], kb[18]);
+  // }
 
   // compute the rate of progress
   real q[MAX_REAC_NUMBER * 3];
   real *q1 = &q[MAX_REAC_NUMBER];
   real *q2 = &q[MAX_REAC_NUMBER * 2];
-  rate_of_progress(kf, kb, c, q, q1, q2, param);
+  // rate_of_progress(kf, kb, c, q, q1, q2, param);
+  rate_of_progress_1(kf, kb, c, q, q1, q2);
+  // if (i == 300 && j == 163 && k == 11) {
+  //   printf("q=%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n   %e,%e,%e,%e,%e,%e,%e,%e,%e\n",
+  //          q[0], q[1], q[2], q[3], q[4], q[5], q[6], q[7], q[8], q[9],
+  //          q[10], q[11], q[12], q[13], q[14], q[15], q[16], q[17], q[18]);
+  // }
 
   // compute the chemical source
   real omega[MAX_SPEC_NUMBER * 2];
   real *omega_d = &omega[MAX_SPEC_NUMBER];
-  chemical_source(q1, q2, omega_d, omega, param);
+  // chemical_source(q1, q2, omega_d, omega, param);
+  // if (i == 300 && j == 163 && k == 11) {
+  //   printf("omega=%e,%e,%e,%e,%e,%e,%e,%e,%e\n",
+  //          omega[0], omega[1], omega[2], omega[3], omega[4],
+  //          omega[5], omega[6], omega[7], omega[8]);
+  // }
+  chemical_source_1(q1, q2, omega_d, omega);
+  // if (i == 300 && j == 163 && k == 11) {
+  //   printf("omega=%e,%e,%e,%e,%e,%e,%e,%e,%e\n",
+  //          omega[0], omega[1], omega[2], omega[3], omega[4],
+  //          omega[5], omega[6], omega[7], omega[8]);
+  // }
+
 
   real time_scale{1e+6};
   for (int l = 0; l < ns; ++l) {
@@ -67,6 +308,69 @@ __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
   }
 }
 
+// __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
+//   const int extent[3]{zone->mx, zone->my, zone->mz};
+//   const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
+//   const auto j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
+//   const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
+//   if (i >= extent[0] || j >= extent[1] || k >= extent[2]) return;
+//
+//   const auto &bv = zone->bv;
+//   const auto &sv = zone->sv;
+//
+//   const int ns = param->n_spec;
+//
+//   // compute the concentration of species in mol/cm3
+//   real c[MAX_SPEC_NUMBER];
+//   const real density{bv(i, j, k, 0)};
+//   const auto mw = param->mw;
+//   for (int l = 0; l < ns; ++l) {
+//     c[l] = density * sv(i, j, k, l) / mw[l] * 1e-3;
+//   }
+//
+//   // compute the forward reaction rate
+//   const real t{bv(i, j, k, 5)};
+//   real kf[MAX_REAC_NUMBER];
+//   forward_reaction_rate(t, kf, c, param);
+//
+//   // compute the backward reaction rate
+//   real kb[MAX_REAC_NUMBER] = {};
+//   backward_reaction_rate(t, kf, c, param, kb);
+//
+//   // compute the rate of progress
+//   real q[MAX_REAC_NUMBER * 3];
+//   real *q1 = &q[MAX_REAC_NUMBER];
+//   real *q2 = &q[MAX_REAC_NUMBER * 2];
+//   rate_of_progress(kf, kb, c, q, q1, q2, param);
+//
+//   // compute the chemical source
+//   real omega[MAX_SPEC_NUMBER * 2];
+//   real *omega_d = &omega[MAX_SPEC_NUMBER];
+//   chemical_source(q1, q2, omega_d, omega, param);
+//
+//   real time_scale{1e+6};
+//   for (int l = 0; l < ns; ++l) {
+//     zone->dq(i, j, k, l + 5) += zone->jac(i, j, k) * omega[l];
+//     if (sv(i, j, k, l) > 1e-25 && abs(omega_d[l]) > 1e-25)
+//       time_scale = min(time_scale, abs(density * sv(i, j, k, l) / omega_d[l]));
+//   }
+//   zone->reaction_timeScale(i, j, k) = time_scale;
+//
+//   // If implicit treat
+//   switch (param->chemSrcMethod) {
+//     case 0: // Explicit treatment
+//       break;
+//     case 1: // Exact point implicit
+//       compute_chem_src_jacobian(zone, i, j, k, param, q1, q2);
+//       break;
+//     case 2: // Diagonal approximation
+//       compute_chem_src_jacobian_diagonal(zone, i, j, k, param, omega_d);
+//       break;
+//     default: // Default, explicit treatment
+//       break;
+//   }
+// }
+//
 __device__ void forward_reaction_rate(real t, real *kf, const real *concentration, const DParameter *param) {
   const auto A = param->A, b = param->b, Ea = param->Ea;
   const auto type = param->reac_type;
