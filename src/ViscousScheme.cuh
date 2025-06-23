@@ -168,7 +168,7 @@ __global__ void compute_fv_2nd_order(DZone *zone, DParameter *param) {
 
     real h[MAX_SPEC_NUMBER];
     const real tm = 0.5 * (pv(i, j, k, 5) + pv(i + 1, j, k, 5));
-    compute_enthalpy(tm, h, param);
+    compute_enthalpy_1(tm, h, param);
 
     for (int l = 0; l < n_spec; ++l) {
       const real diffusion_flux{
@@ -355,7 +355,7 @@ __global__ void compute_gv_2nd_order(DZone *zone, DParameter *param) {
 
     real h[MAX_SPEC_NUMBER];
     const real tm = 0.5 * (pv(i, j, k, 5) + pv(i, j + 1, k, 5));
-    compute_enthalpy(tm, h, param);
+    compute_enthalpy_1(tm, h, param);
 
     for (int l = 0; l < n_spec; ++l) {
       const real diffusion_flux{
@@ -537,7 +537,7 @@ __global__ void compute_hv_2nd_order(DZone *zone, DParameter *param) {
 
     real h[MAX_SPEC_NUMBER];
     const real tm = 0.5 * (pv(i, j, k, 5) + pv(i, j, k + 1, 5));
-    compute_enthalpy(tm, h, param);
+    compute_enthalpy_1(tm, h, param);
 
     for (int l = 0; l < n_spec; ++l) {
       const real diffusion_flux{

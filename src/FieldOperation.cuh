@@ -21,7 +21,7 @@ __device__ void compute_total_energy(int i, int j, int k, DZone *zone, const DPa
   real total_energy = 0.5 * V2;
   if constexpr (mixture_model != MixtureModel::Air) {
     real enthalpy[MAX_SPEC_NUMBER];
-    compute_enthalpy(bv(i, j, k, 5), enthalpy, param);
+    compute_enthalpy_1(bv(i, j, k, 5), enthalpy, param);
     // Add species enthalpy together up to kinetic energy to get total enthalpy
     for (auto l = 0; l < param->n_spec; l++) {
       // h = \Sum_{i=1}^{n_spec} h_i * Y_i
@@ -100,7 +100,7 @@ __global__ void update_physical_properties(DZone *zone, DParameter *param) {
     auto &yk = zone->sv;
     real mw{0}, cp_tot{0}, cv{0};
     real cp[MAX_SPEC_NUMBER];
-    compute_cp(temperature, cp, param);
+    compute_cp_1(temperature, cp, param);
     for (auto l = 0; l < n_spec; ++l) {
       mw += yk(i, j, k, l) / param->mw[l];
       cp_tot += yk(i, j, k, l) * cp[l];
@@ -150,7 +150,7 @@ __device__ real compute_total_energy_1_point(int i, int j, int k, DZone *zone, D
   real total_energy = 0.5 * V2;
   if constexpr (mixture_model != MixtureModel::Air) {
     real enthalpy[MAX_SPEC_NUMBER];
-    compute_enthalpy(bv(i, j, k, 5), enthalpy, param);
+    compute_enthalpy_1(bv(i, j, k, 5), enthalpy, param);
     // Add species enthalpy together up to kinetic energy to get total enthalpy
     for (auto l = 0; l < param->n_spec; l++) {
       // h = \Sum_{i=1}^{n_spec} h_i * Y_i

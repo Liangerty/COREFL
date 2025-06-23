@@ -611,7 +611,7 @@ __global__ void apply_inflow_df(DZone *zone, Inflow *inflow, DParameter *param,
   if constexpr (mix_model != MixtureModel::Air) {
     const real *sv_b = y > 0 ? inflow->sv : inflow->sv_lower;
     real cpl[MAX_SPEC_NUMBER];
-    compute_cp(T, cpl, param);
+    compute_cp_1(T, cpl, param);
     for (int l = 0; l < param->n_spec; ++l) {
       c_p += cpl[l] * sv_b[l];
     }

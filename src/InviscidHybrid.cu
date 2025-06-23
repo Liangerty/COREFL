@@ -6,7 +6,8 @@
 
 namespace cfd {
 template<MixtureModel mix_model> __device__ void hybrid_weno_part(const real *pv, const real *rhoE, int i_shared,
-  const DParameter *param, const real *metric, const real *jac, const real *uk, const real *cGradK, real *fci, real *f_1st) {
+  const DParameter *param, const real *metric, const real *jac, const real *uk, const real *cGradK, real *fci,
+  real *f_1st) {
   const int n_var = param->n_var;
   // compute the roe average
   const auto *pvl = &pv[i_shared * n_var], *pvr = &pv[(i_shared + 1) * n_var];
@@ -34,7 +35,8 @@ template<MixtureModel mix_model> __device__ void hybrid_weno_part(const real *pv
   const real tm = (rlc * tl + rrc * tr) / (R_u * mw_inv);
 
   real cp_i[MAX_SPEC_NUMBER], h_i[MAX_SPEC_NUMBER];
-  compute_enthalpy_and_cp(tm, h_i, cp_i, param);
+  compute_enthalpy_and_cp_1(tm, h_i, cp_i, param);
+  // compute_enthalpy_and_cp_1(tm, h_i, cp_i, param);
   real cp{0}, cv_tot{0};
   for (int l = 0; l < n_spec; ++l) {
     cp += svm[l] * cp_i[l];
@@ -97,12 +99,13 @@ template<MixtureModel mix_model> __device__ void hybrid_weno_part(const real *pv
   }
   if (pp_limiter) {
     for (int l = 0; l < n_var - 5; l++) { // f_1st[l - 5] = 0.5 * (vPlus[weno_scheme - 1] + vMinus[weno_scheme]);
-      f_1st[l] = 0.5 * jac[i_shared] * pv[i_shared * n_var] * pv[i_shared * n_var + 5 + l] * (uk[i_shared] + specRadThis)
-       + 0.5 * jac[i_shared + 1] * pv[(i_shared + 1) * n_var] * pv[(i_shared + 1) * n_var + 5 + l] * (uk[i_shared + 1] - specRadNext);
+      f_1st[l] = 0.5 * jac[i_shared] * pv[i_shared * n_var] * pv[i_shared * n_var + 5 + l] * (
+                   uk[i_shared] + specRadThis)
+                 + 0.5 * jac[i_shared + 1] * pv[(i_shared + 1) * n_var] * pv[(i_shared + 1) * n_var + 5 + l] * (
+                   uk[i_shared + 1] - specRadNext);
     }
-    
   }
-    
+
   for (int l = 0; l < 5; ++l) {
     real coeff_alpha_s{0.5}, lambda{spec_rad[1]};
     real L[5];
@@ -727,9 +730,10 @@ __global__ void compute_convective_term_hybrid_ud_weno_x(DZone *zone, DParameter
 
   if (if_shock) {
     //The inviscid term at this point is calculated by WENO scheme.
-    hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+    hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var],
+                                &f_1st[tid * (n_var - 5)]);
     // hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var],
-                        // &f_1st[tid * (n_var - 5)]);
+    // &f_1st[tid * (n_var - 5)]);
   } else {
     //The inviscid term at this point is calculated by ep scheme.
     hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
@@ -923,7 +927,8 @@ __global__ void compute_convective_term_hybrid_ud_weno_y(DZone *zone, DParameter
   __syncthreads();
 
   if (if_shock) { //The inviscid term at this point is calculated by WENO scheme.
-    hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+    hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var],
+                                &f_1st[tid * (n_var - 5)]);
     // hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
   } else { //The inviscid term at this point is calculated by ep scheme.
     hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
@@ -1119,7 +1124,8 @@ __global__ void compute_convective_term_hybrid_ud_weno_z(DZone *zone, DParameter
   __syncthreads();
 
   if (if_shock) { //The inviscid term at this point is calculated by WENO scheme.
-    hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+    hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var],
+                                &f_1st[tid * (n_var - 5)]);
     // hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
   } else { //The inviscid term at this point is calculated by ep scheme.
     hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
