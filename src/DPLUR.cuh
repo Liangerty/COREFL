@@ -81,13 +81,13 @@ compute_jacobian_times_dq(const DParameter *param, DZone *zone, int i, int j, in
   if constexpr (mixture_model == MixtureModel::Air) {
     h = gamma / (gamma - 1) * pv(i, j, k, 4) / pv(i, j, k, 0) + e;
   } else {
-    const auto &mw = param->mw;
+    const auto &R = param->gas_const;
     real enthalpy[MAX_SPEC_NUMBER];
     const real t{pv(i, j, k, 5)};
     compute_enthalpy(t, enthalpy, param);
     gamma = zone->gamma(i, j, k);
     for (int l = 0; l < param->n_spec; ++l) {
-      b3 += R_u * t / mw[l] * dq(i, j, k, 5 + l);
+      b3 += R[l] * t * dq(i, j, k, 5 + l);
       b4 += enthalpy[l] * dq(i, j, k, 5 + l);
       h += sv(i, j, k, l) * enthalpy[l];
     }

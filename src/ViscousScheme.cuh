@@ -3,7 +3,7 @@
 #include "Define.h"
 #include "Thermo.cuh"
 #include "Constants.h"
-#include <cmath>
+#include "DParameter.cuh"
 #include "Field.h"
 
 namespace cfd {
@@ -133,8 +133,8 @@ __global__ void compute_fv_2nd_order(DZone *zone, DParameter *param) {
 
       // Term 2, the gradient of molecular weights,
       // which is represented by sum of "gradient of mass fractions divided by molecular weight".
-      sum_GradXi_cdot_GradY_over_wl += GradXi_cdot_GradY / param->mw[l];
-      mw_tot += yk[l] / param->mw[l];
+      sum_GradXi_cdot_GradY_over_wl += GradXi_cdot_GradY * param->imw[l];
+      mw_tot += yk[l] * param->imw[l];
       sum_rhoDkYk += diffusivity[l] * yk[l];
     }
     mw_tot = 1.0 / mw_tot;
@@ -161,8 +161,8 @@ __global__ void compute_fv_2nd_order(DZone *zone, DParameter *param) {
 
       // Velocity correction for the 3rd term
       for (int l = 0; l < n_spec; ++l) {
-        diffusion_driven_force[l] += (mw_tot / param->mw[l] - 1) * yk[l] * gradXi_cdot_gradP_over_p;
-        CorrectionVelocityTerm += (mw_tot / param->mw[l] - 1) * yk[l] * gradXi_cdot_gradP_over_p * diffusivity[l];
+        diffusion_driven_force[l] += (mw_tot * param->imw[l] - 1) * yk[l] * gradXi_cdot_gradP_over_p;
+        CorrectionVelocityTerm += (mw_tot * param->imw[l] - 1) * yk[l] * gradXi_cdot_gradP_over_p * diffusivity[l];
       }
     }
 
@@ -321,8 +321,8 @@ __global__ void compute_gv_2nd_order(DZone *zone, DParameter *param) {
 
       // Term 2, the gradient of molecular weights,
       // which is represented by sum of "gradient of mass fractions divided by molecular weight".
-      sum_GradEta_cdot_GradY_over_wl += GradEta_cdot_GradY / param->mw[l];
-      mw_tot += yk[l] / param->mw[l];
+      sum_GradEta_cdot_GradY_over_wl += GradEta_cdot_GradY * param->imw[l];
+      mw_tot += yk[l] * param->imw[l];
       sum_rhoDkYk += diffusivity[l] * yk[l];
     }
     mw_tot = 1.0 / mw_tot;
@@ -348,8 +348,8 @@ __global__ void compute_gv_2nd_order(DZone *zone, DParameter *param) {
 
       // Velocity correction for the 3rd term
       for (int l = 0; l < n_spec; ++l) {
-        diffusion_driven_force[l] += (mw_tot / param->mw[l] - 1) * yk[l] * gradEta_cdot_gradP_over_p;
-        CorrectionVelocityTerm += (mw_tot / param->mw[l] - 1) * yk[l] * gradEta_cdot_gradP_over_p * diffusivity[l];
+        diffusion_driven_force[l] += (mw_tot * param->imw[l] - 1) * yk[l] * gradEta_cdot_gradP_over_p;
+        CorrectionVelocityTerm += (mw_tot * param->imw[l] - 1) * yk[l] * gradEta_cdot_gradP_over_p * diffusivity[l];
       }
     }
 
@@ -503,8 +503,8 @@ __global__ void compute_hv_2nd_order(DZone *zone, DParameter *param) {
 
       // Term 2, the gradient of molecular weights,
       // which is represented by sum of "gradient of mass fractions divided by molecular weight".
-      sum_GradZeta_cdot_GradY_over_wl += GradZeta_cdot_GradY / param->mw[l];
-      mw_tot += yk[l] / param->mw[l];
+      sum_GradZeta_cdot_GradY_over_wl += GradZeta_cdot_GradY * param->imw[l];
+      mw_tot += yk[l] * param->imw[l];
       sum_rhoDkYk += diffusivity[l] * yk[l];
     }
     mw_tot = 1.0 / mw_tot;
@@ -530,8 +530,8 @@ __global__ void compute_hv_2nd_order(DZone *zone, DParameter *param) {
 
       // Velocity correction for the 3rd term
       for (int l = 0; l < n_spec; ++l) {
-        diffusion_driven_force[l] += (mw_tot / param->mw[l] - 1) * yk[l] * gradZeta_cdot_gradP_over_p;
-        CorrectionVelocityTerm += (mw_tot / param->mw[l] - 1) * yk[l] * gradZeta_cdot_gradP_over_p * diffusivity[l];
+        diffusion_driven_force[l] += (mw_tot * param->imw[l] - 1) * yk[l] * gradZeta_cdot_gradP_over_p;
+        CorrectionVelocityTerm += (mw_tot * param->imw[l] - 1) * yk[l] * gradZeta_cdot_gradP_over_p * diffusivity[l];
       }
     }
 

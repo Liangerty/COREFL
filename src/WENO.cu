@@ -574,7 +574,7 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
   const int n_spec{param->n_spec};
   real mw_inv = 0;
   for (int l = 0; l < n_spec; ++l) {
-    mw_inv += svm[l] / param->mw[l];
+    mw_inv += svm[l] * param->imw[l];
   }
 
   const real tl{cvl[n_var] * rhoL_inv};
@@ -586,7 +586,7 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
   real cp{0}, cv_tot{0};
   for (int l = 0; l < n_spec; ++l) {
     cp += svm[l] * cp_i[l];
-    cv_tot += svm[l] * (cp_i[l] - R_u / param->mw[l]);
+    cv_tot += svm[l] * (cp_i[l] - param->gas_const[l]);
   }
   const real gamma = cp / cv_tot;
   const real cm = sqrt(gamma * R_u * mw_inv * tm);
@@ -617,7 +617,7 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
   real alpha_l[MAX_SPEC_NUMBER];
   // compute the partial derivative of pressure to species density
   for (int l = 0; l < n_spec; ++l) {
-    alpha_l[l] = gamma * R_u / param->mw[l] * tm - (gamma - 1) * h_i[l];
+    alpha_l[l] = gamma * param->gas_const[l] * tm - (gamma - 1) * h_i[l];
     // The computations including this alpha_l are all combined with a division by cm2.
     alpha_l[l] *= cm2_inv;
   }

@@ -172,8 +172,8 @@ reconstruction(real *pv, real *pv_l, real *pv_r, const int idx_shared, DParamete
     const auto n_spec = param->n_spec;
     real mw_inv_l{0.0}, mw_inv_r{0.0};
     for (int l = 0; l < n_spec; ++l) {
-      mw_inv_l += pv_l[5 + l] / param->mw[l];
-      mw_inv_r += pv_r[5 + l] / param->mw[l];
+      mw_inv_l += pv_l[5 + l] * param->imw[l];
+      mw_inv_r += pv_r[5 + l] * param->imw[l];
     }
     const real t_l = pv_l[4] / (pv_l[0] * R_u * mw_inv_l);
     const real t_r = pv_r[4] / (pv_r[0] * R_u * mw_inv_r);
@@ -185,8 +185,8 @@ reconstruction(real *pv, real *pv_l, real *pv_r, const int idx_shared, DParamete
     for (auto l = 0; l < n_spec; ++l) {
       cpl += cpl_i[l] * pv_l[l + 5];
       cpr += cpr_i[l] * pv_r[l + 5];
-      cvl += pv_l[l + 5] * (cpl_i[l] - R_u / param->mw[l]);
-      cvr += pv_r[l + 5] * (cpr_i[l] - R_u / param->mw[l]);
+      cvl += pv_l[l + 5] * (cpl_i[l] - param->gas_const[l]);
+      cvr += pv_r[l + 5] * (cpr_i[l] - param->gas_const[l]);
       el += hl[l] * pv_l[l + 5];
       er += hr[l] * pv_r[l + 5];
     }

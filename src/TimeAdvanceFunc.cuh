@@ -231,12 +231,11 @@ __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
     if constexpr (mixture == MixtureModel::Air) {
       bv(i, j, k, 5) = updated_var[4] * mw_air / (updated_var[0] * R_u);
     } else {
-      real mw = 0;
+      real R = 0;
       for (int l = 0; l < n_spec; ++l) {
-        mw += sv(i, j, k, l) / param->mw[l];
+        R += sv(i, j, k, l) * param->gas_const[l];
       }
-      mw = 1 / mw;
-      bv(i, j, k, 5) = updated_var[4] * mw / (updated_var[0] * R_u);
+      bv(i, j, k, 5) = updated_var[4] / (updated_var[0] * R);
     }
 
     compute_cv_from_bv_1_point<mixture>(zone, param, i, j, k);

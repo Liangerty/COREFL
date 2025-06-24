@@ -113,7 +113,7 @@ riemannSolver_hllc(const real *pv_l, const real *pv_r, DParameter *param, int ti
 
     real mw_inv{0};
     for (int l = 0; l < param->n_spec; ++l) {
-      mw_inv += svm[l] / param->mw[l];
+      mw_inv += svm[l] * param->imw[l];
     }
 
     const real tl{pv_l[4] / pv_l[0]};
@@ -125,7 +125,7 @@ riemannSolver_hllc(const real *pv_l, const real *pv_r, DParameter *param, int ti
     real cv{0}, cp{0};
     for (int l = 0; l < param->n_spec; ++l) {
       cp += cp_i[l] * svm[l];
-      cv += svm[l] * (cp_i[l] - R_u / param->mw[l]);
+      cv += svm[l] * (cp_i[l] - param->gas_const[l]);
     }
     gamma = cp / cv;
     c_tilde = std::sqrt(gamma * R_u * mw_inv * t);
@@ -290,7 +290,7 @@ riemannSolver_Roe(DZone *zone, real *pv, int tid, DParameter *param, real *fc, r
   if constexpr (mix_model != MixtureModel::Air) {
     real mw_inv{0};
     for (int l = 0; l < param->n_spec; ++l) {
-      mw_inv += svm[l] / param->mw[l];
+      mw_inv += svm[l] * param->imw[l];
     }
 
     const real tl{pv_l[4] / pv_l[0]};
@@ -302,7 +302,7 @@ riemannSolver_Roe(DZone *zone, real *pv, int tid, DParameter *param, real *fc, r
     real cv{0}, cp{0};
     for (int l = 0; l < param->n_spec; ++l) {
       cp += cp_i[l] * svm[l];
-      cv += svm[l] * (cp_i[l] - R_u / param->mw[l]);
+      cv += svm[l] * (cp_i[l] - param->gas_const[l]);
     }
     gamma = cp / cv;
     c = std::sqrt(gamma * R_u * mw_inv * t);
@@ -343,7 +343,7 @@ riemannSolver_Roe(DZone *zone, real *pv, int tid, DParameter *param, real *fc, r
   real c1 = (gamma - 1) * (ek * dq[0] - u * dq[1] - v * dq[2] - w * dq[3] + dq[4]) / (c * c);
   real c2 = (kx * dq[1] + ky * dq[2] + kz * dq[3] - Uk * dq[0]) / c;
   for (int l = 0; l < param->n_spec; ++l) {
-    c1 += (mw / param->mw[l] - h_i[l] * (gamma - 1) / (c * c)) * dq[l + 5];
+    c1 += (mw * param->imw[l] - h_i[l] * (gamma - 1) / (c * c)) * dq[l + 5];
   }
   real c3 = dq[0] - c1;
 
@@ -371,7 +371,7 @@ riemannSolver_Roe(DZone *zone, real *pv, int tid, DParameter *param, real *fc, r
   c2 = c * (b[4] - b[0]);
   c3 = 0;
   for (int l = 0; l < param->n_spec; ++l)
-    c3 += (h_i[l] - mw / param->mw[l] * c * c / (gamma - 1)) * b[l + 5];
+    c3 += (h_i[l] - mw * param->imw[l] * c * c / (gamma - 1)) * b[l + 5];
 
   fci[0] += 0.5 * c1;
   fci[1] += 0.5 * (u * c1 + kx * c2 - c * (kz * b[2] - ky * b[3]));

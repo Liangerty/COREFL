@@ -748,11 +748,11 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
   real mw{mw_air};
   if constexpr (mix_model != MixtureModel::Air) {
     // Mixture
-    const auto mwk = param->mw;
+    const auto imwk = param->imw;
     mw = 0;
     for (int l = 0; l < param->n_spec; ++l) {
       sv(i, j, k, l) = sv(idx[0], idx[1], idx[2], l);
-      mw += sv(i, j, k, l) / mwk[l];
+      mw += sv(i, j, k, l) * imwk[l];
     }
     mw = 1 / mw;
   }
@@ -883,12 +883,12 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
     }
 
     if constexpr (mix_model != MixtureModel::Air) {
-      const auto mwk = param->mw;
+      const auto imwk = param->imw;
       mw = 0;
       for (int l = 0; l < param->n_spec; ++l) {
         // The mass fraction is given by a symmetry condition, is this reasonable?
         sv(i_gh[0], i_gh[1], i_gh[2], l) = sv(i_in[0], i_in[1], i_in[2], l);
-        mw += sv(i_gh[0], i_gh[1], i_gh[2], l) / mwk[l];
+        mw += sv(i_gh[0], i_gh[1], i_gh[2], l) * imwk[l];
       }
       mw = 1 / mw;
     }

@@ -215,9 +215,9 @@ __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
   // compute the concentration of species in mol/cm3
   real c[MAX_SPEC_NUMBER];
   const real density{bv(i, j, k, 0)};
-  const auto mw = param->mw;
+  const auto imw = param->imw;
   for (int l = 0; l < ns; ++l) {
-    c[l] = density * sv(i, j, k, l) / mw[l] * 1e-3;
+    c[l] = density * sv(i, j, k, l) * imw[l] * 1e-3;
   }
 
   // compute the forward reaction rate
@@ -498,7 +498,7 @@ __device__ void chemical_source(const real *q1, const real *q2, real *omega_d, r
   const int n_spec{param->n_spec};
   const int n_reac{param->n_reac};
   const auto &stoi_f = param->stoi_f, &stoi_b{param->stoi_b};
-  const auto mw = param->mw;
+  const auto imw = param->imw;
   for (int i = 0; i < n_spec; ++i) {
     real creation = 0;
     omega_d[i] = 0;
@@ -506,8 +506,8 @@ __device__ void chemical_source(const real *q1, const real *q2, real *omega_d, r
       creation += q2[j] * stoi_f(j, i) + q1[j] * stoi_b(j, i);
       omega_d[i] += q1[j] * stoi_f(j, i) + q2[j] * stoi_b(j, i);
     }
-    creation *= mw[i] * 1e+3;         // Unit is kg/(m3*s)
-    omega_d[i] *= mw[i] * 1e+3;       // Unit is kg/(m3*s)
+    creation *= 1e+3 / imw[i];        // Unit is kg/(m3*s)
+    omega_d[i] *= 1e+3 / imw[i];      // Unit is kg/(m3*s)
     omega[i] = creation - omega_d[i]; // Unit is kg/(m3*s)
   }
 }
@@ -529,7 +529,7 @@ compute_chem_src_jacobian(DZone *zone, int i, int j, int k, const DParameter *pa
         }
         zz /= density * sv(i, j, k, n);
       }
-      chem_jacobian(i, j, k, m * n_spec + n) = param->mw[m] * zz * 1e+3; // //1e+3=1e-3(MW)*1e+6(cm->m)
+      chem_jacobian(i, j, k, m * n_spec + n) = zz * 1e+3 / param->imw[m]; // //1e+3=1e-3(MW)*1e+6(cm->m)
     }
   }
 }

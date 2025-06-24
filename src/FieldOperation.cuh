@@ -102,9 +102,9 @@ __global__ void update_physical_properties(DZone *zone, DParameter *param) {
     real cp[MAX_SPEC_NUMBER];
     compute_cp_1(temperature, cp, param);
     for (auto l = 0; l < n_spec; ++l) {
-      mw += yk(i, j, k, l) / param->mw[l];
+      mw += yk(i, j, k, l) * param->imw[l];
       cp_tot += yk(i, j, k, l) * cp[l];
-      cv += yk(i, j, k, l) * (cp[l] - R_u / param->mw[l]);
+      cv += yk(i, j, k, l) * (cp[l] - param->gas_const[l]);
     }
     mw = 1 / mw;
     zone->cp(i, j, k) = cp_tot;
@@ -133,7 +133,7 @@ __global__ void initialize_mut(DZone *zone, DParameter *param) {
     auto &yk = zone->sv;
     real mw{0};
     for (auto l = 0; l < param->n_spec; ++l) {
-      mw += yk(i, j, k, l) / param->mw[l];
+      mw += yk(i, j, k, l) * param->imw[l];
     }
     mw = 1 / mw;
     mul = compute_viscosity(i, j, k, temperature, mw, param, zone);

@@ -149,7 +149,7 @@ __device__ void cfd::compute_enthalpy(real t, real *enthalpy, const DParameter *
       enthalpy[i] = coeff(i, 0) * t + 0.5 * coeff(i, 1) * t2 + coeff(i, 2) * t3 / 3 + 0.25 * coeff(i, 3) * t4 +
                     0.2 * coeff(i, 4) * t5 + coeff(i, 5);
     }
-    enthalpy[i] *= R_u / param->mw[i];
+    enthalpy[i] *= param->gas_const[i];
   }
 }
 
@@ -170,8 +170,8 @@ __device__ void cfd::compute_enthalpy_and_cp(real t, real *enthalpy, real *cp, c
                     0.2 * coeff(i, 4) * t5 + coeff(i, 5);
       cp[i] = coeff(i, 0) + coeff(i, 1) * t + coeff(i, 2) * t2 + coeff(i, 3) * t3 + coeff(i, 4) * t4;
     }
-    enthalpy[i] *= R_u / param->mw[i];
-    cp[i] *= R_u / param->mw[i];
+    enthalpy[i] *= param->gas_const[i];
+    cp[i] *= param->gas_const[i];
   }
 }
 
@@ -187,7 +187,7 @@ __device__ void cfd::compute_cp(real t, real *cp, DParameter *param) {
       auto &coeff = t < param->t_mid[i] ? param->low_temp_coeff : param->high_temp_coeff;
       cp[i] = coeff(i, 0) + coeff(i, 1) * t + coeff(i, 2) * t2 + coeff(i, 3) * t3 + coeff(i, 4) * t4;
     }
-    cp[i] *= R_u / param->mw[i];
+    cp[i] *= param->gas_const[i];
   }
 }
 
@@ -479,8 +479,8 @@ __device__ void cfd::compute_enthalpy_and_cp_1(real t, real *enthalpy, real *cp,
     }
   }
   for (int i = 0; i < param->n_spec; ++i) {
-    enthalpy[i] *= R_u / param->mw[i];
-    cp[i] *= R_u / param->mw[i];
+    enthalpy[i] *= param->gas_const[i];
+    cp[i] *= param->gas_const[i];
   }
 }
 
@@ -584,7 +584,7 @@ __device__ void cfd::compute_cp_1(real t, real *cp, DParameter *param) {
     }
   }
   for (int i = 0; i < param->n_spec; ++i) {
-    cp[i] *= R_u / param->mw[i];
+    cp[i] *= param->gas_const[i];
   }
 }
 
@@ -764,7 +764,7 @@ __device__ void cfd::compute_enthalpy_1(real t, real *enthalpy, const DParameter
     }
   }
   for (int i = 0; i < param->n_spec; ++i) {
-    enthalpy[i] *= R_u / param->mw[i];
+    enthalpy[i] *= param->gas_const[i];
   }
 }
 
