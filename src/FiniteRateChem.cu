@@ -70,13 +70,13 @@ __device__ void forward_reaction_rate_1(real t, real *kf, const real *concentrat
 __device__ void
 backward_reaction_rate_1(real t, const real *kf, real *kb) {
   real gibbs_rt[MAX_SPEC_NUMBER];
-  compute_gibbs_div_rt(t, param, gibbs_rt);
+  // compute_gibbs_div_rt(t, param, gibbs_rt);
   // if (print) {
   //   printf("T=%e, GRT=%e,%e,%e,%e,%e,%e,%e,%e,%e\n", t,
   //          gibbs_rt[0], gibbs_rt[1], gibbs_rt[2], gibbs_rt[3], gibbs_rt[4],
   //          gibbs_rt[5], gibbs_rt[6], gibbs_rt[7], gibbs_rt[8]);
   // }
-  // compute_gibbs_div_rt_1(t, gibbs_rt);
+  compute_gibbs_div_rt_1(t, gibbs_rt);
   // if (print) {
   //   printf("T=%e, GNT=%e,%e,%e,%e,%e,%e,%e,%e,%e\n", t,
   //          gibbs_rt[0], gibbs_rt[1], gibbs_rt[2], gibbs_rt[3], gibbs_rt[4],

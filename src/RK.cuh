@@ -309,7 +309,11 @@ __global__ void update_cv_and_bv_rk(DZone *zone, DParameter *param, real dt, int
   auto &sv = zone->sv;
   real sum_part_den{0};
   for (int l = 0; l < param->n_spec; ++l) {
-    sum_part_den += cv(i, j, k, l + 5);
+    if (cv(i, j, k, 5 + l) < 0) {
+      // If the species mass fraction is negative, we set it to zero.
+      cv(i, j, k, 5 + l) = 0;
+    } else
+      sum_part_den += cv(i, j, k, l + 5);
   }
   sum_part_den = 1.0 / sum_part_den;
   const auto denComDivDenReal = cv(i, j, k, 0) * sum_part_den;
