@@ -40,9 +40,8 @@ real cfd::compute_viscosity(real temperature, real mw_total, real const *Y, cons
   return viscosity;
 }
 
-__device__ void
-cfd::compute_transport_property(int i, int j, int k, real temperature, real mw_total, const real *cp, DParameter *param,
-  DZone *zone) {
+__device__ void cfd::compute_transport_property(int i, int j, int k, real temperature, real mw_total, const real *cp,
+  DParameter *param, DZone *zone) {
   const auto n_spec{param->n_spec};
   const real *imw = param->imw;
 
@@ -133,6 +132,7 @@ cfd::compute_transport_property(int i, int j, int k, real temperature, real mw_t
       }
     }
     // num = mw_total - X[l] / param->imw[l];
+    // num = 1 - zone->sv(i, j, k, l); // If Y[l]==1, the rhoD would be zero, and the diffusivity may be wrong.
     zone->rho_D(i, j, k, l) = zone->bv(i, j, k, 0) * num / (den * mw_total);
   }
 }

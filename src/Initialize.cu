@@ -52,7 +52,7 @@ void initialize_from_start(Parameter &parameter, const Mesh &mesh, std::vector<F
   if (parameter.get_int("myid") == 0) {
     printf("\t->-> %-20s : initialization method.\n", "From start");
     std::ofstream history("history.dat", std::ios::trunc);
-    history << "step\terror_max\n";
+    history << "step\tdt(s)\tt(s)\terror_max\n";
     history.close();
   }
 }
