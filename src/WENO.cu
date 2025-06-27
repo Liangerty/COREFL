@@ -131,11 +131,20 @@ compute_convective_term_weno_x(DZone *zone, DParameter *param) {
   __syncthreads();
 
   // reconstruct the half-point left/right primitive variables with the chosen reconstruction method.
+  bool if_shock = false;
+  for (int ii = -ngg + 1; ii <= ngg; ++ii) {
+    if (zone->shock_sensor(i + ii, j, k) > param->sensor_threshold) {
+      if_shock = true;
+      break;
+    }
+  }
+
   if (const auto sch = param->inviscid_scheme; sch == 51 || sch == 71) {
-    compute_weno_flux_cp(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded, f_1st);
+    compute_weno_flux_cp(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded, f_1st,
+                         if_shock);
   } else if (sch == 52 || sch == 72) {
     compute_weno_flux_ch<mix_model>(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded,
-                                    f_1st);
+                                    f_1st, if_shock);
   }
   __syncthreads();
 
@@ -279,12 +288,20 @@ compute_convective_term_weno_y(DZone *zone, DParameter *param) {
   }
   __syncthreads();
 
+  bool if_shock = false;
+  for (int ii = -ngg + 1; ii <= ngg; ++ii) {
+    if (zone->shock_sensor(i, j + ii, k) > param->sensor_threshold) {
+      if_shock = true;
+      break;
+    }
+  }
   // reconstruct the half-point left/right primitive variables with the chosen reconstruction method.
   if (const auto sch = param->inviscid_scheme; sch == 51 || sch == 71) {
-    compute_weno_flux_cp(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded, f_1st);
+    compute_weno_flux_cp(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded, f_1st,
+                         if_shock);
   } else if (sch == 52 || sch == 72) {
     compute_weno_flux_ch<mix_model>(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded,
-                                    f_1st);
+                                    f_1st, if_shock);
   }
   __syncthreads();
 
@@ -428,12 +445,20 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
   }
   __syncthreads();
 
+  bool if_shock = false;
+  for (int ii = -ngg + 1; ii <= ngg; ++ii) {
+    if (zone->shock_sensor(i, j, k + ii) > param->sensor_threshold) {
+      if_shock = true;
+      break;
+    }
+  }
   // reconstruct the half-point left/right primitive variables with the chosen reconstruction method.
   if (const auto sch = param->inviscid_scheme; sch == 51 || sch == 71) {
-    compute_weno_flux_cp(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded, f_1st);
+    compute_weno_flux_cp(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded, f_1st,
+                         if_shock);
   } else if (sch == 52 || sch == 72) {
     compute_weno_flux_ch<mix_model>(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded,
-                                    f_1st);
+                                    f_1st, if_shock);
   }
   __syncthreads();
 
@@ -530,7 +555,7 @@ __device__ void compute_flux(const real *Q, const DParameter *param, const real 
 template<MixtureModel mix_model>
 __device__ void
 compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *metric, const real *jac, real *fc,
-  int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add, real *f_1st) {
+  int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add, real *f_1st, bool if_shock) {
   const int n_var = param->n_var;
 
   // 0: acans; 1: li xinliang(own flux splitting); 2: my(same spectral radius)
@@ -761,7 +786,7 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
             vMinus[m] += coeff_alpha_s * alpha_l[n] * Fm[(i_shared - 2 + m) * n_var + 5 + n];
           }
         }
-        fChar[l] = WENO7(vPlus, vMinus, eps_scaled);
+        fChar[l] = WENO7(vPlus, vMinus, eps_scaled, if_shock);
       }
       for (int l = 0; l < n_spec; ++l) {
         real vPlus[7], vMinus[7];
@@ -769,7 +794,7 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
           vPlus[m] = -svm[l] * Fp[(i_shared - 3 + m) * n_var] + Fp[(i_shared - 3 + m) * n_var + 5 + l];
           vMinus[m] = -svm[l] * Fm[(i_shared - 2 + m) * n_var] + Fm[(i_shared - 2 + m) * n_var + 5 + l];
         }
-        fChar[5 + l] = WENO7(vPlus, vMinus, eps_scaled);
+        fChar[5 + l] = WENO7(vPlus, vMinus, eps_scaled, if_shock);
       }
     }
   } else {
@@ -913,7 +938,7 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
           vPlus[m] *= 0.5;
           vMinus[m] *= 0.5;
         }
-        fChar[l] = WENO7(vPlus, vMinus, eps_scaled);
+        fChar[l] = WENO7(vPlus, vMinus, eps_scaled, if_shock);
       }
     }
     for (int l = 0; l < n_spec; ++l) {
@@ -943,7 +968,7 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
                              svm[l] * (Fp[(i_shared - 2 + m) * n_var] -
                                        lambda_l * cv[(i_shared - 2 + m) * (n_var + 2)] * jac[i_shared - 2 + m]));
         }
-        fChar[5 + l] = WENO7(vPlus, vMinus, eps_scaled);
+        fChar[5 + l] = WENO7(vPlus, vMinus, eps_scaled, if_shock);
       }
     }
   }
@@ -978,7 +1003,7 @@ template<>
 __device__ void
 compute_weno_flux_ch<MixtureModel::Air>(const real *cv, DParameter *param, int tid, const real *metric,
   const real *jac, real *fc, int i_shared, real *Fp, real *Fm,
-  const int *ig_shared, int n_add, [[maybe_unused]] real *f_1st) {
+  const int *ig_shared, int n_add, [[maybe_unused]] real *f_1st, bool if_shock) {
   const int n_var = param->n_var;
 
   // 0: acans; 1: li xinliang(own flux splitting); 2: my(same spectral radius)
@@ -1133,7 +1158,7 @@ compute_weno_flux_ch<MixtureModel::Air>(const real *cv, DParameter *param, int t
                 (jac[i_shared] + jac[i_shared + 1]);
           }
         }
-        fChar[l] = WENO7(vPlus, vMinus, eps_scaled);
+        fChar[l] = WENO7(vPlus, vMinus, eps_scaled, if_shock);
       }
     }
   } else if constexpr (method == 1) {
@@ -1158,7 +1183,7 @@ compute_weno_flux_ch<MixtureModel::Air>(const real *cv, DParameter *param, int t
             vMinus[m] += LR(l, n) * Fm[(i_shared - 2 + m) * 5 + n];
           }
         }
-        fChar[l] = WENO7(vPlus, vMinus, eps_scaled);
+        fChar[l] = WENO7(vPlus, vMinus, eps_scaled, if_shock);
       }
     }
   } else {
@@ -1243,7 +1268,7 @@ compute_weno_flux_ch<MixtureModel::Air>(const real *cv, DParameter *param, int t
           vPlus[m] *= 0.5;
           vMinus[m] *= 0.5;
         }
-        fChar[l] = WENO7(vPlus, vMinus, eps_scaled);
+        fChar[l] = WENO7(vPlus, vMinus, eps_scaled, if_shock);
       }
     }
   }
@@ -1288,7 +1313,7 @@ compute_weno_flux_ch<MixtureModel::Air>(const real *cv, DParameter *param, int t
 
 __device__ void
 compute_weno_flux_cp(const real *cv, DParameter *param, int tid, const real *metric, const real *jac, real *fc,
-  int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add, real *f_1st) {
+  int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add, real *f_1st, bool if_shock) {
   const int n_var = param->n_var;
 
   compute_flux(&cv[i_shared * (n_var + 2)], param, &metric[i_shared * 3], jac[i_shared], &Fp[i_shared * n_var],
@@ -1361,7 +1386,7 @@ compute_weno_flux_cp(const real *cv, DParameter *param, int tid, const real *met
       vm[5] = Fm[(i_shared + 3) * n_var + l];
       vm[6] = Fm[(i_shared + 4) * n_var + l];
 
-      fci[l] = WENO7(vp, vm, eps_here);
+      fci[l] = WENO7(vp, vm, eps_here, if_shock);
     }
   }
 }
@@ -1447,86 +1472,105 @@ __device__ real WENO5(const real *vp, const real *vm, real eps) {
   return fPlus + fMinus;
 }
 
-__device__ real WENO7(const real *vp, const real *vm, real eps) {
-  constexpr real one6th{1.0 / 6};
-  constexpr real d12{13.0 / 12.0}, d13{1043.0 / 960}, d14{1.0 / 12};
+__device__ real WENO7(const real *vp, const real *vm, real eps, bool if_shock) {
+  if (if_shock) {
+    // Shocked, use WENO
+    constexpr real one6th{1.0 / 6};
+    constexpr real d12{13.0 / 12.0}, d13{1043.0 / 960}, d14{1.0 / 12};
 
-  // Re-organize the data to improve locality
-  // 1st order derivative
-  real s1{one6th * (-2 * vp[0] + 9 * vp[1] - 18 * vp[2] + 11 * vp[3])};
-  // 2nd order derivative
-  real s2{-vp[0] + 4 * vp[1] - 5 * vp[2] + 2 * vp[3]};
-  // 3rd order derivative
-  real s3{-vp[0] + 3 * vp[1] - 3 * vp[2] + vp[3]};
-  real beta0{s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3};
+    // Re-organize the data to improve locality
+    // 1st order derivative
+    real s1{one6th * (-2 * vp[0] + 9 * vp[1] - 18 * vp[2] + 11 * vp[3])};
+    // 2nd order derivative
+    real s2{-vp[0] + 4 * vp[1] - 5 * vp[2] + 2 * vp[3]};
+    // 3rd order derivative
+    real s3{-vp[0] + 3 * vp[1] - 3 * vp[2] + vp[3]};
+    real beta0{s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3};
 
-  s1 = one6th * (vp[1] - 6 * vp[2] + 3 * vp[3] + 2 * vp[4]);
-  s2 = vp[2] - 2 * vp[3] + vp[4];
-  s3 = -vp[1] + 3 * vp[2] - 3 * vp[3] + vp[4];
-  real beta1{s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3};
+    s1 = one6th * (vp[1] - 6 * vp[2] + 3 * vp[3] + 2 * vp[4]);
+    s2 = vp[2] - 2 * vp[3] + vp[4];
+    s3 = -vp[1] + 3 * vp[2] - 3 * vp[3] + vp[4];
+    real beta1{s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3};
 
-  s1 = one6th * (-2 * vp[2] - 3 * vp[3] + 6 * vp[4] - vp[5]);
-  s3 = -vp[2] + 3 * vp[3] - 3 * vp[4] + vp[5];
-  real beta2{s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3};
+    s1 = one6th * (-2 * vp[2] - 3 * vp[3] + 6 * vp[4] - vp[5]);
+    s3 = -vp[2] + 3 * vp[3] - 3 * vp[4] + vp[5];
+    real beta2{s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3};
 
-  s1 = one6th * (-11 * vp[3] + 18 * vp[4] - 9 * vp[5] + 2 * vp[6]);
-  s2 = 2 * vp[3] - 5 * vp[4] + 4 * vp[5] - vp[6];
-  s3 = -vp[3] + 3 * vp[4] - 3 * vp[5] + vp[6];
-  real beta3{s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3};
+    s1 = one6th * (-11 * vp[3] + 18 * vp[4] - 9 * vp[5] + 2 * vp[6]);
+    s2 = 2 * vp[3] - 5 * vp[4] + 4 * vp[5] - vp[6];
+    s3 = -vp[3] + 3 * vp[4] - 3 * vp[5] + vp[6];
+    real beta3{s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3};
 
-  // real tau7sqr{(beta0 - beta3) * (beta0 - beta3)};
+    // real tau7sqr{(beta0 - beta3) * (beta0 - beta3)};
+    constexpr real c0{1.0 / 35}, c1{12.0 / 35}, c2{18.0 / 35}, c3{4.0 / 35};
+    // real a0{c0 + c0 * tau7sqr / ((eps + beta0) * (eps + beta0))};
+    // real a1{c1 + c1 * tau7sqr / ((eps + beta1) * (eps + beta1))};
+    // real a2{c2 + c2 * tau7sqr / ((eps + beta2) * (eps + beta2))};
+    // real a3{c3 + c3 * tau7sqr / ((eps + beta3) * (eps + beta3))};
+    real a0{c0 / ((eps + beta0) * (eps + beta0))};
+    real a1{c1 / ((eps + beta1) * (eps + beta1))};
+    real a2{c2 / ((eps + beta2) * (eps + beta2))};
+    real a3{c3 / ((eps + beta3) * (eps + beta3))};
+
+    constexpr real one12th{1.0 / 12};
+    real v0{one12th * (-3 * vp[0] + 13 * vp[1] - 23 * vp[2] + 25 * vp[3])};
+    real v1{one12th * (vp[1] - 5 * vp[2] + 13 * vp[3] + 3 * vp[4])};
+    real v2{one12th * (-vp[2] + 7 * vp[3] + 7 * vp[4] - vp[5])};
+    real v3{one12th * (3 * vp[3] + 13 * vp[4] - 5 * vp[5] + vp[6])};
+    const real fPlus{(a0 * v0 + a1 * v1 + a2 * v2 + a3 * v3) / (a0 + a1 + a2 + a3)};
+
+    // Minus part
+    s1 = one6th * (-2 * vm[6] + 9 * vm[5] - 18 * vm[4] + 11 * vm[3]);
+    s2 = -vm[6] + 4 * vm[5] - 5 * vm[4] + 2 * vm[3];
+    s3 = -vm[6] + 3 * vm[5] - 3 * vm[4] + vm[3];
+    beta0 = s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3;
+
+    s1 = one6th * (vm[5] - 6 * vm[4] + 3 * vm[3] + 2 * vm[2]);
+    s2 = vm[4] - 2 * vm[3] + vm[2];
+    s3 = -vm[5] + 3 * vm[4] - 3 * vm[3] + vm[2];
+    beta1 = s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3;
+
+    s1 = one6th * (-2 * vm[4] - 3 * vm[3] + 6 * vm[2] - vm[1]);
+    s3 = -vm[4] + 3 * vm[3] - 3 * vm[2] + vm[1];
+    beta2 = s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3;
+
+    s1 = one6th * (-11 * vm[3] + 18 * vm[2] - 9 * vm[1] + 2 * vm[0]);
+    s2 = 2 * vm[3] - 5 * vm[2] + 4 * vm[1] - vm[0];
+    s3 = -vm[3] + 3 * vm[2] - 3 * vm[1] + vm[0];
+    beta3 = s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3;
+
+    // tau7sqr = (beta0 - beta3) * (beta0 - beta3);
+    // a0 = c0 + c0 * tau7sqr / ((eps + beta0) * (eps + beta0));
+    // a1 = c1 + c1 * tau7sqr / ((eps + beta1) * (eps + beta1));
+    // a2 = c2 + c2 * tau7sqr / ((eps + beta2) * (eps + beta2));
+    // a3 = c3 + c3 * tau7sqr / ((eps + beta3) * (eps + beta3));
+    a0 = c0 / ((eps + beta0) * (eps + beta0));
+    a1 = c1 / ((eps + beta1) * (eps + beta1));
+    a2 = c2 / ((eps + beta2) * (eps + beta2));
+    a3 = c3 / ((eps + beta3) * (eps + beta3));
+
+    v0 = one12th * (-3 * vm[6] + 13 * vm[5] - 23 * vm[4] + 25 * vm[3]);
+    v1 = one12th * (vm[5] - 5 * vm[4] + 13 * vm[3] + 3 * vm[2]);
+    v2 = one12th * (-vm[4] + 7 * vm[3] + 7 * vm[2] - vm[1]);
+    v3 = one12th * (3 * vm[3] + 13 * vm[2] - 5 * vm[1] + vm[0]);
+    const real fMinus{(a0 * v0 + a1 * v1 + a2 * v2 + a3 * v3) / (a0 + a1 + a2 + a3)};
+
+    return fPlus + fMinus;
+  }
   constexpr real c0{1.0 / 35}, c1{12.0 / 35}, c2{18.0 / 35}, c3{4.0 / 35};
-  // real a0{c0 + c0 * tau7sqr / ((eps + beta0) * (eps + beta0))};
-  // real a1{c1 + c1 * tau7sqr / ((eps + beta1) * (eps + beta1))};
-  // real a2{c2 + c2 * tau7sqr / ((eps + beta2) * (eps + beta2))};
-  // real a3{c3 + c3 * tau7sqr / ((eps + beta3) * (eps + beta3))};
-  real a0{c0 / ((eps + beta0) * (eps + beta0))};
-  real a1{c1 / ((eps + beta1) * (eps + beta1))};
-  real a2{c2 / ((eps + beta2) * (eps + beta2))};
-  real a3{c3 / ((eps + beta3) * (eps + beta3))};
-
   constexpr real one12th{1.0 / 12};
   real v0{one12th * (-3 * vp[0] + 13 * vp[1] - 23 * vp[2] + 25 * vp[3])};
   real v1{one12th * (vp[1] - 5 * vp[2] + 13 * vp[3] + 3 * vp[4])};
   real v2{one12th * (-vp[2] + 7 * vp[3] + 7 * vp[4] - vp[5])};
   real v3{one12th * (3 * vp[3] + 13 * vp[4] - 5 * vp[5] + vp[6])};
-  const real fPlus{(a0 * v0 + a1 * v1 + a2 * v2 + a3 * v3) / (a0 + a1 + a2 + a3)};
+  const real fPlus{c0 * v0 + c1 * v1 + c2 * v2 + c3 * v3};
 
   // Minus part
-  s1 = one6th * (-2 * vm[6] + 9 * vm[5] - 18 * vm[4] + 11 * vm[3]);
-  s2 = -vm[6] + 4 * vm[5] - 5 * vm[4] + 2 * vm[3];
-  s3 = -vm[6] + 3 * vm[5] - 3 * vm[4] + vm[3];
-  beta0 = s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3;
-
-  s1 = one6th * (vm[5] - 6 * vm[4] + 3 * vm[3] + 2 * vm[2]);
-  s2 = vm[4] - 2 * vm[3] + vm[2];
-  s3 = -vm[5] + 3 * vm[4] - 3 * vm[3] + vm[2];
-  beta1 = s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3;
-
-  s1 = one6th * (-2 * vm[4] - 3 * vm[3] + 6 * vm[2] - vm[1]);
-  s3 = -vm[4] + 3 * vm[3] - 3 * vm[2] + vm[1];
-  beta2 = s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3;
-
-  s1 = one6th * (-11 * vm[3] + 18 * vm[2] - 9 * vm[1] + 2 * vm[0]);
-  s2 = 2 * vm[3] - 5 * vm[2] + 4 * vm[1] - vm[0];
-  s3 = -vm[3] + 3 * vm[2] - 3 * vm[1] + vm[0];
-  beta3 = s1 * s1 + d12 * s2 * s2 + d13 * s3 * s3 + d14 * s1 * s3;
-
-  // tau7sqr = (beta0 - beta3) * (beta0 - beta3);
-  // a0 = c0 + c0 * tau7sqr / ((eps + beta0) * (eps + beta0));
-  // a1 = c1 + c1 * tau7sqr / ((eps + beta1) * (eps + beta1));
-  // a2 = c2 + c2 * tau7sqr / ((eps + beta2) * (eps + beta2));
-  // a3 = c3 + c3 * tau7sqr / ((eps + beta3) * (eps + beta3));
-  a0 = c0 / ((eps + beta0) * (eps + beta0));
-  a1 = c1 / ((eps + beta1) * (eps + beta1));
-  a2 = c2 / ((eps + beta2) * (eps + beta2));
-  a3 = c3 / ((eps + beta3) * (eps + beta3));
-
   v0 = one12th * (-3 * vm[6] + 13 * vm[5] - 23 * vm[4] + 25 * vm[3]);
   v1 = one12th * (vm[5] - 5 * vm[4] + 13 * vm[3] + 3 * vm[2]);
   v2 = one12th * (-vm[4] + 7 * vm[3] + 7 * vm[2] - vm[1]);
   v3 = one12th * (3 * vm[3] + 13 * vm[2] - 5 * vm[1] + vm[0]);
-  const real fMinus{(a0 * v0 + a1 * v1 + a2 * v2 + a3 * v3) / (a0 + a1 + a2 + a3)};
+  const real fMinus{c0 * v0 + c1 * v1 + c2 * v2 + c3 * v3};
 
   return fPlus + fMinus;
 }

@@ -218,15 +218,21 @@ void cfd::Parameter::deduce_known_info() {
   int inviscid_type{0};
   auto hybrid_inviscid_scheme{get_string("hybrid_inviscid_scheme")};
   if (hybrid_inviscid_scheme == "EP+WENO5") {
-    update_parameter("inviscid_scheme", 52);
+    int inviscid_scheme{get_int("inviscid_scheme")};
+    if (inviscid_scheme != 51 && inviscid_scheme != 52)
+      update_parameter("inviscid_scheme", 52);
     inviscid_type = 5;
     ngg = 3;
   } else if (hybrid_inviscid_scheme == "EP+WENO7") {
-    update_parameter("inviscid_scheme", 72);
+    int inviscid_scheme{get_int("inviscid_scheme")};
+    if (inviscid_scheme != 71 && inviscid_scheme != 72)
+      update_parameter("inviscid_scheme", 72);
     inviscid_type = 5;
     ngg = 4;
   } else if (hybrid_inviscid_scheme == "UD7+WENO7") {
-    update_parameter("inviscid_scheme", 72);
+    int inviscid_scheme{get_int("inviscid_scheme")};
+    if (inviscid_scheme != 71 && inviscid_scheme != 72)
+      update_parameter("inviscid_scheme", 72);
     inviscid_type = 6;
     ngg = 4;
   } else {
@@ -239,8 +245,17 @@ void cfd::Parameter::deduce_known_info() {
       inviscid_type = 1;
       // WENO reconstructions
     }
-    if (inviscid_scheme == 51 || inviscid_scheme == 52 || inviscid_scheme == 71 || inviscid_scheme == 72) {
+    if (inviscid_scheme == 51 || inviscid_scheme == 52) {
+      hybrid_inviscid_scheme = "UD5+WENO5";
+      update_parameter("hybrid_inviscid_scheme", hybrid_inviscid_scheme);
       inviscid_type = 3;
+      ngg = 3;
+    }
+    if (inviscid_scheme == 71 || inviscid_scheme == 72) {
+      hybrid_inviscid_scheme = "UD7+WENO7";
+      update_parameter("hybrid_inviscid_scheme", hybrid_inviscid_scheme);
+      inviscid_type = 3;
+      ngg = 4;
     }
     if (inviscid_scheme == 6) {
       inviscid_type = 4;
@@ -368,6 +383,7 @@ void cfd::Parameter::setup_default_settings() {
   int_parameters["viscous_order"] = 2;           // The default viscous order is 2.
   bool_parameters["gradPInDiffusionFlux"] = false;
   string_parameters["hybrid_inviscid_scheme"] = "NO";
+  int_parameters["shock_sensor"] = 0;
   real_parameters["shockSensor_threshold"] = 0.1;
   real_parameters["shockSensor_epsilon"] = -1;
 

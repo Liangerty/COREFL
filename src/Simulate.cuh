@@ -37,7 +37,7 @@ void simulate(Driver<mix_model> &driver) {
     }
 
     real physical_time = parameter.get_real("solution_time");
-    if (const real t0 = parameter.get_real("set_current_physical_time");t0 > -1e-10) {
+    if (const real t0 = parameter.get_real("set_current_physical_time"); t0 > -1e-10) {
       physical_time = t0;
       parameter.update_parameter("solution_time", physical_time);
     }
@@ -50,7 +50,7 @@ void simulate(Driver<mix_model> &driver) {
     if (parameter.get_int("problem_type") == 1) {
       u = parameter.get_real("convective_velocity");
     }
-    if (const real u_char = parameter.get_real("characteristic_velocity");u_char > 0) {
+    if (const real u_char = parameter.get_real("characteristic_velocity"); u_char > 0) {
       u = u_char;
     }
     real flowThroughTime = length / u;

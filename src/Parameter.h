@@ -81,6 +81,8 @@ public:
 
   void update_parameter(const std::string &name, const real new_value) { real_parameters[name] = new_value; }
 
+  void update_parameter(const std::string &name, const std::string new_value) { string_parameters[name] = new_value; }
+
   void update_parameter(const std::string &name, const std::vector<int> &new_value) { int_array[name] = new_value; }
 
   void update_parameter(const std::string &name, const std::vector<real> &new_value) { real_array[name] = new_value; }
@@ -158,6 +160,6 @@ static const std::map<std::string, int> VNsDefault /*short for Variable Names*/{
   {"FD", 53},
   {"SCALARDISSIPATIONRATE", 54},
   {"QCRITERIA", 55},
-  {"SHOCKSENSOR",56},
+  {"SHOCKSENSOR", 56},
 };
 }
