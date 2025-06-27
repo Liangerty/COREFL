@@ -6,6 +6,7 @@
 #include "RK.cuh"
 #include "DualTimeStepping.cuh"
 #include "kernels.cuh"
+#include "StrangSplitting.cuh"
 
 namespace cfd {
 template<MixtureModel mix_model>
@@ -74,14 +75,18 @@ void simulate(Driver<mix_model> &driver) {
       parameter.update_parameter("total_simulation_time", physical_time);
     }
 
-    switch (const auto temporal_tag{parameter.get_int("temporal_scheme")}) {
-      case 2:
-        dual_time_stepping<mix_model>(driver);
-        break;
-      case 3:
-      default:
-        RK3<mix_model>(driver);
-        break;
+    if (parameter.get_int("reaction") == 1) {
+      strang_splitting<mix_model>(driver);
+    } else {
+      switch (const auto temporal_tag{parameter.get_int("temporal_scheme")}) {
+        case 2:
+          dual_time_stepping<mix_model>(driver);
+          break;
+        case 3:
+        default:
+          RK3<mix_model>(driver);
+          break;
+      }
     }
   }
   driver.deallocate();

@@ -13,6 +13,8 @@ __global__ void store_last_step(DZone *zone);
 template<MixtureModel mixture>
 __global__ void local_time_step(DZone *zone, DParameter *param);
 
+__global__ void local_time_step_without_reaction(DZone *zone, DParameter *param);
+
 __global__ void compute_square_of_dbv(DZone *zone);
 
 real global_time_step(const Mesh &mesh, const Parameter &parameter, const std::vector<Field> &field);
