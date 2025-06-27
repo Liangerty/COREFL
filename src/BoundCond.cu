@@ -1935,6 +1935,9 @@ __global__ void initialize_rng(DZone *zone, int n_rand) {
 }
 
 void write_rng(const Mesh &mesh, Parameter &parameter, std::vector<Field> &field) {
+  const int n_rand = parameter.get_int("random_number_per_point");
+  if (n_rand < 1)
+    return;
   const int myid = parameter.get_int("myid");
   printf("Process %d is writing the white noise to the file.\n", myid);
 
@@ -1949,7 +1952,6 @@ void write_rng(const Mesh &mesh, Parameter &parameter, std::vector<Field> &field
     printf("Error: cannot open the file %s.\n", filename.c_str());
     MpiParallel::exit();
   }
-  const int n_rand = parameter.get_int("random_number_per_point");
   const int n_val = parameter.get_int("fluctuation_variable_number");
   for (int blk = 0; blk < mesh.n_block; ++blk) {
     const int mx = mesh[blk].mx, my = mesh[blk].my, mz = mesh[blk].mz, ngg = mesh[blk].ngg;

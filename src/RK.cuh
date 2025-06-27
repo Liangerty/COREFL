@@ -6,6 +6,9 @@
 #include "SpongeLayer.cuh"
 #include "Parallel.h"
 #include "Fluctuation.cuh"
+#include "TimeAdvanceFunc.cuh"
+#include "SchemeSelector.cuh"
+#include <random>
 
 namespace cfd {
 namespace SSPRK3 {
@@ -93,6 +96,10 @@ void RK3(Driver<mix_model> &driver) {
   const auto hybrid_inviscid_scheme{parameter.get_string("hybrid_inviscid_scheme")};
   const int monitor_block_frequency = parameter.get_int("monitor_block_frequency");
 
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<real> dist(-1, 1);
+
   while (!finished) {
     ++step;
 
@@ -141,7 +148,7 @@ void RK3(Driver<mix_model> &driver) {
     // Compute the fluctuation values. This is updated every step, not every sub-iter in RK
     if (fluctuation_form > 0) {
       for (int b = 0; b < n_block; ++b) {
-        compute_fluctuation(mesh[b], field[b].d_ptr, param, fluctuation_form, parameter);
+        compute_fluctuation(mesh[b], field[b].d_ptr, param, fluctuation_form, parameter, dist, gen);
       }
     }
 

@@ -8,7 +8,6 @@
 #include "kernels.cuh"
 
 namespace cfd {
-
 template<MixtureModel mix_model>
 void simulate(Driver<mix_model> &driver) {
   auto &parameter{driver.parameter};

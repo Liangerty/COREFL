@@ -28,8 +28,8 @@ cfd::Field::Field(Parameter &parameter, const Block &block_in) :
 
   if (int n_rand = parameter.get_int("random_number_per_point"); n_rand > 0) {
     rng_state.resize(mx, my, mz, n_rand, ngg);
-    fluc_val.resize(mx, my, mz, parameter.get_int("fluctuation_variable_number"), ngg);
   }
+  fluc_val.resize(mx, my, mz, parameter.get_int("fluctuation_variable_number"), ngg);
   // This is commented. We would allocate the statistical data even when we do not collect the statistics.
   // if (parameter.get_bool("if_collect_statistics")) {
   // If we need to collect the statistics, we need to allocate memory for the data.
@@ -608,8 +608,8 @@ void cfd::Field::setup_device_memory(const Parameter &parameter) {
 
   if (int n_rand = parameter.get_int("random_number_per_point"); n_rand > 0) {
     h_ptr->rng_state.allocate_memory(mx, my, mz, n_rand, ngg);
-    h_ptr->fluc_val.allocate_memory(mx, my, mz, parameter.get_int("fluctuation_variable_number"), ngg);
   }
+  h_ptr->fluc_val.allocate_memory(mx, my, mz, parameter.get_int("fluctuation_variable_number"), ngg);
 
   // This is commented. We would allocate the statistical data even when we do not collect the statistics.
   // if (parameter.get_bool("if_collect_statistics")) {
