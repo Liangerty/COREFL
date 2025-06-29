@@ -25,7 +25,7 @@ cfd::compute_temperature_and_pressure(int i, int j, int k, const DParameter *par
 
   real h_i[MAX_SPEC_NUMBER], cp_i[MAX_SPEC_NUMBER];
   while (err > eps && iter++ < max_iter) {
-    compute_enthalpy_and_cp_1(t, h_i, cp_i, param);
+    compute_enthalpy_and_cp(t, h_i, cp_i, param);
     real cp_tot{0}, h{0};
     for (int l = 0; l < n_spec; ++l) {
       cp_tot += cp_i[l] * Y(i, j, k, l);

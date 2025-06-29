@@ -7,6 +7,8 @@ struct DZone;
 
 __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param);
 
+__global__ void finite_rate_chemistry_1(DZone *zone, const DParameter *param);
+
 __device__ void finite_rate_chemistry(DZone *zone, int i, int j, int k, const DParameter *param);
 
 __device__ void forward_reaction_rate(real t, real *kf, const real *concentration, const DParameter *param);
@@ -18,7 +20,7 @@ __device__ real arrhenius(real t, real A, real b, real Ea);
 __device__ void backward_reaction_rate(real t, const real *kf, const real *concentration, const DParameter *param,
   real *kb);
 
-__device__ void backward_reaction_rate_1(real t, const real *kf, real *kb);
+__device__ void backward_reaction_rate_1(real t, const real *kf, real *kb, const DParameter *param);
 
 __device__ void rate_of_progress(const real *kf, const real *kb, const real *c, real *q, real *q1, real *q2,
   const DParameter *param);

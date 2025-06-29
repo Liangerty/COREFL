@@ -68,20 +68,9 @@ __device__ void forward_reaction_rate_1(real t, real *kf, const real *concentrat
 }
 
 __device__ void
-backward_reaction_rate_1(real t, const real *kf, real *kb) {
+backward_reaction_rate_1(real t, const real *kf, real *kb, const DParameter* param) {
   real gibbs_rt[MAX_SPEC_NUMBER];
-  // compute_gibbs_div_rt(t, param, gibbs_rt);
-  // if (print) {
-  //   printf("T=%e, GRT=%e,%e,%e,%e,%e,%e,%e,%e,%e\n", t,
-  //          gibbs_rt[0], gibbs_rt[1], gibbs_rt[2], gibbs_rt[3], gibbs_rt[4],
-  //          gibbs_rt[5], gibbs_rt[6], gibbs_rt[7], gibbs_rt[8]);
-  // }
-  compute_gibbs_div_rt_1(t, gibbs_rt);
-  // if (print) {
-  //   printf("T=%e, GNT=%e,%e,%e,%e,%e,%e,%e,%e,%e\n", t,
-  //          gibbs_rt[0], gibbs_rt[1], gibbs_rt[2], gibbs_rt[3], gibbs_rt[4],
-  //          gibbs_rt[5], gibbs_rt[6], gibbs_rt[7], gibbs_rt[8]);
-  // }
+  compute_gibbs_div_rt(t, param, gibbs_rt);
 
   constexpr real temp_p = p_atm / R_u * 1e-3; // Convert the unit to mol*K/cm3
   const real temp_t = temp_p / t;             // Unit is mol/cm3
@@ -200,7 +189,7 @@ __device__ void chemical_source_1(const real *q1, const real *q2, real *d, real 
   omega[8] = 0;
 }
 
-__global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
+__global__ void finite_rate_chemistry_1(DZone *zone, const DParameter *param) {
   const int extent[3]{zone->mx, zone->my, zone->mz};
   const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
   const auto j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
@@ -223,67 +212,23 @@ __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
   // compute the forward reaction rate
   const real t{bv(i, j, k, 5)};
   real kf[MAX_REAC_NUMBER];
-  // forward_reaction_rate(t, kf, c, param);
-  // if (i == 300 && j == 163 && k == 11) {
-  //   printf("kf=%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n   %e,%e,%e,%e,%e,%e,%e,%e,%e\n",
-  //          kf[0], kf[1], kf[2], kf[3], kf[4], kf[5], kf[6], kf[7], kf[8], kf[9],
-  //          kf[10], kf[11], kf[12], kf[13], kf[14], kf[15], kf[16], kf[17], kf[18]);
-  // }
   forward_reaction_rate_1(t, kf, c);
-  // if (i == 300 && j == 163 && k == 11) {
-  //   printf("kf=%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n   %e,%e,%e,%e,%e,%e,%e,%e,%e\n",
-  //          kf[0], kf[1], kf[2], kf[3], kf[4], kf[5], kf[6], kf[7], kf[8], kf[9],
-  //          kf[10], kf[11], kf[12], kf[13], kf[14], kf[15], kf[16], kf[17], kf[18]);
-  // }
 
 
   // compute the backward reaction rate
   real kb[MAX_REAC_NUMBER] = {};
-  // backward_reaction_rate(t, kf, c, param, kb);
-  // if (i == 300 && j == 163 && k == 11) {
-  //   printf("kb=%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n   %e,%e,%e,%e,%e,%e,%e,%e,%e\n",
-  //          kb[0], kb[1], kb[2], kb[3], kb[4], kb[5], kb[6], kb[7], kb[8], kb[9],
-  //          kb[10], kb[11], kb[12], kb[13], kb[14], kb[15], kb[16], kb[17], kb[18]);
-  // }
-  // bool pri = false;
-  // if (i == 300 && (j == 10 || j == 300) && k == 11) {
-  //   pri = true;
-  // }
-  backward_reaction_rate_1(t, kf, kb);
-  // if (i == 300 && j == 163 && k == 11) {
-  //   printf("kb=%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n   %e,%e,%e,%e,%e,%e,%e,%e,%e\n",
-  //          kb[0], kb[1], kb[2], kb[3], kb[4], kb[5], kb[6], kb[7], kb[8], kb[9],
-  //          kb[10], kb[11], kb[12], kb[13], kb[14], kb[15], kb[16], kb[17], kb[18]);
-  // }
+  backward_reaction_rate_1(t, kf, kb, param);
 
   // compute the rate of progress
   real q[MAX_REAC_NUMBER * 3];
   real *q1 = &q[MAX_REAC_NUMBER];
   real *q2 = &q[MAX_REAC_NUMBER * 2];
-  // rate_of_progress(kf, kb, c, q, q1, q2, param);
   rate_of_progress_1(kf, kb, c, q, q1, q2);
-  // if (i == 300 && j == 163 && k == 11) {
-  //   printf("q=%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n   %e,%e,%e,%e,%e,%e,%e,%e,%e\n",
-  //          q[0], q[1], q[2], q[3], q[4], q[5], q[6], q[7], q[8], q[9],
-  //          q[10], q[11], q[12], q[13], q[14], q[15], q[16], q[17], q[18]);
-  // }
 
   // compute the chemical source
   real omega[MAX_SPEC_NUMBER * 2];
   real *omega_d = &omega[MAX_SPEC_NUMBER];
-  // chemical_source(q1, q2, omega_d, omega, param);
-  // if (i == 300 && j == 163 && k == 11) {
-  //   printf("omega=%e,%e,%e,%e,%e,%e,%e,%e,%e\n",
-  //          omega[0], omega[1], omega[2], omega[3], omega[4],
-  //          omega[5], omega[6], omega[7], omega[8]);
-  // }
   chemical_source_1(q1, q2, omega_d, omega);
-  // if (i == 300 && j == 163 && k == 11) {
-  //   printf("omega=%e,%e,%e,%e,%e,%e,%e,%e,%e\n",
-  //          omega[0], omega[1], omega[2], omega[3], omega[4],
-  //          omega[5], omega[6], omega[7], omega[8]);
-  // }
-
 
   real time_scale{1e+6};
   for (int l = 0; l < ns; ++l) {
@@ -308,69 +253,69 @@ __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
   }
 }
 
-// __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
-//   const int extent[3]{zone->mx, zone->my, zone->mz};
-//   const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
-//   const auto j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
-//   const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
-//   if (i >= extent[0] || j >= extent[1] || k >= extent[2]) return;
-//
-//   const auto &bv = zone->bv;
-//   const auto &sv = zone->sv;
-//
-//   const int ns = param->n_spec;
-//
-//   // compute the concentration of species in mol/cm3
-//   real c[MAX_SPEC_NUMBER];
-//   const real density{bv(i, j, k, 0)};
-//   const auto mw = param->mw;
-//   for (int l = 0; l < ns; ++l) {
-//     c[l] = density * sv(i, j, k, l) / mw[l] * 1e-3;
-//   }
-//
-//   // compute the forward reaction rate
-//   const real t{bv(i, j, k, 5)};
-//   real kf[MAX_REAC_NUMBER];
-//   forward_reaction_rate(t, kf, c, param);
-//
-//   // compute the backward reaction rate
-//   real kb[MAX_REAC_NUMBER] = {};
-//   backward_reaction_rate(t, kf, c, param, kb);
-//
-//   // compute the rate of progress
-//   real q[MAX_REAC_NUMBER * 3];
-//   real *q1 = &q[MAX_REAC_NUMBER];
-//   real *q2 = &q[MAX_REAC_NUMBER * 2];
-//   rate_of_progress(kf, kb, c, q, q1, q2, param);
-//
-//   // compute the chemical source
-//   real omega[MAX_SPEC_NUMBER * 2];
-//   real *omega_d = &omega[MAX_SPEC_NUMBER];
-//   chemical_source(q1, q2, omega_d, omega, param);
-//
-//   real time_scale{1e+6};
-//   for (int l = 0; l < ns; ++l) {
-//     zone->dq(i, j, k, l + 5) += zone->jac(i, j, k) * omega[l];
-//     if (sv(i, j, k, l) > 1e-25 && abs(omega_d[l]) > 1e-25)
-//       time_scale = min(time_scale, abs(density * sv(i, j, k, l) / omega_d[l]));
-//   }
-//   zone->reaction_timeScale(i, j, k) = time_scale;
-//
-//   // If implicit treat
-//   switch (param->chemSrcMethod) {
-//     case 0: // Explicit treatment
-//       break;
-//     case 1: // Exact point implicit
-//       compute_chem_src_jacobian(zone, i, j, k, param, q1, q2);
-//       break;
-//     case 2: // Diagonal approximation
-//       compute_chem_src_jacobian_diagonal(zone, i, j, k, param, omega_d);
-//       break;
-//     default: // Default, explicit treatment
-//       break;
-//   }
-// }
-//
+__global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
+  const int extent[3]{zone->mx, zone->my, zone->mz};
+  const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
+  const auto j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
+  const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
+  if (i >= extent[0] || j >= extent[1] || k >= extent[2]) return;
+
+  const auto &bv = zone->bv;
+  const auto &sv = zone->sv;
+
+  const int ns = param->n_spec;
+
+  // compute the concentration of species in mol/cm3
+  real c[MAX_SPEC_NUMBER];
+  const real density{bv(i, j, k, 0)};
+  const auto imw = param->imw;
+  for (int l = 0; l < ns; ++l) {
+    c[l] = density * sv(i, j, k, l) * imw[l] * 1e-3;
+  }
+
+  // compute the forward reaction rate
+  const real t{bv(i, j, k, 5)};
+  real kf[MAX_REAC_NUMBER];
+  forward_reaction_rate(t, kf, c, param);
+
+  // compute the backward reaction rate
+  real kb[MAX_REAC_NUMBER] = {};
+  backward_reaction_rate(t, kf, c, param, kb);
+
+  // compute the rate of progress
+  real q[MAX_REAC_NUMBER * 3];
+  real *q1 = &q[MAX_REAC_NUMBER];
+  real *q2 = &q[MAX_REAC_NUMBER * 2];
+  rate_of_progress(kf, kb, c, q, q1, q2, param);
+
+  // compute the chemical source
+  real omega[MAX_SPEC_NUMBER * 2];
+  real *omega_d = &omega[MAX_SPEC_NUMBER];
+  chemical_source(q1, q2, omega_d, omega, param);
+
+  real time_scale{1e+6};
+  for (int l = 0; l < ns; ++l) {
+    zone->dq(i, j, k, l + 5) += zone->jac(i, j, k) * omega[l];
+    if (sv(i, j, k, l) > 1e-25 && abs(omega_d[l]) > 1e-25)
+      time_scale = min(time_scale, abs(density * sv(i, j, k, l) / omega_d[l]));
+  }
+  zone->reaction_timeScale(i, j, k) = time_scale;
+
+  // If implicit treat
+  switch (param->chemSrcMethod) {
+    case 0: // Explicit treatment
+      break;
+    case 1: // Exact point implicit
+      compute_chem_src_jacobian(zone, i, j, k, param, q1, q2);
+      break;
+    case 2: // Diagonal approximation
+      compute_chem_src_jacobian_diagonal(zone, i, j, k, param, omega_d);
+      break;
+    default: // Default, explicit treatment
+      break;
+  }
+}
+
 __device__ void forward_reaction_rate(real t, real *kf, const real *concentration, const DParameter *param) {
   const auto A = param->A, b = param->b, Ea = param->Ea;
   const auto type = param->reac_type;

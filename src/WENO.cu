@@ -607,7 +607,7 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
   const real tm = (rlc * tl + rrc * tr) / (R_u * mw_inv);
 
   real cp_i[MAX_SPEC_NUMBER], h_i[MAX_SPEC_NUMBER];
-  compute_enthalpy_and_cp_1(tm, h_i, cp_i, param);
+  compute_enthalpy_and_cp(tm, h_i, cp_i, param);
   real cp{0}, cv_tot{0};
   for (int l = 0; l < n_spec; ++l) {
     cp += svm[l] * cp_i[l];

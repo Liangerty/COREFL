@@ -278,7 +278,7 @@ __device__ void finite_rate_chemistry(const DParameter *param, real dt, real *rh
   forward_reaction_rate_1(t, kf, c);
 
   real kb[MAX_REAC_NUMBER] = {};
-  backward_reaction_rate_1(t, kf, kb);
+  backward_reaction_rate_1(t, kf, kb, param);
 
   // compute the rate of progress
   real q[MAX_REAC_NUMBER * 3];
@@ -317,7 +317,7 @@ __device__ double2 update_temperature(const DParameter *param, const real *rhoY,
     rhoR += rhoY[l] * param->gas_const[l];
   }
   while (err > eps && iter++ < max_iter) {
-    compute_enthalpy_and_cp_1(t, h_i, cp_i, param);
+    compute_enthalpy_and_cp(t, h_i, cp_i, param);
     real rhoCp_tot{0}, rhoh{0};
     for (int l = 0; l < ns; ++l) {
       rhoCp_tot += cp_i[l] * rhoY[l];

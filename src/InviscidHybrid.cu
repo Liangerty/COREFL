@@ -35,7 +35,7 @@ template<MixtureModel mix_model> __device__ void hybrid_weno_part(const real *pv
   const real tm = (rlc * tl + rrc * tr) / (R_u * mw_inv);
 
   real cp_i[MAX_SPEC_NUMBER], h_i[MAX_SPEC_NUMBER];
-  compute_enthalpy_and_cp_1(tm, h_i, cp_i, param);
+  compute_enthalpy_and_cp(tm, h_i, cp_i, param);
   // compute_enthalpy_and_cp_1(tm, h_i, cp_i, param);
   real cp{0}, cv_tot{0};
   for (int l = 0; l < n_spec; ++l) {
