@@ -369,10 +369,10 @@ __global__ void reaction_step(DZone *zone, const DParameter *param, real dt) {
   // real dt_reaction = 1e-9;
   // const int n_sub = 9;
 
-  bool print{false};
-  if (i == 88 && j == 156 && k == 0) {
-    print = true;
-  }
+  // bool print{false};
+  // if (i == 88 && j == 156 && k == 0) {
+  //   print = true;
+  // }
   // if (print) {
   //   const real iRho = 1.0 / cv(i, j, k, 0);
   //   printf("rhoE = %e, rhoK=%e, rhoe=%e\n", cv(i, j, k, 5), 0.5 * bv(i, j, k, 0) * (

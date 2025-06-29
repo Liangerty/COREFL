@@ -245,10 +245,10 @@ __global__ void finite_rate_chemistry(DZone *zone, const DParameter *param) {
   //          kb[0], kb[1], kb[2], kb[3], kb[4], kb[5], kb[6], kb[7], kb[8], kb[9],
   //          kb[10], kb[11], kb[12], kb[13], kb[14], kb[15], kb[16], kb[17], kb[18]);
   // }
-  bool pri = false;
-  if (i == 300 && (j == 10 || j == 300) && k == 11) {
-    pri = true;
-  }
+  // bool pri = false;
+  // if (i == 300 && (j == 10 || j == 300) && k == 11) {
+  //   pri = true;
+  // }
   backward_reaction_rate_1(t, kf, kb);
   // if (i == 300 && j == 163 && k == 11) {
   //   printf("kb=%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n   %e,%e,%e,%e,%e,%e,%e,%e,%e\n",

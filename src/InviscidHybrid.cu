@@ -929,7 +929,8 @@ __global__ void compute_convective_term_hybrid_ud_weno_y(DZone *zone, DParameter
   if (if_shock) { //The inviscid term at this point is calculated by WENO scheme.
     hybrid_weno_part<mix_model>(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var],
                                 &f_1st[tid * (n_var - 5)]);
-    // hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
+    // hybrid_weno_part_cp(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var],
+    // &f_1st[tid * (n_var - 5)]);
   } else { //The inviscid term at this point is calculated by ep scheme.
     hybrid_ud_part(pv, rhoE, i_shared, param, metric, jac, uk, cGradK, &fc[tid * n_var], &f_1st[tid * (n_var - 5)]);
   }
