@@ -146,7 +146,6 @@ __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
   if (i >= mx || j >= my || k >= mz) return;
 
   auto &bv = zone->bv;
-  auto &sv = zone->sv;
 
   // Record the computed values. First for flow variables and mass fractions
   constexpr int n_flow_var = 5;
@@ -235,7 +234,7 @@ __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
     } else {
       real R = 0;
       for (int l = 0; l < n_spec; ++l) {
-        R += sv(i, j, k, l) * param->gas_const[l];
+        R += zone->sv(i, j, k, l) * param->gas_const[l];
       }
       bv(i, j, k, 5) = updated_var[4] / (updated_var[0] * R);
     }

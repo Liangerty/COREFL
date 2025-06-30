@@ -200,12 +200,6 @@ void cfd::Parameter::deduce_known_info() {
     reconstruction_name = "MUSCL";
   } else if (reconstruction_scheme == 3) {
     reconstruction_name = "NND2";
-  } else if (reconstruction_scheme == 4) {
-    reconstruction_name = "AWENO5";
-    ngg = 3;
-  } else if (reconstruction_scheme == 5) {
-    reconstruction_name = "AWENO7";
-    ngg = 4;
   }
 
   // Next, based on the reconstruction scheme and inviscid flux method, we re-assign a new field called "inviscid_tag"
@@ -217,19 +211,7 @@ void cfd::Parameter::deduce_known_info() {
   // Summary: 2-Roe, 3-AUSM+, 4-HLLC, 14-HLLC+WENO
   int inviscid_type{0};
   auto hybrid_inviscid_scheme{get_string("hybrid_inviscid_scheme")};
-  if (hybrid_inviscid_scheme == "EP+WENO5") {
-    int inviscid_scheme{get_int("inviscid_scheme")};
-    if (inviscid_scheme != 51 && inviscid_scheme != 52)
-      update_parameter("inviscid_scheme", 52);
-    inviscid_type = 5;
-    ngg = 3;
-  } else if (hybrid_inviscid_scheme == "EP+WENO7") {
-    int inviscid_scheme{get_int("inviscid_scheme")};
-    if (inviscid_scheme != 71 && inviscid_scheme != 72)
-      update_parameter("inviscid_scheme", 72);
-    inviscid_type = 5;
-    ngg = 4;
-  } else if (hybrid_inviscid_scheme == "UD7+WENO7") {
+  if (hybrid_inviscid_scheme == "UD7+WENO7") {
     int inviscid_scheme{get_int("inviscid_scheme")};
     if (inviscid_scheme != 71 && inviscid_scheme != 72)
       update_parameter("inviscid_scheme", 72);

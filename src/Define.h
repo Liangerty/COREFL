@@ -4,13 +4,6 @@
 #include <cuda_runtime.h>
 #endif
 
-// #ifdef __CUDACC__
-// #define CUDA_CALLABLE_MEMBER __host__ __device__
-// #else
-// #define CUDA_CALLABLE_MEMBER
-// #define __host__
-// #endif
-
 using real = double;
 using uint = unsigned int;
 
@@ -28,6 +21,3 @@ enum class OutputTimeChoice{
   Instance,   // Output the instant values, which would overwrite its previous values
   TimeSeries, // Output the values as a time series, which would create new files with time stamp
 };
-
-struct reconstruct_bv{};
-struct reconstruct_cv{};

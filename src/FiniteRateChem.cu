@@ -68,7 +68,7 @@ __device__ void forward_reaction_rate_1(real t, real *kf, const real *concentrat
 }
 
 __device__ void
-backward_reaction_rate_1(real t, const real *kf, real *kb, const DParameter* param) {
+backward_reaction_rate_1(real t, const real *kf, real *kb, const DParameter *param) {
   real gibbs_rt[MAX_SPEC_NUMBER];
   compute_gibbs_div_rt(t, param, gibbs_rt);
 
@@ -213,7 +213,6 @@ __global__ void finite_rate_chemistry_1(DZone *zone, const DParameter *param) {
   const real t{bv(i, j, k, 5)};
   real kf[MAX_REAC_NUMBER];
   forward_reaction_rate_1(t, kf, c);
-
 
   // compute the backward reaction rate
   real kb[MAX_REAC_NUMBER] = {};

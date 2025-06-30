@@ -16,12 +16,8 @@ int main(int argc, char *argv[]) {
   cfd::Mesh mesh(parameter);
 
   const int species = parameter.get_int("species");
-  const bool turbulent_laminar = parameter.get_bool("turbulence");
-  const int reaction = parameter.get_int("reaction");
-  int turbulent_method = parameter.get_int("turbulence_method");
-  if (!turbulent_laminar) {
+  if (const bool turbulent_laminar = parameter.get_bool("turbulence"); !turbulent_laminar) {
     parameter.update_parameter("turbulence_method", 0);
-    turbulent_method = 0;
   }
   MPI_Barrier(MPI_COMM_WORLD);
 
