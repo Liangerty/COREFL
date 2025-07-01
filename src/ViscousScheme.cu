@@ -1,9 +1,9 @@
 #include "ViscousScheme.cuh"
 #include "DataCommunication.cuh"
 #include "DParameter.cuh"
+#include "gxl_lib/Array.cuh"
 
 namespace cfd {
-
 template<MixtureModel mix_model>
 void compute_viscous_flux(const Mesh &mesh, std::vector<Field> &field, DParameter *param, const Parameter &parameter) {
   const int viscous_order = parameter.get_int("viscous_order");
@@ -49,10 +49,10 @@ void compute_viscous_flux(const Mesh &mesh, std::vector<Field> &field, DParamete
       if (dim == 2)
         tpb = {32, 16, 1};
       auto bpg = dim3((mx - 1) / tpb.x + 1, (my - 1) / tpb.y + 1, (mz - 1) / tpb.z + 1);
-      compute_viscous_flux_collocated<mix_model><<<bpg, tpb>>>(field[b].d_ptr, param);
+      compute_viscous_flux_collocated<mix_model, 8><<<bpg, tpb>>>(field[b].d_ptr, param);
 
       if constexpr (mix_model != MixtureModel::Air)
-        compute_viscous_flux_collocated_scalar<<<bpg, tpb>>>(field[b].d_ptr, param);
+        compute_viscous_flux_collocated_scalar<8><<<bpg, tpb>>>(field[b].d_ptr, param);
     }
     cudaDeviceSynchronize();
     // After computing the values on the nodes, we exchange the fv, gv, hv to acquire values on ghost grids.
@@ -67,7 +67,7 @@ void compute_viscous_flux(const Mesh &mesh, std::vector<Field> &field, DParamete
       if (dim == 2)
         tpb = {32, 16, 1};
       auto bpg = dim3((mx - 1) / tpb.x + 1, (my - 1) / tpb.y + 1, (mz - 1) / tpb.z + 1);
-      compute_viscous_flux_derivative<<<bpg,tpb>>>(field[b].d_ptr, param);
+      compute_viscous_flux_derivative<8><<<bpg,tpb>>>(field[b].d_ptr, param);
     }
   }
 }
@@ -126,11 +126,11 @@ __global__ void compute_dHv_dz(DZone *zone, const DParameter *param) {
   }
 }
 
-__device__ real d_dXi(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l, int nx, int viscous_order,
-  int phyBoundLeft,
+template<int ORDER>
+__device__ real d_dXi(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l, int nx, int phyBoundLeft,
   int phyBoundRight) {
   real df = 0;
-  if (viscous_order == 8) {
+  if constexpr (ORDER == 8) {
     bool computed{false};
     if (phyBoundLeft) {
       if (i == 0) {
@@ -177,11 +177,23 @@ __device__ real d_dXi(const ggxl::VectorField3D<real> &f, int i, int j, int k, i
   return df;
 }
 
-__device__ real d_dEta(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l, int ny, int viscous_order,
-  int phyBoundLeft,
+template<int ORDER = 8>
+__device__ real d_dXi_inner(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l) {
+  real df = 0;
+  if constexpr (ORDER == 8) {
+    constexpr real a1{0.8}, a2{-0.2}, a3{4.0 / 105}, a4{-1.0 / 280};
+    df = a1 * (f(i + 1, j, k, l) - f(i - 1, j, k, l)) + a2 * (f(i + 2, j, k, l) - f(i - 2, j, k, l))
+         + a3 * (f(i + 3, j, k, l) - f(i - 3, j, k, l)) + a4 * (f(i + 4, j, k, l) - f(i - 4, j, k, l));
+  }
+  return df;
+}
+
+
+template<int ORDER>
+__device__ real d_dEta(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l, int ny, int phyBoundLeft,
   int phyBoundRight) {
   real df = 0;
-  if (viscous_order == 8) {
+  if constexpr (ORDER == 8) {
     bool computed{false};
     if (phyBoundLeft) {
       if (j == 0) {
@@ -228,11 +240,22 @@ __device__ real d_dEta(const ggxl::VectorField3D<real> &f, int i, int j, int k, 
   return df;
 }
 
-__device__ real d_dZeta(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l, int nz, int viscous_order,
-  int phyBoundLeft,
+template<int ORDER = 8>
+__device__ real d_dEta_inner(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l) {
+  real df = 0;
+  if constexpr (ORDER == 8) {
+    constexpr real a1{0.8}, a2{-0.2}, a3{4.0 / 105}, a4{-1.0 / 280};
+    df = a1 * (f(i, j + 1, k, l) - f(i, j - 1, k, l)) + a2 * (f(i, j + 2, k, l) - f(i, j - 2, k, l))
+         + a3 * (f(i, j + 3, k, l) - f(i, j - 3, k, l)) + a4 * (f(i, j + 4, k, l) - f(i, j - 4, k, l));
+  }
+  return df;
+}
+
+template<int ORDER>
+__device__ real d_dZeta(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l, int nz, int phyBoundLeft,
   int phyBoundRight) {
   real df = 0;
-  if (viscous_order == 8) {
+  if constexpr (ORDER == 8) {
     bool computed{false};
     if (phyBoundLeft) {
       if (k == 0) {
@@ -279,15 +302,24 @@ __device__ real d_dZeta(const ggxl::VectorField3D<real> &f, int i, int j, int k,
   return df;
 }
 
-template<MixtureModel mix_model>
+template<int ORDER = 8>
+__device__ real d_dZeta_inner(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l) {
+  real df = 0;
+  if constexpr (ORDER == 8) {
+    constexpr real a1{0.8}, a2{-0.2}, a3{4.0 / 105}, a4{-1.0 / 280};
+    df = a1 * (f(i, j, k + 1, l) - f(i, j, k - 1, l)) + a2 * (f(i, j, k + 2, l) - f(i, j, k - 2, l))
+         + a3 * (f(i, j, k + 3, l) - f(i, j, k - 3, l)) + a4 * (f(i, j, k + 4, l) - f(i, j, k - 4, l));
+  }
+  return df;
+}
+
+template<MixtureModel mix_model, int ORDER>
 __global__ void compute_viscous_flux_collocated(DZone *zone, const DParameter *param) {
   const auto i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
   const auto j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
   const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
   const auto mx = zone->mx, my = zone->my, mz = zone->mz;
   if (i >= zone->mx || j >= zone->my || k >= zone->mz) return;
-
-  const int vis_order = param->viscous_scheme;
 
   int compute_type[6] = {0, 0, 0, 0, 0, 0};
   if (zone->bType_il(j, k) != 0)
@@ -303,21 +335,19 @@ __global__ void compute_viscous_flux_collocated(DZone *zone, const DParameter *p
   if (zone->bType_kr(i, j) != 0)
     compute_type[5] = 1;
 
-  // First, the derivative in \xi direction
-  // Examine if the boundary in \xi type is physical
   const auto &pv = zone->bv;
-  const real u_xi = d_dXi(pv, i, j, k, 1, mx, vis_order, compute_type[0], compute_type[1]);
-  const real u_eta = d_dEta(pv, i, j, k, 1, my, vis_order, compute_type[2], compute_type[3]);
-  const real u_zeta = d_dZeta(pv, i, j, k, 1, mz, vis_order, compute_type[4], compute_type[5]);
-  const real v_xi = d_dXi(pv, i, j, k, 2, mx, vis_order, compute_type[0], compute_type[1]);
-  const real v_eta = d_dEta(pv, i, j, k, 2, my, vis_order, compute_type[2], compute_type[3]);
-  const real v_zeta = d_dZeta(pv, i, j, k, 2, mz, vis_order, compute_type[4], compute_type[5]);
-  const real w_xi = d_dXi(pv, i, j, k, 3, mx, vis_order, compute_type[0], compute_type[1]);
-  const real w_eta = d_dEta(pv, i, j, k, 3, my, vis_order, compute_type[2], compute_type[3]);
-  const real w_zeta = d_dZeta(pv, i, j, k, 3, mz, vis_order, compute_type[4], compute_type[5]);
-  const real t_xi = d_dXi(pv, i, j, k, 5, mx, vis_order, compute_type[0], compute_type[1]);
-  const real t_eta = d_dEta(pv, i, j, k, 5, my, vis_order, compute_type[2], compute_type[3]);
-  const real t_zeta = d_dZeta(pv, i, j, k, 5, mz, vis_order, compute_type[4], compute_type[5]);
+  const real u_xi = d_dXi<ORDER>(pv, i, j, k, 1, mx, compute_type[0], compute_type[1]);
+  const real u_eta = d_dEta<ORDER>(pv, i, j, k, 1, my, compute_type[2], compute_type[3]);
+  const real u_zeta = d_dZeta<ORDER>(pv, i, j, k, 1, mz, compute_type[4], compute_type[5]);
+  const real v_xi = d_dXi<ORDER>(pv, i, j, k, 2, mx, compute_type[0], compute_type[1]);
+  const real v_eta = d_dEta<ORDER>(pv, i, j, k, 2, my, compute_type[2], compute_type[3]);
+  const real v_zeta = d_dZeta<ORDER>(pv, i, j, k, 2, mz, compute_type[4], compute_type[5]);
+  const real w_xi = d_dXi<ORDER>(pv, i, j, k, 3, mx, compute_type[0], compute_type[1]);
+  const real w_eta = d_dEta<ORDER>(pv, i, j, k, 3, my, compute_type[2], compute_type[3]);
+  const real w_zeta = d_dZeta<ORDER>(pv, i, j, k, 3, mz, compute_type[4], compute_type[5]);
+  const real t_xi = d_dXi<ORDER>(pv, i, j, k, 5, mx, compute_type[0], compute_type[1]);
+  const real t_eta = d_dEta<ORDER>(pv, i, j, k, 5, my, compute_type[2], compute_type[3]);
+  const real t_zeta = d_dZeta<ORDER>(pv, i, j, k, 5, mz, compute_type[4], compute_type[5]);
 
   // chain rule for derivative
   const auto &m = zone->metric(i, j, k);
@@ -377,6 +407,7 @@ __global__ void compute_viscous_flux_collocated(DZone *zone, const DParameter *p
   hv(i, j, k, 3) = zeta_x * Ex + zeta_y * Ey + zeta_z * Ez;
 }
 
+template<int ORDER>
 __global__ void compute_viscous_flux_collocated_scalar(DZone *zone, const DParameter *param) {
   const int i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
   const int j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
@@ -384,8 +415,6 @@ __global__ void compute_viscous_flux_collocated_scalar(DZone *zone, const DParam
   const auto mx = zone->mx, my = zone->my, mz = zone->mz;
   if (i >= zone->mx || j >= zone->my || k >= zone->mz) return;
 
-
-  const int vis_order = param->viscous_scheme;
 
   int compute_type[6] = {0, 0, 0, 0, 0, 0};
   if (zone->bType_il(j, k) != 0)
@@ -425,9 +454,9 @@ __global__ void compute_viscous_flux_collocated_scalar(DZone *zone, const DParam
     yk[l] = y(i, j, k, l);
     diffusivity[l] = zone->rho_D(i, j, k, l);
 
-    const real y_xi = d_dXi(y, i, j, k, l, mx, vis_order, compute_type[0], compute_type[1]);
-    const real y_eta = d_dEta(y, i, j, k, l, my, vis_order, compute_type[2], compute_type[3]);
-    const real y_zeta = d_dZeta(y, i, j, k, l, mz, vis_order, compute_type[4], compute_type[5]);
+    const real y_xi = d_dXi<ORDER>(y, i, j, k, l, mx, compute_type[0], compute_type[1]);
+    const real y_eta = d_dEta<ORDER>(y, i, j, k, l, my, compute_type[2], compute_type[3]);
+    const real y_zeta = d_dZeta<ORDER>(y, i, j, k, l, mz, compute_type[4], compute_type[5]);
 
     const real y_x = y_xi * xi_x + y_eta * eta_x + y_zeta * zeta_x;
     const real y_y = y_xi * xi_y + y_eta * eta_y + y_zeta * zeta_y;
@@ -460,9 +489,9 @@ __global__ void compute_viscous_flux_collocated_scalar(DZone *zone, const DParam
   // which is more significant when the molecular weight is light.
   const auto &pv = zone->bv;
   if (param->gradPInDiffusionFlux) {
-    const real p_xi = d_dXi(pv, i, j, k, 4, mx, vis_order, compute_type[0], compute_type[1]);
-    const real p_eta = d_dEta(pv, i, j, k, 4, my, vis_order, compute_type[2], compute_type[3]);
-    const real p_zeta = d_dZeta(pv, i, j, k, 4, mz, vis_order, compute_type[4], compute_type[5]);
+    const real p_xi = d_dXi<ORDER>(pv, i, j, k, 4, mx, compute_type[0], compute_type[1]);
+    const real p_eta = d_dEta<ORDER>(pv, i, j, k, 4, my, compute_type[2], compute_type[3]);
+    const real p_zeta = d_dZeta<ORDER>(pv, i, j, k, 4, mz, compute_type[4], compute_type[5]);
 
     const real p_x{p_xi * xi_x + p_eta * eta_x + p_zeta * zeta_x};
     const real p_y{p_xi * xi_y + p_eta * eta_y + p_zeta * zeta_y};
@@ -514,9 +543,9 @@ __global__ void compute_viscous_flux_collocated_scalar(DZone *zone, const DParam
     for (int l = 0; l < param->n_ps; ++l) {
       const int ls = param->i_ps + l, lc = param->i_ps_cv + l;
       // First, compute the passive scalar gradient
-      const real ps_xi = d_dXi(sv, i, j, k, ls, mx, vis_order, compute_type[0], compute_type[1]);
-      const real ps_eta = d_dEta(sv, i, j, k, ls, my, vis_order, compute_type[2], compute_type[3]);
-      const real ps_zeta = d_dZeta(sv, i, j, k, ls, mz, vis_order, compute_type[4], compute_type[5]);
+      const real ps_xi = d_dXi<ORDER>(sv, i, j, k, ls, mx, compute_type[0], compute_type[1]);
+      const real ps_eta = d_dEta<ORDER>(sv, i, j, k, ls, my, compute_type[2], compute_type[3]);
+      const real ps_zeta = d_dZeta<ORDER>(sv, i, j, k, ls, mz, compute_type[4], compute_type[5]);
 
       const real ps_x = ps_xi * xi_x + ps_eta * eta_x + ps_zeta * zeta_x;
       const real ps_y = ps_xi * xi_y + ps_eta * eta_y + ps_zeta * zeta_y;
@@ -530,6 +559,7 @@ __global__ void compute_viscous_flux_collocated_scalar(DZone *zone, const DParam
   }
 }
 
+template<int ORDER>
 __global__ void compute_viscous_flux_derivative(DZone *zone, const DParameter *param) {
   const int i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
   const int j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
@@ -537,8 +567,6 @@ __global__ void compute_viscous_flux_derivative(DZone *zone, const DParameter *p
   const auto mx = zone->mx, my = zone->my, mz = zone->mz;
   if (i >= zone->mx || j >= zone->my || k >= zone->mz) return;
 
-
-  const int vis_order = param->viscous_scheme;
 
   int compute_type[6] = {0, 0, 0, 0, 0, 0};
   if (zone->bType_il(j, k) != 0)
@@ -559,25 +587,28 @@ __global__ void compute_viscous_flux_derivative(DZone *zone, const DParameter *p
   const auto &fv = zone->fv, &gv = zone->gv, hv = zone->hv;
   const real jac = zone->jac(i, j, k);
 
-  dq(i, j, k, 1) += (d_dXi(fv, i, j, k, 0, mx, vis_order, compute_type[0], compute_type[1])
-                     + d_dEta(gv, i, j, k, 0, my, vis_order, compute_type[2], compute_type[3])
-                     + d_dZeta(hv, i, j, k, 0, mz, vis_order, compute_type[4], compute_type[5])) * jac;
-  dq(i, j, k, 2) += (d_dXi(fv, i, j, k, 1, mx, vis_order, compute_type[0], compute_type[1])
-                     + d_dEta(gv, i, j, k, 1, my, vis_order, compute_type[2], compute_type[3])
-                     + d_dZeta(hv, i, j, k, 1, mz, vis_order, compute_type[4], compute_type[5])) * jac;
-  dq(i, j, k, 3) += (d_dXi(fv, i, j, k, 2, mx, vis_order, compute_type[0], compute_type[1])
-                     + d_dEta(gv, i, j, k, 2, my, vis_order, compute_type[2], compute_type[3])
-                     + d_dZeta(hv, i, j, k, 2, mz, vis_order, compute_type[4], compute_type[5])) * jac;
-  dq(i, j, k, 4) += (d_dXi(fv, i, j, k, 3, mx, vis_order, compute_type[0], compute_type[1])
-                     + d_dEta(gv, i, j, k, 3, my, vis_order, compute_type[2], compute_type[3])
-                     + d_dZeta(hv, i, j, k, 3, mz, vis_order, compute_type[4], compute_type[5])) * jac;
+  dq(i, j, k, 1) += (d_dXi<ORDER>(fv, i, j, k, 0, mx, compute_type[0], compute_type[1])
+                     + d_dEta<ORDER>(gv, i, j, k, 0, my, compute_type[2], compute_type[3])
+                     + d_dZeta<ORDER>(hv, i, j, k, 0, mz, compute_type[4], compute_type[5])) * jac;
+  dq(i, j, k, 2) += (d_dXi<ORDER>(fv, i, j, k, 1, mx, compute_type[0], compute_type[1])
+                     + d_dEta<ORDER>(gv, i, j, k, 1, my, compute_type[2], compute_type[3])
+                     + d_dZeta<ORDER>(hv, i, j, k, 1, mz, compute_type[4], compute_type[5])) * jac;
+  dq(i, j, k, 3) += (d_dXi<ORDER>(fv, i, j, k, 2, mx, compute_type[0], compute_type[1])
+                     + d_dEta<ORDER>(gv, i, j, k, 2, my, compute_type[2], compute_type[3])
+                     + d_dZeta<ORDER>(hv, i, j, k, 2, mz, compute_type[4], compute_type[5])) * jac;
+  dq(i, j, k, 4) += (d_dXi<ORDER>(fv, i, j, k, 3, mx, compute_type[0], compute_type[1])
+                     + d_dEta<ORDER>(gv, i, j, k, 3, my, compute_type[2], compute_type[3])
+                     + d_dZeta<ORDER>(hv, i, j, k, 3, mz, compute_type[4], compute_type[5])) * jac;
   for (int l = 5; l < nv; ++l) {
-    dq(i, j, k, l) += (d_dXi(fv, i, j, k, l - 1, mx, vis_order, compute_type[0], compute_type[1])
-                       + d_dEta(gv, i, j, k, l - 1, my, vis_order, compute_type[2], compute_type[3])
-                       + d_dZeta(hv, i, j, k, l - 1, mz, vis_order, compute_type[4], compute_type[5])) * jac;
+    dq(i, j, k, l) += (d_dXi<ORDER>(fv, i, j, k, l - 1, mx, compute_type[0], compute_type[1])
+                       + d_dEta<ORDER>(gv, i, j, k, l - 1, my, compute_type[2], compute_type[3])
+                       + d_dZeta<ORDER>(hv, i, j, k, l - 1, mz, compute_type[4], compute_type[5])) * jac;
   }
 }
 
-template void compute_viscous_flux<MixtureModel::Air>(const Mesh &mesh, std::vector<Field> &field, DParameter *param, const Parameter &parameter);
-template void compute_viscous_flux<MixtureModel::Mixture>(const Mesh &mesh, std::vector<Field> &field, DParameter *param, const Parameter &parameter);
+template void compute_viscous_flux<MixtureModel::Air>(const Mesh &mesh, std::vector<Field> &field, DParameter *param,
+  const Parameter &parameter);
+
+template void compute_viscous_flux<MixtureModel::Mixture>(const Mesh &mesh, std::vector<Field> &field,
+  DParameter *param, const Parameter &parameter);
 } // namespace cfd
