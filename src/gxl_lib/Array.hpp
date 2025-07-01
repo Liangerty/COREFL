@@ -83,6 +83,47 @@ void Array3D<DataType, major>::resize(const int ni, const int nj, const int nk, 
   dispt = (disp1 + disp2 + 1) * ng;
 }
 
+template<typename T>
+class Array2D {
+  int disp1 = 0, dispt = 0;
+  int sz = 0;
+  std::vector<T> val;
+
+public:
+  explicit Array2D(int dim1, int dim2, int ng, T dd = T{}):
+    disp1(dim1 + 2 * ng), dispt(ng * (1 + dim1 + 2 * ng)), sz((dim1 + 2 * ng) * (dim2 + 2 * ng)), val(sz, dd) {}
+
+  void allocate_memory(int dim1, int dim2, int n_ghost = 0);
+
+  T &operator()(const int i, const int j) {
+    return val[j * disp1 + i + dispt];
+  }
+
+  const T &operator()(const int i, const int j) const {
+    return val[j * disp1 + i + dispt];
+  }
+
+  T *data() { return val; }
+  const T *data() const { return val.data(); }
+
+  auto size() { return sz; }
+
+  void deallocate_memory() const {
+    val.reserve(0);
+  }
+};
+
+template<typename T>
+void Array2D<T>::allocate_memory(int dim1, int dim2, int n_ghost) {
+  const int ng = n_ghost;
+  const int n1 = dim1;
+  const int n2 = dim2;
+  disp1 = n1 + 2 * ng;
+  dispt = ng * (1 + disp1);
+  sz = (n1 + 2 * ng) * (n2 + 2 * ng);
+  val.resize(sz);
+}
+
 /**
  * \brief As its name, should have 4 indexes. First 3 index supply the spatial position and the 4th index is used for
  *  vector subscript. Thus, the ghost grid is only assigned for first 3 index.

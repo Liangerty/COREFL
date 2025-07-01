@@ -282,9 +282,10 @@ void cfd::Parameter::deduce_known_info() {
     }
   }
 
-  int viscous_order = get_int("viscous_order");
-  if (viscous_order == 6) {
+  if (int viscous_order = get_int("viscous_order"); viscous_order == 6) {
     if (ngg < 3) ngg = 3;
+  } else if (viscous_order == 8) {
+    if (ngg < 4) ngg = 4;
   }
 
   update_parameter("ngg", ngg);

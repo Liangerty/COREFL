@@ -45,6 +45,46 @@ cudaError_t Array1D<T>::allocate_memory(int dim1, int n_ghost) {
   return err;
 }
 
+template<typename T>
+class Array2D {
+  int disp1 = 0, dispt = 0;
+  int sz = 0;
+  T *val = nullptr;
+
+public:
+    cudaError_t allocate_memory(int dim1, int dim2, int n_ghost = 0);
+
+  __device__ T &operator()(const int i, const int j) {
+    return val[j * disp1 + i + dispt];
+  }
+
+  __device__ const T &operator()(const int i, const int j) const {
+    return val[j * disp1 + i + dispt];
+  }
+
+  T *data() { return val; }
+
+  auto size() { return sz; }
+
+  cudaError_t deallocate_memory() const {
+    const cudaError_t err = cudaFree(val);
+    return err;
+  }
+};
+
+template<typename T>
+inline cudaError_t Array2D<T>::allocate_memory(int dim1, int dim2, int n_ghost) {
+  const int ng = n_ghost;
+  const int n1 = dim1;
+  const int n2 = dim2;
+  disp1 = n1 + 2 * ng;
+  dispt = ng * (1 + disp1);
+  sz = (n1 + 2 * ng) * (n2 + 2 * ng);
+  const cudaError_t err = cudaMalloc(&val, sz * sizeof(T));
+  cudaMemset(val, 0, sz * sizeof(T));
+  return err;
+}
+
 template<typename T, Major major = Major::ColMajor>
 class Array3D {
   int disp1 = 0, disp2 = 0, dispt = 0;
@@ -105,8 +145,8 @@ private:
   int disp1 = 0, disp2 = 0, dispt = 0;
   int sz = 0;
   T *val = nullptr;
-//  int ng = 0;
-//  int n1 = 0, n2 = 0, n3 = 0;
+  //  int ng = 0;
+  //  int n1 = 0, n2 = 0, n3 = 0;
 
 public:
   cudaError_t allocate_memory(int dim1, int dim2, int dim3, int n_ghost = 0);
@@ -155,7 +195,7 @@ inline cudaError_t Array3DHost<T, major>::allocate_memory(int dim1, int dim2, in
   } else {
     cudaMemset(val, 0, sz * sizeof(T));
   }
-//  cudaError_t err = cudaMalloc(&val, sz * sizeof(T));
+  //  cudaError_t err = cudaMalloc(&val, sz * sizeof(T));
   return err;
 }
 
@@ -187,13 +227,13 @@ public:
   T *operator[](int l) {
     static_assert(major == Major::ColMajor);
     return val + l * sz;
-//    return &val[l * sz];
+    //    return &val[l * sz];
   }
 
   const T *operator[](int l) const {
     static_assert(major == Major::ColMajor);
     return val + l * sz;
-//    return &val[l * sz];
+    //    return &val[l * sz];
   }
 
   T *data() { return val; }
@@ -345,17 +385,17 @@ template<typename T, Major major = Major::ColMajor>
 class VectorField3DHost {
   int disp2{0}, disp1{0}, dispt{0}, n4{0}, sz{0};
   T *data_ = nullptr;
-//  int ng{0}, n1{0}, n2{0}, n3{0};
-//  std::vector<T> data_;
+  //  int ng{0}, n1{0}, n2{0}, n3{0};
+  //  std::vector<T> data_;
 public:
-//  explicit VectorField3DHost(int dim1, int dim2, int dim3, int dim4, int n_ghost);
+  //  explicit VectorField3DHost(int dim1, int dim2, int dim3, int dim4, int n_ghost);
 
   auto data() const { return data_; }
-//  auto data() const { return data_.data(); }
+  //  auto data() const { return data_.data(); }
 
   auto data() { return data_; }
 
-//  auto data() { return data_.data(); }
+  //  auto data() { return data_.data(); }
   auto size() { return sz; }
 
   auto size() const { return sz; }

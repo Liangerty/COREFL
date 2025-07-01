@@ -155,7 +155,6 @@ __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
   var[2] = bv(i, j, k, 2);
   var[3] = bv(i, j, k, 3);
   var[4] = bv(i, j, k, 4);
-  const int n_spec{param->n_spec};
 
   // Find the unphysical values and limit them
   const auto ll = param->limit_flow.ll;
@@ -233,7 +232,7 @@ __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
       bv(i, j, k, 5) = updated_var[4] * mw_air / (updated_var[0] * R_u);
     } else {
       real R = 0;
-      for (int l = 0; l < n_spec; ++l) {
+      for (int l = 0; l < param->n_spec; ++l) {
         R += zone->sv(i, j, k, l) * param->gas_const[l];
       }
       bv(i, j, k, 5) = updated_var[4] / (updated_var[0] * R);

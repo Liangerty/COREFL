@@ -488,6 +488,25 @@ void cfd::Field::setup_device_memory(const Parameter &parameter) {
     cudaMemcpy(h_ptr->des_delta.data(), block.des_scale.data(), sizeof(real) * h_ptr->des_delta.size(),
                cudaMemcpyHostToDevice);
   }
+  h_ptr->bType_il.allocate_memory(my, mz, 0);
+  cudaMemcpy(h_ptr->bType_il.data(), block.bType_il.data(), sizeof(int) * h_ptr->bType_il.size(),
+             cudaMemcpyHostToDevice);
+  h_ptr->bType_ir.allocate_memory(my, mz, 0);
+  cudaMemcpy(h_ptr->bType_ir.data(), block.bType_ir.data(), sizeof(int) * h_ptr->bType_ir.size(),
+             cudaMemcpyHostToDevice);
+  h_ptr->bType_jl.allocate_memory(mx, mz, 0);
+  cudaMemcpy(h_ptr->bType_jl.data(), block.bType_jl.data(), sizeof(int) * h_ptr->bType_jl.size(),
+             cudaMemcpyHostToDevice);
+  h_ptr->bType_jr.allocate_memory(mx, mz, 0);
+  cudaMemcpy(h_ptr->bType_jr.data(), block.bType_jr.data(), sizeof(int) * h_ptr->bType_jr.size(),
+             cudaMemcpyHostToDevice);
+  h_ptr->bType_kl.allocate_memory(mx, my, 0);
+  cudaMemcpy(h_ptr->bType_kl.data(), block.bType_kl.data(), sizeof(int) * h_ptr->bType_kl.size(),
+             cudaMemcpyHostToDevice);
+  h_ptr->bType_kr.allocate_memory(mx, my, 0);
+  cudaMemcpy(h_ptr->bType_kr.data(), block.bType_kr.data(), sizeof(int) * h_ptr->bType_kr.size(),
+             cudaMemcpyHostToDevice);
+
 
   const auto n_bound{block.boundary.size()};
   h_ptr->n_boundary = static_cast<int>(n_bound);
@@ -559,9 +578,12 @@ void cfd::Field::setup_device_memory(const Parameter &parameter) {
   if (parameter.get_string("hybrid_inviscid_scheme") != "NO") {
     h_ptr->shock_sensor.allocate_memory(mx, my, mz, ngg);
   }
-  h_ptr->vis_flux.allocate_memory(mx, my, mz, n_var - 1, 1);
-  if (parameter.get_int("viscous_order") == 6) {
-    h_ptr->grad_bv.allocate_memory(mx, my, mz, (5 + n_scalar) * 3, 1);
+  if (parameter.get_int("viscous_order") == 2) {
+    h_ptr->vis_flux.allocate_memory(mx, my, mz, n_var - 1, 1);
+  } else {
+    h_ptr->fv.allocate_memory(mx, my, mz, n_var - 1, ngg);
+    h_ptr->gv.allocate_memory(mx, my, mz, n_var - 1, ngg);
+    h_ptr->hv.allocate_memory(mx, my, mz, n_var - 1, ngg);
   }
   if (!(!parameter.get_bool("steady") && parameter.get_int("temporal_scheme") == 3 &&
         parameter.get_bool("fixed_time_step"))) {

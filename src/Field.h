@@ -25,6 +25,8 @@ struct DZone {
   ggxl::Array3D<real> wall_distance;
   // DES related grid scale
   ggxl::Array3D<real> des_delta;
+  ggxl::Array2D<int> bType_il, bType_ir, bType_jl, bType_jr, bType_kl, bType_kr;
+  // The value is 0 if it is an inner boundary point or periodic point, larger than 0 means it is a physical boundary
 
   // Conservative variable: 0-:rho, 1-:rho*u, 2-:rho*v, 3-:rho*w, 4-:rho*(E+V*V/2), 5->(4+Ns)-:rho*Y
   ggxl::VectorField3D<real> cv;
@@ -38,7 +40,7 @@ struct DZone {
   ggxl::Array3D<real> mul;           // Dynamic viscosity
 
   ggxl::VectorField3D<curandState> rng_state; // Random number generators for fluctuations
-  ggxl::VectorField3D<real> fluc_val; // The fluctuation values
+  ggxl::VectorField3D<real> fluc_val;         // The fluctuation values
 
   // Mixture variables
   ggxl::VectorField3D<real> rho_D; // the mass diffusivity of species
@@ -58,9 +60,12 @@ struct DZone {
   ggxl::Array3D<real> scalar_diss_rate; // scalar dissipation rate
 
   // Variables used in computation
-  ggxl::VectorField3D<real> dq;      // The residual for flux computing
-  ggxl::VectorField3D<real> vis_flux;    // The fluxes at the cell faces.
-  ggxl::VectorField3D<real> grad_bv; // The gradient of basic variables
+  ggxl::VectorField3D<real> dq;       // The residual for flux computing
+  ggxl::VectorField3D<real> fv; // The fluxes at the cell faces.
+  ggxl::VectorField3D<real> gv; // The fluxes at the cell faces.
+  ggxl::VectorField3D<real> hv; // The fluxes at the cell faces.
+  ggxl::VectorField3D<real> vis_flux; // The fluxes at the cell faces.
+  // ggxl::VectorField3D<real> grad_bv;  // The gradient of basic variables
 
   ggxl::VectorField3D<real> dq0;          // Used when DPLUR is enabled
   ggxl::VectorField3D<real> dqk;          // Used when DPLUR is enabled
@@ -109,10 +114,10 @@ struct Field {
 
   void
   initialize_basic_variables(const Parameter &parameter, const std::vector<Inflow> &inflows,
-                             const std::vector<real> &xs, const std::vector<real> &xe,
-                             const std::vector<real> &ys, const std::vector<real> &ye,
-                             const std::vector<real> &zs, const std::vector<real> &ze,
-                             const cfd::Species &species) const;
+    const std::vector<real> &xs, const std::vector<real> &xe,
+    const std::vector<real> &ys, const std::vector<real> &ye,
+    const std::vector<real> &zs, const std::vector<real> &ze,
+    const cfd::Species &species) const;
 
   void setup_device_memory(const Parameter &parameter);
 
@@ -127,9 +132,9 @@ struct Field {
   // passive scalar variables, including species mass fractions, turbulent variables, mixture fractions, etc.
   ggxl::VectorField3DHost<real> ov;
   // other variables used in the computation, e.g., the Mach number, the mut in turbulent computation, scalar dissipation rate in flamelet, etc.
-  ggxl::VectorField3DHost<real> udv; // User defined variables.
+  ggxl::VectorField3DHost<real> udv;              // User defined variables.
   ggxl::VectorField3DHost<curandState> rng_state; // Random number generators for fluctuations
-  ggxl::VectorField3DHost<real> fluc_val; // The fluctuation values
+  ggxl::VectorField3DHost<real> fluc_val;         // The fluctuation values
 
   // The following data is used for collecting statistics, whose memory is only allocated when we activate the statistics.
   //  ggxl::VectorField3DHost<real> firstOrderMoment, secondOrderMoment, userDefinedStatistics;

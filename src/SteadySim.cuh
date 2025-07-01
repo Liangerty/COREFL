@@ -79,6 +79,11 @@ void steady_simulation(Driver<mix_model> &driver) {
     for (auto b = 0; b < n_block; ++b) {
       // Set dq to 0
       cudaMemset(field[b].h_ptr->dq.data(), 0, field[b].h_ptr->dq.size() * n_var * sizeof(real));
+    }
+
+    compute_viscous_flux<mix_model>(mesh, field, param, parameter);
+
+    for (auto b = 0; b < n_block; ++b) {
 
       // Second, for each block, compute the residual dq
       // First, compute the source term, because properties such as mut are updated here.
@@ -86,7 +91,7 @@ void steady_simulation(Driver<mix_model> &driver) {
         finite_rate_chemistry<<<bpg[b], tpb>>>(field[b].d_ptr, param);
       }       
       compute_inviscid_flux<mix_model>(mesh[b], field[b].d_ptr, param, n_var, parameter);
-      compute_viscous_flux<mix_model>(mesh[b], field[b].d_ptr, param, parameter);
+      // compute_viscous_flux<mix_model>(mesh[b], field[b].d_ptr, param, parameter);
 
       // compute the local time step
       local_time_step<mix_model><<<bpg[b], tpb>>>(field[b].d_ptr, param);
