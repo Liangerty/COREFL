@@ -370,22 +370,6 @@ __global__ void reaction_step(DZone *zone, const DParameter *param, real dt) {
     reaction_timescale = 0.2 * dt;
   const int n_sub = static_cast<int>(dt / reaction_timescale);
   real dt_reaction = dt / (n_sub + 1);
-  // real dt_reaction = 1e-9;
-  // const int n_sub = 9;
-
-  // bool print{false};
-  // if (i == 88 && j == 156 && k == 0) {
-  //   print = true;
-  // }
-  // if (print) {
-  //   const real iRho = 1.0 / cv(i, j, k, 0);
-  //   printf("rhoE = %e, rhoK=%e, rhoe=%e\n", cv(i, j, k, 5), 0.5 * bv(i, j, k, 0) * (
-  //                                                             bv(i, j, k, 1) * bv(i, j, k, 1) + bv(i, j, k, 2) * bv(
-  //                                                               i, j, k, 2) +
-  //                                                             bv(i, j, k, 3) * bv(i, j, k, 3)), rhoE);
-  //   printf("T=%f, Y=(%e,%e,%e,%e,%e,%e,%e,%e,%e)\n", T, rhoY[0] * iRho, rhoY[1] * iRho, rhoY[2] * iRho,
-  //          rhoY[3] * iRho, rhoY[4] * iRho, rhoY[5] * iRho, rhoY[6] * iRho, rhoY[7] * iRho, rhoY[8] * iRho);
-  // }
 
   // The first n_sub steps are advanced with a fixed dt
   auto &timeScale = zone->reaction_timeScale(i, j, k);
@@ -393,11 +377,6 @@ __global__ void reaction_step(DZone *zone, const DParameter *param, real dt) {
     // if (print) printf("step %d\n", n);
     const auto [x, y] = zeroDReaction(param, dt_reaction, rhoY, rhoE, T, timeScale);
     T = x, p = y;
-    // if (print) {
-    //   const real iRho = 1.0 / cv(i, j, k, 0);
-    //   printf("T=%f, Y=(%e,%e,%e,%e,%e,%e,%e,%e,%e)\n", T, rhoY[0] * iRho, rhoY[1] * iRho, rhoY[2] * iRho,
-    //          rhoY[3] * iRho, rhoY[4] * iRho, rhoY[5] * iRho, rhoY[6] * iRho, rhoY[7] * iRho, rhoY[8] * iRho);
-    // }
   }
   // To make the time interval consistent with dt, the last step is advanced with dt_flow - n_sub * dt_reaction
   dt_reaction = dt - dt_reaction * n_sub;

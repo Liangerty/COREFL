@@ -941,7 +941,7 @@ __global__ void apply_periodic(DZone *zone, DParameter *param, int i_face) {
       break;
   }
 
-  for (int g = 1; g <= ngg; ++g) {
+  for (int g = 0; g <= ngg; ++g) {
     const int gi{i + g * dir[0]}, gj{j + g * dir[1]}, gk{k + g * dir[2]};
     const int ii{idx_other[0] + g * dir[0]}, ij{idx_other[1] + g * dir[1]}, ik{idx_other[2] + g * dir[2]};
     for (int l = 0; l < 6; ++l) {
