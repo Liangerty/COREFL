@@ -39,7 +39,8 @@ __global__ void cfd::setup_data_to_be_sent(const DZone *zone, int i_face, real *
   }
 }
 
-__global__ void cfd::setup_data_to_be_sent(const DZone *zone, int i_face, real *data, const DParameter *param, int task) {
+__global__ void cfd::setup_data_to_be_sent(const DZone *zone, int i_face, real *data, const DParameter *param,
+  int task) {
   const auto &f = zone->parFace[i_face];
   int n[3];
   n[0] = blockIdx.x * blockDim.x + threadIdx.x;
@@ -54,9 +55,17 @@ __global__ void cfd::setup_data_to_be_sent(const DZone *zone, int i_face, real *
 
   if (task == 1) {
     const int n_var{param->n_var - 1}, ngg{zone->ngg};
-    const int bias_0 = 3 * n_var * ngg * (n[f.loop_order[1]] * f.n_point[f.loop_order[2]] + n[f.loop_order[2]]);
+    const int bias_0 = 3 * n_var * (ngg + 1) * (n[f.loop_order[1]] * f.n_point[f.loop_order[2]] + n[f.loop_order[2]]);
 
-    auto bias = bias_0;;
+    auto bias = bias_0;
+    for (int l = 0; l < n_var; ++l) {
+      data[bias] = zone->fv(idx[0], idx[1], idx[2], l);
+      ++bias;
+      data[bias] = zone->gv(idx[0], idx[1], idx[2], l);
+      ++bias;
+      data[bias] = zone->hv(idx[0], idx[1], idx[2], l);
+      ++bias;
+    }
     for (int ig = 0; ig < ngg; ++ig) {
       idx[f.face] -= f.direction;
       for (int l = 0; l < n_var; ++l) {
@@ -86,8 +95,16 @@ __global__ void cfd::assign_data_received(DZone *zone, int i_face, const real *d
 
   if (task == 1) {
     const int n_var{param->n_var - 1}, ngg{zone->ngg};
-    const int bias_0 = 3 * n_var * ngg * (n[f.loop_order[1]] * f.n_point[f.loop_order[2]] + n[f.loop_order[2]]);
+    const int bias_0 = 3 * n_var * (ngg + 1) * (n[f.loop_order[1]] * f.n_point[f.loop_order[2]] + n[f.loop_order[2]]);
     int bias = bias_0;
+    for (int l = 0; l < n_var; ++l) {
+      zone->fv(idx[0], idx[1], idx[2], l) = data[bias];
+      ++bias;
+      zone->gv(idx[0], idx[1], idx[2], l) = data[bias];
+      ++bias;
+      zone->hv(idx[0], idx[1], idx[2], l) = data[bias];
+      ++bias;
+    }
     for (int ig = 0; ig < ngg; ++ig) {
       idx[f.face] += f.direction;
       for (int l = 0; l < n_var; ++l) {
@@ -169,12 +186,29 @@ __global__ void cfd::inner_exchange(DZone *zone, DZone *tar_zone, int i_face, DP
     idx_tar[i] = f.target_start[i] + f.target_loop_dir[i] * d_idx[f.src_tar[i]];
   }
 
+  // The face direction: which of i(0)/j(1)/k(2) is the coincided face.
+  const auto face_dir{f.direction > 0 ? f.range_start[f.face] : f.range_end[f.face]};
+
   if (task == 1) {
     // Exchange the viscous fluxes, used in 8th-order CDS
-    for (int l = 0; l < param->n_var - 1; ++l) {
-      zone->fv(idx[0], idx[1], idx[2], l) = tar_zone->fv(idx_tar[0], idx_tar[1], idx_tar[2], l);
-      zone->gv(idx[0], idx[1], idx[2], l) = tar_zone->gv(idx_tar[0], idx_tar[1], idx_tar[2], l);
-      zone->hv(idx[0], idx[1], idx[2], l) = tar_zone->hv(idx_tar[0], idx_tar[1], idx_tar[2], l);
+    if (idx[f.face] == face_dir) {
+      for (int l = 0; l < param->n_var - 1; ++l) {
+        real ave_v = 0.5 * (zone->fv(idx[0], idx[1], idx[2], l) + tar_zone->fv(idx_tar[0], idx_tar[1], idx_tar[2], l));
+        zone->fv(idx[0], idx[1], idx[2], l) = ave_v;
+        tar_zone->fv(idx_tar[0], idx_tar[1], idx_tar[2], l) = ave_v;
+        ave_v = 0.5 * (zone->gv(idx[0], idx[1], idx[2], l) + tar_zone->gv(idx_tar[0], idx_tar[1], idx_tar[2], l));
+        zone->gv(idx[0], idx[1], idx[2], l) = ave_v;
+        tar_zone->gv(idx_tar[0], idx_tar[1], idx_tar[2], l) = ave_v;
+        ave_v = 0.5 * (zone->hv(idx[0], idx[1], idx[2], l) + tar_zone->hv(idx_tar[0], idx_tar[1], idx_tar[2], l));
+        zone->hv(idx[0], idx[1], idx[2], l) = ave_v;
+        tar_zone->hv(idx_tar[0], idx_tar[1], idx_tar[2], l) = ave_v;
+      }
+    } else {
+      for (int l = 0; l < param->n_var - 1; ++l) {
+        zone->fv(idx[0], idx[1], idx[2], l) = tar_zone->fv(idx_tar[0], idx_tar[1], idx_tar[2], l);
+        zone->gv(idx[0], idx[1], idx[2], l) = tar_zone->gv(idx_tar[0], idx_tar[1], idx_tar[2], l);
+        zone->hv(idx[0], idx[1], idx[2], l) = tar_zone->hv(idx_tar[0], idx_tar[1], idx_tar[2], l);
+      }
     }
   }
 }
@@ -189,10 +223,10 @@ void cfd::parallel_exchange(const Mesh &mesh, std::vector<Field> &field, const P
     total_face += mesh[m].parallel_face.size();
   }
 
-  int n_trans{0}; // All primitive variables are to be transferred
+  int n_trans{0};
   switch (task) {
     case 1:
-      n_trans = (parameter.get_int("n_var") - 1) * 3;
+      n_trans = (parameter.get_int("n_var") - 1) * 3; // The three viscous fluxes
       break;
     default:
       n_trans = 0;
@@ -210,9 +244,9 @@ void cfd::parallel_exchange(const Mesh &mesh, std::vector<Field> &field, const P
     const int fc = static_cast<int>(B.parallel_face.size());
     for (int f = 0; f < fc; ++f) {
       const auto &face = B.parallel_face[f];
-      //The length of the array is ${number of grid points of the face}*ngg*n_trans
+      //The length of the array is ${number of grid points of the face}*(ngg+1)*n_trans
       //ngg is the number of layers to communicate, n_trans for n_trans variables
-      const int len = n_trans * ngg * (std::abs(face.range_start[0] - face.range_end[0]) + 1)
+      const int len = n_trans * (ngg + 1) * (std::abs(face.range_start[0] - face.range_end[0]) + 1)
                       * (std::abs(face.range_end[1] - face.range_start[1]) + 1)
                       * (std::abs(face.range_end[2] - face.range_start[2]) + 1);
       length[fc_num] = len;
@@ -318,6 +352,17 @@ __global__ void cfd::periodic_exchange(DZone *zone, DParameter *param, int task,
 
   if (task == 1) {
     auto &fv = zone->fv, &gv = zone->gv, &hv = zone->hv;
+    for (int l = 0; l < param->n_var - 1; ++l) {
+      real ave = 0.5 * (fv(i, j, k, l) + fv(idx_other[0], idx_other[1], idx_other[2], l));
+      fv(i, j, k, l) = ave;
+      fv(idx_other[0], idx_other[1], idx_other[2], l) = ave;
+      ave = 0.5 * (gv(i, j, k, l) + gv(idx_other[0], idx_other[1], idx_other[2], l));
+      gv(i, j, k, l) = ave;
+      gv(idx_other[0], idx_other[1], idx_other[2], l) = ave;
+      ave = 0.5 * (hv(i, j, k, l) + hv(idx_other[0], idx_other[1], idx_other[2], l));
+      hv(i, j, k, l) = ave;
+      hv(idx_other[0], idx_other[1], idx_other[2], l) = ave;
+    }
     for (int g = 1; g <= ngg; ++g) {
       const int gi{i + g * dir[0]}, gj{j + g * dir[1]}, gk{k + g * dir[2]};
       const int ii{idx_other[0] + g * dir[0]}, ij{idx_other[1] + g * dir[1]}, ik{idx_other[2] + g * dir[2]};

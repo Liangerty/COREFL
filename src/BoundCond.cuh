@@ -941,7 +941,18 @@ __global__ void apply_periodic(DZone *zone, DParameter *param, int i_face) {
       break;
   }
 
-  for (int g = 0; g <= ngg; ++g) {
+  for (int l = 0; l < 6; ++l) {
+    const auto ave = 0.5 * (bv(i,j,k,l)+bv(idx_other[0], idx_other[1], idx_other[2], l));
+    bv(i, j, k, l) = ave;
+    bv(idx_other[0], idx_other[1], idx_other[2], l) = ave;
+  }
+  for (int l = 0; l < param->n_scalar; ++l) {
+    const auto ave = 0.5 * (sv(i,j,k,l)+sv(idx_other[0], idx_other[1], idx_other[2], l));
+    sv(i, j, k, l) = ave;
+    sv(idx_other[0], idx_other[1], idx_other[2], l) = ave;
+  }
+  compute_cv_from_bv_1_point<mix_model>(zone, param, i, j, k);
+  for (int g = 1; g <= ngg; ++g) {
     const int gi{i + g * dir[0]}, gj{j + g * dir[1]}, gk{k + g * dir[2]};
     const int ii{idx_other[0] + g * dir[0]}, ij{idx_other[1] + g * dir[1]}, ik{idx_other[2] + g * dir[2]};
     for (int l = 0; l < 6; ++l) {
