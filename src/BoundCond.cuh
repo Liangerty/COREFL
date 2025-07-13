@@ -1173,43 +1173,254 @@ __global__ void apply_outflow_nr(DZone *zone, int i_face, const DParameter *para
 
   // if (param->L1_wave == 0) // zero-reflection
   if (start_face) {
-    // Lambda[0] = min(Lambda[0], 0.0);
-    // Lambda[1] = min(Lambda[1], 0.0);
-    // Lambda[2] = min(Lambda[2], 0.0);
-    // Lambda[3] = min(Lambda[3], 0.0);
+    Lambda[0] = min(Lambda[0], 0.0);
+    Lambda[1] = min(Lambda[1], 0.0);
+    Lambda[2] = min(Lambda[2], 0.0);
+    Lambda[3] = min(Lambda[3], 0.0);
     Lambda[4] = min(Lambda[4], 0.0);
   } else {
     Lambda[0] = max(Lambda[0], 0.0);
-    // Lambda[1] = max(Lambda[1], 0.0);
-    // Lambda[2] = max(Lambda[2], 0.0);
-    // Lambda[3] = max(Lambda[3], 0.0);
-    // Lambda[4] = max(Lambda[4], 0.0);
+    Lambda[1] = max(Lambda[1], 0.0);
+    Lambda[2] = max(Lambda[2], 0.0);
+    Lambda[3] = max(Lambda[3], 0.0);
+    Lambda[4] = max(Lambda[4], 0.0);
   }
 
   real L[5]{};
   const real a2 = a * a, rho = bv(i, j, k, 0);
 
   L[0] = Lambda[0] * (-rho * a * (kx * u_k + ky * v_k + kz * w_k) + p_k);
-  L[1] = Lambda[1] * (kx * a2 * rho_k - kz * v_k + ky * w_k - kx * p_k);
-  L[2] = Lambda[2] * (kz * a2 * rho_k - ky * u_k + kx * v_k - kz * p_k);
-  L[3] = Lambda[3] * (-ky * a2 * rho_k - kz * u_k + kx * w_k + ky * p_k);
+  L[1] = Lambda[1] * (a2 * rho_k - p_k);
   L[4] = Lambda[4] * (rho * a * (kx * u_k + ky * v_k + kz * w_k) + p_k);
+  if (face == 0) {
+    L[2] = Lambda[2] * (-ky * u_k + kx * v_k);
+    L[3] = Lambda[3] * (-kz * u_k + kx * w_k);
+  } else if (face == 1) {
+    L[2] = Lambda[2] * (-kx * v_k + ky * u_k);
+    L[3] = Lambda[3] * (-kz * v_k + ky * w_k);
+  } else if (face == 2) {
+    L[2] = Lambda[2] * (-kx * w_k + kz * u_k);
+    L[3] = Lambda[3] * (-ky * w_k + kz * v_k);
+  }
 
   real d[5]{};
-  d[0] = 1 / a2 * (kx * L[1] + kz * L[2] - ky * L[3] + 0.5 * (L[0] + L[4]));
-  d[1] = 0.5 * kx * (L[4] - L[0]) / (rho * a) - ky * L[2] - kz * L[3];
-  d[2] = 0.5 * ky * (L[4] - L[0]) / (rho * a) - kz * L[1] + kx * L[2];
-  d[3] = 0.5 * kz * (L[4] - L[0]) / (rho * a) + ky * L[1] + kx * L[3];
+  d[0] = 1 / a2 * (L[1] + 0.5 * (L[0] + L[4]));
   d[4] = 0.5 * (L[0] + L[4]);
+  if (face == 0) {
+    d[1] = kx * (L[4] - L[0]) / (2 * rho * a) - (ky * L[2] + kz * L[3]) * gradKInv;
+    d[2] = ky * (L[4] - L[0]) / (2 * rho * a) + ((kx * kx + kz * kz) * L[2] - ky * kz * L[3]) * gradKInv / kx;
+    d[3] = kz * (L[4] - L[0]) / (2 * rho * a) + ((kx * kx + ky * ky) * L[3] - ky * kz * L[2]) * gradKInv / kx;
+  } else if (face == 1) {
+    d[1] = kx * (L[4] - L[0]) / (2 * rho * a) + ((ky * ky + kz * kz) * L[2] - kx * kz * L[3]) * gradKInv / ky;
+    d[2] = ky * (L[4] - L[0]) / (2 * rho * a) - (kx * L[2] + kz * L[3]) * gradKInv;
+    d[3] = kz * (L[4] - L[0]) / (2 * rho * a) + ((kx * kx + ky * ky) * L[3] - kx * kz * L[2]) * gradKInv / ky;
+  } else if (face == 2) {
+    d[1] = kx * (L[4] - L[0]) / (2 * rho * a) + ((ky * ky + kz * kz) * L[2] - kx * ky * L[3]) * gradKInv / kz;
+    d[2] = ky * (L[4] - L[0]) / (2 * rho * a) + ((kx * kx + kz * kz) * L[3] - kx * ky * L[2]) * gradKInv / kz;
+    d[3] = kz * (L[4] - L[0]) / (2 * rho * a) - (kx * L[2] + ky * L[3]) * gradKInv;
+  }
 
   const real minusJacInv = -zone->jac(i, j, k);
   auto &rhs = zone->dq;
-  rhs(i, j, k, 0) = minusJacInv * d[0];
-  rhs(i, j, k, 1) = minusJacInv * (u * d[0] + rho * d[1]);
-  rhs(i, j, k, 2) = minusJacInv * (v * d[0] + rho * d[2]);
-  rhs(i, j, k, 3) = minusJacInv * (w * d[0] + rho * d[3]);
-  rhs(i, j, k, 4) = minusJacInv * (0.5 * (u * u + v * v + w * w) * d[0] + rho * u * d[1] + rho * v * d[2] + rho * w *
-                                   d[3] + d[4] / (gamma_air - 1));
+  rhs(i, j, k, 0) += minusJacInv * d[0];
+  rhs(i, j, k, 1) += minusJacInv * (u * d[0] + rho * d[1]);
+  rhs(i, j, k, 2) += minusJacInv * (v * d[0] + rho * d[2]);
+  rhs(i, j, k, 3) += minusJacInv * (w * d[0] + rho * d[3]);
+  rhs(i, j, k, 4) += minusJacInv * (0.5 * (u * u + v * v + w * w) * d[0] + rho * u * d[1] + rho * v * d[2] + rho * w *
+                                    d[3] + d[4] / (gamma_air - 1));
+  // rhs(i, j, k, 0) = minusJacInv * d[0];
+  // rhs(i, j, k, 1) = minusJacInv * (u * d[0] + rho * d[1]);
+  // rhs(i, j, k, 2) = minusJacInv * (v * d[0] + rho * d[2]);
+  // rhs(i, j, k, 3) = minusJacInv * (w * d[0] + rho * d[3]);
+  // rhs(i, j, k, 4) = minusJacInv * (0.5 * (u * u + v * v + w * w) * d[0] + rho * u * d[1] + rho * v * d[2] + rho * w *
+  //                                  d[3] + d[4] / (gamma_air - 1));
+}
+
+template<MixtureModel mix_model>
+__global__ void apply_outflow_nr_conserv(DZone *zone, int i_face, const DParameter *param) {
+  const auto &b = zone->boundary[i_face];
+  const auto range_start = b.range_start, range_end = b.range_end;
+  const int i = range_start[0] + static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
+  const int j = range_start[1] + static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
+  const int k = range_start[2] + static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
+  if (i > range_end[0] || j > range_end[1] || k > range_end[2]) return;
+
+  auto &cv = zone->cv;
+
+  // Debug, we only apply the outflow condition to the i direction
+  // if (b.face != 0)
+  //   return;
+
+  const int face = b.face;
+  // Let us temporarily assume the discretization is 4th-order.
+  constexpr real cc[5] = {-25 / 12.0, 48 / 12.0, -36 / 12.0, 16 / 12.0, -3 / 12.0};
+  int sgn = 1;
+  const bool start_face = b.direction == -1;
+  if (!start_face) {
+    // The big number face
+    sgn = -1;
+  }
+  // Compute the spatial gradient in the normal direction
+  real dR_dn{0}, dRU_dn{0}, dRV_dn{0}, dRW_dn{0}, dRE_dn{0};
+  real dRY_dn[MAX_SPEC_NUMBER + MAX_PASSIVE_SCALAR_NUMBER]{};
+  if (face == 0) {
+    // x direction
+    for (int l = 0; l <= 4; ++l) {
+      const real c = sgn * cc[l];
+      dR_dn += c * cv(i + sgn * l, j, k, 0);
+      dRU_dn += c * cv(i + sgn * l, j, k, 1);
+      dRV_dn += c * cv(i + sgn * l, j, k, 2);
+      dRW_dn += c * cv(i + sgn * l, j, k, 3);
+      dRE_dn += c * cv(i + sgn * l, j, k, 4);
+      for (int l_scalar = 0; l_scalar < param->n_scalar; ++l_scalar) {
+        dRY_dn[l_scalar] += c * cv(i + sgn * l, j, k, 5 + l_scalar);
+      }
+    }
+  } else if (face == 1) {
+    // y direction
+    for (int l = 0; l <= 4; ++l) {
+      const real c = sgn * cc[l];
+      dR_dn += c * cv(i, j + sgn * l, k, 0);
+      dRU_dn += c * cv(i, j + sgn * l, k, 1);
+      dRV_dn += c * cv(i, j + sgn * l, k, 2);
+      dRW_dn += c * cv(i, j + sgn * l, k, 3);
+      dRE_dn += c * cv(i, j + sgn * l, k, 4);
+      for (int l_scalar = 0; l_scalar < param->n_scalar; ++l_scalar) {
+        dRY_dn[l_scalar] += c * cv(i, j + sgn * l, k, 5 + l_scalar);
+      }
+    }
+  } else if (face == 2) {
+    // z direction
+    for (int l = 0; l <= 4; ++l) {
+      const real c = sgn * cc[l];
+      dR_dn += c * cv(i, j, k + sgn * l, 0);
+      dRU_dn += c * cv(i, j, k + sgn * l, 1);
+      dRV_dn += c * cv(i, j, k + sgn * l, 2);
+      dRW_dn += c * cv(i, j, k + sgn * l, 3);
+      dRE_dn += c * cv(i, j, k + sgn * l, 4);
+      for (int l_scalar = 0; l_scalar < param->n_scalar; ++l_scalar) {
+        dRY_dn[l_scalar] += c * cv(i, j, k + sgn * l, 5 + l_scalar);
+      }
+    }
+  }
+
+
+  // Compute the contravariant speed Uk
+  auto &bv = zone->bv;
+  const real r = bv(i, j, k, 0), u = bv(i, j, k, 1), v = bv(i, j, k, 2), w = bv(i, j, k, 3), p = bv(i, j, k, 4);
+  real kx{zone->metric(i, j, k)(face + 1, 1)}, ky{zone->metric(i, j, k)(face + 1, 2)},
+      kz{zone->metric(i, j, k)(face + 1, 3)};
+  const real gradKInv = 1 / norm3d(kx, ky, kz);
+  kx *= gradKInv;
+  ky *= gradKInv;
+  kz *= gradKInv;
+  const real Uk = u * kx + v * ky + w * kz;
+  // Compute the speed of sound
+  real gam{gamma_air};
+  real cp_i[MAX_SPEC_NUMBER], h_i[MAX_SPEC_NUMBER];
+  const real T{bv(i, j, k, 5)};
+  if constexpr (mix_model != MixtureModel::Air) {
+    compute_enthalpy_and_cp(T, h_i, cp_i, param);
+    real cp{0}, cv_tot{0};
+    const auto &sv = zone->sv;
+    for (int l = 0; l < param->n_spec; ++l) {
+      cp += sv(i, j, k, l) * cp_i[l];
+      cv_tot += sv(i, j, k, l) * (cp_i[l] - param->gas_const[l]);
+    }
+    gam = cp / cv_tot;
+  }
+  const real c2 = gam * p / r, c = sqrt(c2), ic2 = 1 / c2;
+  const real cGradK = c / gradKInv;
+  real Lambda[3]{Uk - cGradK, Uk, Uk + cGradK};
+  // Apply the perfect non-reflecting condition. All strengths of incoming waves are set to 0.
+  // if (param->L1_wave == 0) // zero-reflection
+  if (start_face) {
+    Lambda[0] = min(Lambda[0], 0.0);
+    Lambda[1] = min(Lambda[1], 0.0);
+    Lambda[2] = min(Lambda[2], 0.0);
+  } else {
+    Lambda[0] = max(Lambda[0], 0.0);
+    Lambda[1] = max(Lambda[1], 0.0);
+    Lambda[2] = max(Lambda[2], 0.0);
+  }
+
+  // Compute the left eigenmatrix EL
+  const real ek = 0.5 * (u * u + v * v + w * w);
+  const real gm1 = gam - 1;
+  const real alpha = gm1 * ek;
+  real al_dRYdn{0}, alphaL[MAX_SPEC_NUMBER]{};
+  for (int l = 0; l < param->n_spec; ++l) {
+    alphaL[l] = gam * param->gas_const[l] * T - gm1 * h_i[l];
+    al_dRYdn += alphaL[l] * dRY_dn[l];
+  }
+
+  real L[5 + MAX_SPEC_NUMBER + MAX_PASSIVE_SCALAR_NUMBER]{};
+  // Compute the Ls = \Lambda * EL * dQ/d\xi
+  L[0] = Lambda[0] * 0.5 * ic2 * ((alpha + Uk * c) * dR_dn
+                                  - (gm1 * u + kx * c) * dRU_dn
+                                  - (gm1 * v + ky * c) * dRV_dn
+                                  - (gm1 * w + kz * c) * dRW_dn
+                                  + gm1 * dRE_dn
+                                  + al_dRYdn);
+  real tmp = gm1 * kx;
+  L[1] = Lambda[1] * ic2 * ((kx * (c2 - alpha) - c * (kz * v - ky * w)) * dR_dn
+                            + (tmp * u) * dRU_dn
+                            + (tmp * v + kz * c) * dRV_dn
+                            + (tmp * w - ky * c) * dRW_dn
+                            - tmp * dRE_dn
+                            - kx * al_dRYdn);
+  tmp = gm1 * ky;
+  L[2] = Lambda[1] * ic2 * ((ky * (c2 - alpha) - c * (kx * w - kz * u)) * dR_dn
+                            + (tmp * u - kz * c) * dRU_dn
+                            + (tmp * v) * dRV_dn
+                            + (tmp * w + kx * c) * dRW_dn
+                            - tmp * dRE_dn
+                            - ky * al_dRYdn);
+  tmp = gm1 * kz;
+  L[3] = Lambda[1] * ic2 * ((kz * (c2 - alpha) - c * (ky * u - kx * v)) * dR_dn
+                            + (tmp * u + ky * c) * dRU_dn
+                            + (tmp * v - kx * c) * dRV_dn
+                            + (tmp * w) * dRW_dn
+                            - tmp * dRE_dn
+                            - kz * al_dRYdn);
+  L[4] = Lambda[2] * 0.5 * ic2 * ((alpha - Uk * c) * dR_dn
+                                  - (gm1 * u - kx * c) * dRU_dn
+                                  - (gm1 * v - ky * c) * dRV_dn
+                                  - (gm1 * w - kz * c) * dRW_dn
+                                  + gm1 * dRE_dn
+                                  + al_dRYdn);
+  for (int l = 0; l < param->n_spec; ++l) {
+    L[5 + l] = Lambda[1] * (dRY_dn[l] - zone->sv(i, j, k, l) * dR_dn);
+  }
+
+  real d[5]{};
+  const real h = (cv(i, j, k, 4) + p) / r, iGm1 = 1 / gm1;
+  tmp = L[0] + kx * L[1] + ky * L[2] + kz * L[3] + L[4];
+  d[0] = tmp;
+  d[1] = u * tmp + c * (kx * (L[4] - L[0]) - kz * L[2] + ky * L[3]);
+  d[2] = v * tmp + c * (ky * (L[4] - L[0]) + kz * L[1] - kx * L[3]);
+  d[3] = w * tmp + c * (kz * (L[4] - L[0]) - ky * L[1] + kx * L[2]);
+  d[4] = h * tmp + c * (Uk * (L[4] - L[0])
+                        + (kz * v - ky * w - kx * c * iGm1) * L[1]
+                        + (kx * w - kz * u - ky * c * iGm1) * L[2]
+                        + (ky * u - kx * v - kz * c * iGm1) * L[3]);
+  real add{0};
+  for (int l = 0; l < param->n_spec; ++l) {
+    d[5 + l] = L[5 + l] + zone->sv(i, j, k, l) * tmp;
+    add += alphaL[l] * L[5 + l];
+  }
+  d[4] -= add * iGm1;
+
+  const real minusJacInv = -zone->jac(i, j, k);
+  auto &rhs = zone->dq;
+  rhs(i, j, k, 0) += minusJacInv * d[0];
+  rhs(i, j, k, 1) += minusJacInv * d[1];
+  rhs(i, j, k, 2) += minusJacInv * d[2];
+  rhs(i, j, k, 3) += minusJacInv * d[3];
+  rhs(i, j, k, 4) += minusJacInv * d[4];
+  for (int l = 0; l < param->n_spec; ++l) {
+    rhs(i, j, k, 5 + l) += minusJacInv * d[5 + l];
+  }
 }
 
 template<MixtureModel mix_model> void DBoundCond::nonReflectingBoundary(const Block &block, Field &field,
@@ -1235,7 +1446,7 @@ template<MixtureModel mix_model> void DBoundCond::nonReflectingBoundary(const Bl
         bpg[j] = (n_point - 1) / tpb[j] + 1;
       }
       dim3 TPB{tpb[0], tpb[1], tpb[2]}, BPG{bpg[0], bpg[1], bpg[2]};
-      apply_outflow_nr<mix_model> <<<BPG, TPB>>>(field.d_ptr, i_face, param);
+      apply_outflow_nr_conserv<mix_model> <<<BPG, TPB>>>(field.d_ptr, i_face, param);
     }
   }
 }
