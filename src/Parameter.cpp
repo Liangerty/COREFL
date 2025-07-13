@@ -228,14 +228,22 @@ void cfd::Parameter::deduce_known_info() {
       // WENO reconstructions
     }
     if (inviscid_scheme == 51 || inviscid_scheme == 52) {
-      hybrid_inviscid_scheme = "UD5+WENO5";
-      update_parameter("hybrid_inviscid_scheme", hybrid_inviscid_scheme);
+      if (get_real("shockSensor_threshold") > 1e-10) {
+        // If the shock sensor is set to 0 or negative value, the WENO7 is used throughout
+        // If not, the hybrid scheme is used
+        hybrid_inviscid_scheme = "UD5+WENO5";
+        update_parameter("hybrid_inviscid_scheme", hybrid_inviscid_scheme);
+      }
       inviscid_type = 3;
       ngg = 3;
     }
     if (inviscid_scheme == 71 || inviscid_scheme == 72) {
-      hybrid_inviscid_scheme = "UD7+WENO7";
-      update_parameter("hybrid_inviscid_scheme", hybrid_inviscid_scheme);
+      if (get_real("shockSensor_threshold") > 1e-10) {
+        // If the shock sensor is set to 0 or negative value, the WENO7 is used throughout
+        // If not, the hybrid scheme is used
+        hybrid_inviscid_scheme = "UD7+WENO7";
+        update_parameter("hybrid_inviscid_scheme", hybrid_inviscid_scheme);
+      }
       inviscid_type = 3;
       ngg = 4;
     }
@@ -367,7 +375,7 @@ void cfd::Parameter::setup_default_settings() {
   bool_parameters["gradPInDiffusionFlux"] = false;
   string_parameters["hybrid_inviscid_scheme"] = "NO";
   int_parameters["shock_sensor"] = 0;
-  real_parameters["shockSensor_threshold"] = 0.1;
+  real_parameters["shockSensor_threshold"] = 0;
   real_parameters["shockSensor_epsilon"] = -1;
 
   // When WENO is used, pp limiter is a choice

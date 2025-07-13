@@ -748,9 +748,8 @@ cfd::Mesh::Mesh(Parameter &parameter) :
   const auto bcs = parameter.get_string_array("boundary_conditions");
   int periodic_label{-100};
   for (auto &n: bcs) {
-    const auto st = parameter.get_struct(n);
-    std::string type = std::get<std::string>(st.at("type"));
-    if (type == "periodic")
+    const auto& st = parameter.get_struct(n);
+    if (auto type = std::get<std::string>(st.at("type")); type == "periodic")
       periodic_label = std::get<int>(st.at("label"));
   }
   parameter.update_parameter("periodic_label", periodic_label);

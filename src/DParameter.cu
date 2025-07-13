@@ -43,11 +43,11 @@ spongeZPlusEnd{parameter.get_real("spongeZPlusEnd")}*/ {
     dt = parameter.get_real("dt");
   }
 
-  if (parameter.get_string("hybrid_inviscid_scheme") != "NO") {
+  // if (parameter.get_string("hybrid_inviscid_scheme") != "NO") {
     shock_sensor = parameter.get_int("shock_sensor");
     sensor_eps = parameter.get_real("shockSensor_epsilon");
     sensor_threshold = parameter.get_real("shockSensor_threshold");
-  }
+  // }
 
   const auto &spec = species;
   n_spec = spec.n_spec;

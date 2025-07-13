@@ -670,7 +670,7 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
     for (int i_jet = 0; i_jet < param->n_jet; i_jet++) {
       const real xc = param->xc_jet[i_jet];
       const real zc = param->zc_jet[i_jet];
-      if (x > xc -r - 1e-6 && x < xc + r + 1e-6 && z > zc - r - 1e-6 && z < zc + r + 1e-6) {
+      if (x > xc - r - 1e-6 && x < xc + r + 1e-6 && z > zc - r - 1e-6 && z < zc + r + 1e-6) {
         jet_label = i_jet;
         // printf("(%d,%d,%d),x=%f,z=%f,xc=%f,zc=%f,r=%f,jet_label=%d\n", i, j, k, x, z, xc, zc, r, jet_label);
         break;
@@ -942,12 +942,12 @@ __global__ void apply_periodic(DZone *zone, DParameter *param, int i_face) {
   }
 
   for (int l = 0; l < 6; ++l) {
-    const auto ave = 0.5 * (bv(i,j,k,l)+bv(idx_other[0], idx_other[1], idx_other[2], l));
+    const auto ave = 0.5 * (bv(i, j, k, l) + bv(idx_other[0], idx_other[1], idx_other[2], l));
     bv(i, j, k, l) = ave;
     bv(idx_other[0], idx_other[1], idx_other[2], l) = ave;
   }
   for (int l = 0; l < param->n_scalar; ++l) {
-    const auto ave = 0.5 * (sv(i,j,k,l)+sv(idx_other[0], idx_other[1], idx_other[2], l));
+    const auto ave = 0.5 * (sv(i, j, k, l) + sv(idx_other[0], idx_other[1], idx_other[2], l));
     sv(i, j, k, l) = ave;
     sv(idx_other[0], idx_other[1], idx_other[2], l) = ave;
   }

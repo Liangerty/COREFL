@@ -132,11 +132,15 @@ compute_convective_term_weno_x(DZone *zone, DParameter *param) {
 
   // reconstruct the half-point left/right primitive variables with the chosen reconstruction method.
   bool if_shock = false;
-  for (int ii = -ngg + 1; ii <= ngg; ++ii) {
-    if (zone->shock_sensor(i + ii, j, k) > param->sensor_threshold) {
-      if_shock = true;
-      break;
+  if (param->sensor_threshold > 1e-10) {
+    for (int ii = -ngg + 1; ii <= ngg; ++ii) {
+      if (zone->shock_sensor(i + ii, j, k) > param->sensor_threshold) {
+        if_shock = true;
+        break;
+      }
     }
+  } else {
+    if_shock = true;
   }
 
   if (const auto sch = param->inviscid_scheme; sch == 51 || sch == 71) {
@@ -289,12 +293,17 @@ compute_convective_term_weno_y(DZone *zone, DParameter *param) {
   __syncthreads();
 
   bool if_shock = false;
-  for (int ii = -ngg + 1; ii <= ngg; ++ii) {
-    if (zone->shock_sensor(i, j + ii, k) > param->sensor_threshold) {
-      if_shock = true;
-      break;
+  if (param->sensor_threshold > 1e-10) {
+    for (int ii = -ngg + 1; ii <= ngg; ++ii) {
+      if (zone->shock_sensor(i, j + ii, k) > param->sensor_threshold) {
+        if_shock = true;
+        break;
+      }
     }
+  } else {
+    if_shock = true;
   }
+
   // reconstruct the half-point left/right primitive variables with the chosen reconstruction method.
   if (const auto sch = param->inviscid_scheme; sch == 51 || sch == 71) {
     compute_weno_flux_cp(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded, f_1st,
@@ -446,12 +455,17 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
   __syncthreads();
 
   bool if_shock = false;
-  for (int ii = -ngg + 1; ii <= ngg; ++ii) {
-    if (zone->shock_sensor(i, j, k + ii) > param->sensor_threshold) {
-      if_shock = true;
-      break;
+  if (param->sensor_threshold > 1e-10) {
+    for (int ii = -ngg + 1; ii <= ngg; ++ii) {
+      if (zone->shock_sensor(i, j, k + ii) > param->sensor_threshold) {
+        if_shock = true;
+        break;
+      }
     }
+  } else {
+    if_shock = true;
   }
+
   // reconstruct the half-point left/right primitive variables with the chosen reconstruction method.
   if (const auto sch = param->inviscid_scheme; sch == 51 || sch == 71) {
     compute_weno_flux_cp(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded, f_1st,
@@ -630,7 +644,7 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
   ky /= gradK;
   kz /= gradK;
   const real Uk_bar{kx * um + ky * vm + kz * wm};
-  const real alpha{gm1 * ekm};
+  const real alpha{gm1 *  ekm};
 
   // The matrix we consider here does not contain the turbulent variables, such as tke and omega.
   const real cm2_inv{1.0 / (cm * cm)};
