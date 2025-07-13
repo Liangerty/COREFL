@@ -95,6 +95,11 @@ __global__ void cfd::local_time_step(DZone *zone, DParameter *param) {
     //          D[5], D[6], D[7], D[8]);
     // }
   }
+  auto &vis_spec_rad = zone->visc_spectr_rad(i, j, k);
+  vis_spec_rad[0] = grad_xi * grad_xi * max_diffuse_vel;
+  vis_spec_rad[1] = grad_eta * grad_eta * max_diffuse_vel;
+  if (dim == 3)
+    vis_spec_rad[2] = grad_zeta * grad_zeta * max_diffuse_vel;
 
   max_spectral_radius = max(max_spectral_radius, max_length * max_length * max_diffuse_vel);
   real dt = param->cfl / max_spectral_radius;
