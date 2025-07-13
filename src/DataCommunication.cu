@@ -77,6 +77,16 @@ __global__ void cfd::setup_data_to_be_sent(const DZone *zone, int i_face, real *
         ++bias;
       }
     }
+  } else if (task == 2) {
+    const int ngg{zone->ngg};
+    int bias = (ngg + 1) * (n[f.loop_order[1]] * f.n_point[f.loop_order[2]] + n[f.loop_order[2]]);
+    data[bias] = zone->shock_sensor(idx[0], idx[1], idx[2]);
+    ++bias;
+    for (int ig = 0; ig < ngg; ++ig) {
+      idx[f.face] -= f.direction;
+      data[bias] = zone->shock_sensor(idx[0], idx[1], idx[2]);
+      ++bias;
+    }
   }
 }
 
@@ -115,6 +125,16 @@ __global__ void cfd::assign_data_received(DZone *zone, int i_face, const real *d
         zone->hv(idx[0], idx[1], idx[2], l) = data[bias];
         ++bias;
       }
+    }
+  } else if (task == 2) {
+    const int ngg{zone->ngg};
+    int bias = (ngg + 1) * (n[f.loop_order[1]] * f.n_point[f.loop_order[2]] + n[f.loop_order[2]]);
+    zone->shock_sensor(idx[0], idx[1], idx[2]) = max(data[bias], zone->shock_sensor(idx[0], idx[1], idx[2]));
+    ++bias;
+    for (int ig = 0; ig < ngg; ++ig) {
+      idx[f.face] += f.direction;
+      zone->shock_sensor(idx[0], idx[1], idx[2]) = data[bias];
+      ++bias;
     }
   }
 }
@@ -210,6 +230,16 @@ __global__ void cfd::inner_exchange(DZone *zone, DZone *tar_zone, int i_face, DP
         zone->hv(idx[0], idx[1], idx[2], l) = tar_zone->hv(idx_tar[0], idx_tar[1], idx_tar[2], l);
       }
     }
+  } else if (task == 2) {
+    // Exchange the shock sensor
+    if (idx[f.face] == face_dir) {
+      const real val = max(zone->shock_sensor(idx[0], idx[1], idx[2]),
+                           tar_zone->shock_sensor(idx_tar[0], idx_tar[1], idx_tar[2]));
+      zone->shock_sensor(idx[0], idx[1], idx[2]) = val;
+      tar_zone->shock_sensor(idx_tar[0], idx_tar[1], idx_tar[2]) = val;
+    } else {
+      zone->shock_sensor(idx[0], idx[1], idx[2]) = tar_zone->shock_sensor(idx_tar[0], idx_tar[1], idx_tar[2]);
+    }
   }
 }
 
@@ -227,6 +257,9 @@ void cfd::parallel_exchange(const Mesh &mesh, std::vector<Field> &field, const P
   switch (task) {
     case 1:
       n_trans = (parameter.get_int("n_var") - 1) * 3; // The three viscous fluxes
+      break;
+    case 2:
+      n_trans = 1;
       break;
     default:
       n_trans = 0;
@@ -371,6 +404,13 @@ __global__ void cfd::periodic_exchange(DZone *zone, DParameter *param, int task,
         gv(gi, gj, gk, l) = gv(ii, ij, ik, l);
         hv(gi, gj, gk, l) = hv(ii, ij, ik, l);
       }
+    }
+  } else if (task == 2) {
+    auto &ss = zone->shock_sensor;
+    for (int g = 0; g <= ngg; ++g) {
+      const int gi{i + g * dir[0]}, gj{j + g * dir[1]}, gk{k + g * dir[2]};
+      const int ii{idx_other[0] + g * dir[0]}, ij{idx_other[1] + g * dir[1]}, ik{idx_other[2] + g * dir[2]};
+      ss(gi, gj, gk) = ss(ii, ij, ik);
     }
   }
 }

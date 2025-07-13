@@ -133,6 +133,9 @@ void RK3(Driver<mix_model> &driver) {
       for (auto b = 0; b < n_block; ++b) {
         compute_shock_sensor<<<bpg[b], tpb>>>(field[b].d_ptr, param);
       }
+      cudaDeviceSynchronize();
+      // After computing the values on the nodes, we exchange the shock sensors to acquire values on ghost grids.
+      // exchange_value(mesh, field, parameter, param, 2);
     }
 
     if (!fixed_time_step) {
