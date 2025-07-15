@@ -1253,7 +1253,8 @@ __global__ void apply_outflow_nr_conserv(DZone *zone, int i_face, const DParamet
 
   const int face = b.face;
   // Let us temporarily assume the discretization is 4th-order.
-  constexpr real cc[5] = {-25 / 12.0, 48 / 12.0, -36 / 12.0, 16 / 12.0, -3 / 12.0};
+  // constexpr real cc[5] = {-25 / 12.0, 48 / 12.0, -36 / 12.0, 16 / 12.0, -3 / 12.0};
+  constexpr real cc[3] = {-1.5, 2, -0.5};
   int sgn = 1;
   const bool start_face = b.direction == -1;
   if (!start_face) {
@@ -1265,7 +1266,7 @@ __global__ void apply_outflow_nr_conserv(DZone *zone, int i_face, const DParamet
   real dRY_dn[MAX_SPEC_NUMBER + MAX_PASSIVE_SCALAR_NUMBER]{};
   if (face == 0) {
     // x direction
-    for (int l = 0; l <= 4; ++l) {
+    for (int l = 0; l <= 2; ++l) {
       const real c = sgn * cc[l];
       dR_dn += c * cv(i + sgn * l, j, k, 0);
       dRU_dn += c * cv(i + sgn * l, j, k, 1);
@@ -1278,7 +1279,7 @@ __global__ void apply_outflow_nr_conserv(DZone *zone, int i_face, const DParamet
     }
   } else if (face == 1) {
     // y direction
-    for (int l = 0; l <= 4; ++l) {
+    for (int l = 0; l <= 2; ++l) {
       const real c = sgn * cc[l];
       dR_dn += c * cv(i, j + sgn * l, k, 0);
       dRU_dn += c * cv(i, j + sgn * l, k, 1);
@@ -1291,7 +1292,7 @@ __global__ void apply_outflow_nr_conserv(DZone *zone, int i_face, const DParamet
     }
   } else if (face == 2) {
     // z direction
-    for (int l = 0; l <= 4; ++l) {
+    for (int l = 0; l <= 2; ++l) {
       const real c = sgn * cc[l];
       dR_dn += c * cv(i, j, k + sgn * l, 0);
       dRU_dn += c * cv(i, j, k + sgn * l, 1);
@@ -1421,6 +1422,55 @@ __global__ void apply_outflow_nr_conserv(DZone *zone, int i_face, const DParamet
   for (int l = 0; l < param->n_spec; ++l) {
     rhs(i, j, k, 5 + l) += minusJacInv * d[5 + l];
   }
+
+  // real dKxDivJac_dK = 0, dKyDivJac_dK = 0, dKzDivJac_dK = 0;
+  // const auto &metric = zone->metric;
+  // const auto &jac = zone->jac;
+  // if (face == 0) {
+  //   dKxDivJac_dK = sgn * (cc[0] * metric(i, j, k)(1, 1) / jac(i, j, k)
+  //                         + cc[1] * metric(i + sgn, j, k)(1, 1) / jac(i + sgn, j, k)
+  //                         + cc[2] * metric(i + 2 * sgn, j, k)(1, 1) / jac(i + 2 * sgn, j, k));
+  //   dKyDivJac_dK = sgn * (cc[0] * metric(i, j, k)(1, 2) / jac(i, j, k)
+  //                         + cc[1] * metric(i + sgn, j, k)(1, 2) / jac(i + sgn, j, k)
+  //                         + cc[2] * metric(i + 2 * sgn, j, k)(1, 2) / jac(i + 2 * sgn, j, k));
+  //   dKzDivJac_dK = sgn * (cc[0] * metric(i, j, k)(1, 3) / jac(i, j, k)
+  //                         + cc[1] * metric(i + sgn, j, k)(1, 3) / jac(i + sgn, j, k)
+  //                         + cc[2] * metric(i + 2 * sgn, j, k)(1, 3) / jac(i + 2 * sgn, j, k));
+  // } else if (face == 1) {
+  //   dKxDivJac_dK = sgn * (cc[0] * metric(i, j, k)(2, 1) / jac(i, j, k)
+  //                         + cc[1] * metric(i, j + sgn, k)(2, 1) / jac(i, j + sgn, k)
+  //                         + cc[2] * metric(i, j + 2 * sgn, k)(2, 1) / jac(i, j + 2 * sgn, k));
+  //   dKyDivJac_dK = sgn * (cc[0] * metric(i, j, k)(2, 2) / jac(i, j, k)
+  //                         + cc[1] * metric(i, j + sgn, k)(2, 2) / jac(i, j + sgn, k)
+  //                         + cc[2] * metric(i, j + 2 * sgn, k)(2, 2) / jac(i, j + 2 * sgn, k));
+  //   dKzDivJac_dK = sgn * (cc[0] * metric(i, j, k)(2, 3) / jac(i, j, k)
+  //                         + cc[1] * metric(i, j + sgn, k)(2, 3) / jac(i, j + sgn, k)
+  //                         + cc[2] * metric(i, j + 2 * sgn, k)(2, 3) / jac(i, j + 2 * sgn, k));
+  // } else if (face == 2) {
+  //   dKxDivJac_dK = sgn * (cc[0] * metric(i, j, k)(3, 1) / jac(i, j, k)
+  //                         + cc[1] * metric(i, j, k + sgn)(3, 1) / jac(i, j, k + sgn)
+  //                         + cc[2] * metric(i, j, k + 2 * sgn)(3, 1) / jac(i, j, k + 2 * sgn));
+  //   dKyDivJac_dK = sgn * (cc[0] * metric(i, j, k)(3, 2) / jac(i, j, k))
+  //                  + cc[1] * metric(i, j, k + sgn)(3, 2) / jac(i, j, k + sgn)
+  //                  + cc[2] * metric(i, j, k + 2 * sgn)(3, 2) / jac(i, j, k + 2 * sgn);
+  //   dKzDivJac_dK = sgn * (cc[0] * metric(i, j, k)(3, 3) / jac(i, j, k)
+  //                         + cc[1] * metric(i, j, k + sgn)(3, 3) / jac(i, j, k + sgn)
+  //                         + cc[2] * metric(i, j, k + 2 * sgn)(3, 3) / jac(i, j, k + 2 * sgn));
+  // }
+  //
+  // rhs(i, j, k, 0) += minusJacInv * (r * u * dKxDivJac_dK + r * v * dKyDivJac_dK + r * w * dKzDivJac_dK);
+  // rhs(i, j, k, 1) += minusJacInv * ((r * u * u + p) * dKxDivJac_dK + r * u * v * dKyDivJac_dK + r * u * w *
+  //                                   dKzDivJac_dK);
+  // rhs(i, j, k, 2) += minusJacInv * (r * v * u * dKxDivJac_dK + (r * v * v + p) * dKyDivJac_dK + r * v * w *
+  //                                   dKzDivJac_dK);
+  // rhs(i, j, k, 3) += minusJacInv * (r * w * u * dKxDivJac_dK + r * w * v * dKyDivJac_dK + (r * w * w + p) *
+  //                                   dKzDivJac_dK);
+  // const real rH = cv(i, j, k, 4) + p;
+  // rhs(i, j, k, 4) += minusJacInv * (rH * u * dKxDivJac_dK + rH * v * dKyDivJac_dK + rH * w * dKzDivJac_dK);
+  // for (int l = 0; l < param->n_spec; ++l) {
+  //   rhs(i, j, k, 5 + l) += minusJacInv * (cv(i, j, k, l + 5) * u * dKxDivJac_dK + cv(i, j, k, l + 5) * v * dKyDivJac_dK
+  //                                         + cv(i, j, k, l + 5) * w * dKzDivJac_dK);
+  // }
 }
 
 template<MixtureModel mix_model> void DBoundCond::nonReflectingBoundary(const Block &block, Field &field,
