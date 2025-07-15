@@ -43,7 +43,7 @@ __device__ void compute_flux(const real *Q, const DParameter *param, const real 
 
 template<MixtureModel mix_model> __device__ void compute_weno_flux_ch(const real *cv, DParameter *param, int tid,
   const real *metric, const real *jac, real *fc, int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add,
-  [[maybe_unused]] real *f_1st, bool if_shock);
+  [[maybe_unused]] real *f_1st, bool if_shock, int weno_scheme_i, int Ip, int Im);
 
 __device__ void compute_weno_flux_cp(const real *cv, DParameter *param, int tid, const real *metric, const real *jac,
   real *fc, int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add, real *f_1st, bool if_shock);
@@ -51,9 +51,11 @@ __device__ void compute_weno_flux_cp(const real *cv, DParameter *param, int tid,
 __device__ void positive_preserving_limiter(const real *f_1st, int n_var, int tid, real *fc, const DParameter *param,
   int i_shared, real dt, int idx_in_mesh, int max_extent, const real *cv, const real *jac);
 
-__device__ real WENO5(const real *vp, const real *vm, real eps);
+__device__ real WENO5(const real *vp, const real *vm, real eps, bool if_shock);
 
-__device__ real WENO7(const real *vp, const real *vm, real eps, bool if_shock);
+__device__ real WENO7(const real *vp, const real *vm, real eps, bool if_shock, int Ip, int Im);
+
+__device__ real WENO(const real *vp, const real *vm, real eps, bool if_shock, int weno_scheme_i, int Ip, int Im);
 
 __device__ real WENO5_new(const real *vp, const real *vm, real eps);
 
