@@ -1387,7 +1387,7 @@ compute_weno_flux_cp(const real *cv, DParameter *param, int tid, const real *met
       vm[3] = Fm[(i_shared + 2) * n_var + l];
       vm[4] = Fm[(i_shared + 3) * n_var + l];
 
-      fci[l] = WENO5(vp, vm, eps_here);
+      fci[l] = WENO5(vp, vm, eps_here, if_shock);
     } else if (param->inviscid_scheme == 71) {
       real vp[7], vm[7];
       vp[0] = Fp[(i_shared - 3) * n_var + l];
@@ -1405,7 +1405,7 @@ compute_weno_flux_cp(const real *cv, DParameter *param, int tid, const real *met
       vm[5] = Fm[(i_shared + 3) * n_var + l];
       vm[6] = Fm[(i_shared + 4) * n_var + l];
 
-      fci[l] = WENO7(vp, vm, eps_here, if_shock);
+      fci[l] = WENO7(vp, vm, eps_here, if_shock, 0, 0);
     }
   }
 }
@@ -1546,10 +1546,14 @@ __device__ real WENO7(const real *vp, const real *vm, real eps, bool if_shock, i
     // real a1{c1 + c1 * tau7sqr / ((eps + beta1) * (eps + beta1))};
     // real a2{c2 + c2 * tau7sqr / ((eps + beta2) * (eps + beta2))};
     // real a3{c3 + c3 * tau7sqr / ((eps + beta3) * (eps + beta3))};
-    real a0 = Ip < 1 ? c0 / ((eps + beta0) * (eps + beta0)) : 0;
-    real a1 = Ip < 2 ? c1 / ((eps + beta1) * (eps + beta1)) : 0;
-    real a2 = (Ip < 3 && Im < 3) ? c2 / ((eps + beta2) * (eps + beta2)) : 0;
-    real a3 = Im < 2 ? c3 / ((eps + beta3) * (eps + beta3)) : 0;
+    real a0 = c0 / ((eps + beta0) * (eps + beta0));
+    real a1 = c1 / ((eps + beta1) * (eps + beta1));
+    real a2 = c2 / ((eps + beta2) * (eps + beta2));
+    real a3 = c3 / ((eps + beta3) * (eps + beta3));
+    // real a0 = Ip < 1 ? c0 / ((eps + beta0) * (eps + beta0)) : 0;
+    // real a1 = Ip < 2 ? c1 / ((eps + beta1) * (eps + beta1)) : 0;
+    // real a2 = (Ip < 3 && Im < 3) ? c2 / ((eps + beta2) * (eps + beta2)) : 0;
+    // real a3 = Im < 2 ? c3 / ((eps + beta3) * (eps + beta3)) : 0;
 
     constexpr real one12th{1.0 / 12};
     real v0{-3 * vp[0] + 13 * vp[1] - 23 * vp[2] + 25 * vp[3]};
@@ -1583,10 +1587,14 @@ __device__ real WENO7(const real *vp, const real *vm, real eps, bool if_shock, i
     // a1 = c1 + c1 * tau7sqr / ((eps + beta1) * (eps + beta1));
     // a2 = c2 + c2 * tau7sqr / ((eps + beta2) * (eps + beta2));
     // a3 = c3 + c3 * tau7sqr / ((eps + beta3) * (eps + beta3));
-    a0 = Im < 1 ? c0 / ((eps + beta0) * (eps + beta0)) : 0;
-    a1 = Im < 2 ? c1 / ((eps + beta1) * (eps + beta1)) : 0;
-    a2 = (Ip < 3 && Im < 3) ? c2 / ((eps + beta2) * (eps + beta2)) : 0;
-    a3 = Ip < 2 ? c3 / ((eps + beta3) * (eps + beta3)) : 0;
+    a0 = c0 / ((eps + beta0) * (eps + beta0));
+    a1 = c1 / ((eps + beta1) * (eps + beta1));
+    a2 = c2 / ((eps + beta2) * (eps + beta2));
+    a3 = c3 / ((eps + beta3) * (eps + beta3));
+    // a0 = Im < 1 ? c0 / ((eps + beta0) * (eps + beta0)) : 0;
+    // a1 = Im < 2 ? c1 / ((eps + beta1) * (eps + beta1)) : 0;
+    // a2 = (Ip < 3 && Im < 3) ? c2 / ((eps + beta2) * (eps + beta2)) : 0;
+    // a3 = Ip < 2 ? c3 / ((eps + beta3) * (eps + beta3)) : 0;
 
     v0 = -3 * vm[6] + 13 * vm[5] - 23 * vm[4] + 25 * vm[3];
     v1 = vm[5] - 5 * vm[4] + 13 * vm[3] + 3 * vm[2];
@@ -1599,34 +1607,34 @@ __device__ real WENO7(const real *vp, const real *vm, real eps, bool if_shock, i
   constexpr real c0{1.0 / 35}, c1{12.0 / 35}, c2{18.0 / 35}, c3{4.0 / 35};
   constexpr real one12th{1.0 / 12};
   real v3{0}, v2{0}, v1{0}, v0{0};
-  if (Im < 2) {
+  // if (Im < 2) {
     v3 = 3 * vp[3] + 13 * vp[4] - 5 * vp[5] + vp[6];
-  }
-  if (Ip < 3 && Im < 3) {
+  // }
+  // if (Ip < 3 && Im < 3) {
     v2 = -vp[2] + 7 * vp[3] + 7 * vp[4] - vp[5];
-  }
-  if (Ip < 2) {
+  // }
+  // if (Ip < 2) {
     v1 = vp[1] - 5 * vp[2] + 13 * vp[3] + 3 * vp[4];
-  }
-  if (Ip < 1) {
+  // }
+  // if (Ip < 1) {
     v0 = -3 * vp[0] + 13 * vp[1] - 23 * vp[2] + 25 * vp[3];
-  }
+  // }
   const real fPlus{one12th * (c0 * v0 + c1 * v1 + c2 * v2 + c3 * v3)};
 
   // Minus part
-  v0 = 0, v1 = 0, v2 = 0, v3 = 0;
-  if (Im < 1) {
+  // v0 = 0, v1 = 0, v2 = 0, v3 = 0;
+  // if (Im < 1) {
     v0 = -3 * vm[6] + 13 * vm[5] - 23 * vm[4] + 25 * vm[3];
-  }
-  if (Im < 2) {
+  // }
+  // if (Im < 2) {
     v1 = vm[5] - 5 * vm[4] + 13 * vm[3] + 3 * vm[2];
-  }
-  if (Im < 3 && Ip < 3) {
+  // }
+  // if (Im < 3 && Ip < 3) {
     v2 = -vm[4] + 7 * vm[3] + 7 * vm[2] - vm[1];
-  }
-  if (Ip < 2) {
+  // }
+  // if (Ip < 2) {
     v3 = 3 * vm[3] + 13 * vm[2] - 5 * vm[1] + vm[0];
-  }
+  // }
   const real fMinus{one12th * (c0 * v0 + c1 * v1 + c2 * v2 + c3 * v3)};
 
   return fPlus + fMinus;
