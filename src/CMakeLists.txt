@@ -18,7 +18,7 @@ list(APPEND src_file
     Parallel.h Parallel.cpp Parameter.h Parameter.cpp PostProcess.h PostProcess.cu ParameterSet.cpp ParameterSet.h
     Reconstruction.cu Reconstruction.cuh Residual.cu Residual.cuh RK.cuh RiemannSolver.cuh
     SchemeSelector.cuh SteadySim.cuh Simulate.cuh
-    SpongeLayer.cu SpongeLayer.cuh SinglePointStat.cu SinglePointStat.cuh
+    SpongeLayer.cu SpongeLayer.cuh SinglePointStat.cu SinglePointStat.cuh StrangSplitting.cuh StrangSplitting.cu
     Transport.cuh Transport.cu TimeAdvanceFunc.cu TimeAdvanceFunc.cuh Thermo.cuh Thermo.cu TurbMethod.hpp
     DigitalFilter.cu DigitalFilter.cuh
     UDIO.h UDIO.cu

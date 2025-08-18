@@ -13,6 +13,8 @@ __global__ void store_last_step(DZone *zone);
 template<MixtureModel mixture>
 __global__ void local_time_step(DZone *zone, DParameter *param);
 
+__global__ void local_time_step_without_reaction(DZone *zone, DParameter *param);
+
 __global__ void compute_square_of_dbv(DZone *zone);
 
 real global_time_step(const Mesh &mesh, const Parameter &parameter, const std::vector<Field> &field);
@@ -93,6 +95,11 @@ __global__ void cfd::local_time_step(DZone *zone, DParameter *param) {
     //          D[5], D[6], D[7], D[8]);
     // }
   }
+  auto &vis_spec_rad = zone->visc_spectr_rad(i, j, k);
+  vis_spec_rad[0] = grad_xi * grad_xi * max_diffuse_vel;
+  vis_spec_rad[1] = grad_eta * grad_eta * max_diffuse_vel;
+  if (dim == 3)
+    vis_spec_rad[2] = grad_zeta * grad_zeta * max_diffuse_vel;
 
   max_spectral_radius = max(max_spectral_radius, max_length * max_length * max_diffuse_vel);
   real dt = param->cfl / max_spectral_radius;
@@ -144,7 +151,6 @@ __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
   if (i >= mx || j >= my || k >= mz) return;
 
   auto &bv = zone->bv;
-  auto &sv = zone->sv;
 
   // Record the computed values. First for flow variables and mass fractions
   constexpr int n_flow_var = 5;
@@ -154,7 +160,6 @@ __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
   var[2] = bv(i, j, k, 2);
   var[3] = bv(i, j, k, 3);
   var[4] = bv(i, j, k, 4);
-  const int n_spec{param->n_spec};
 
   // Find the unphysical values and limit them
   const auto ll = param->limit_flow.ll;
@@ -231,12 +236,11 @@ __global__ void cfd::limit_flow(DZone *zone, DParameter *param) {
     if constexpr (mixture == MixtureModel::Air) {
       bv(i, j, k, 5) = updated_var[4] * mw_air / (updated_var[0] * R_u);
     } else {
-      real mw = 0;
-      for (int l = 0; l < n_spec; ++l) {
-        mw += sv(i, j, k, l) / param->mw[l];
+      real R = 0;
+      for (int l = 0; l < param->n_spec; ++l) {
+        R += zone->sv(i, j, k, l) * param->gas_const[l];
       }
-      mw = 1 / mw;
-      bv(i, j, k, 5) = updated_var[4] * mw / (updated_var[0] * R_u);
+      bv(i, j, k, 5) = updated_var[4] / (updated_var[0] * R);
     }
 
     compute_cv_from_bv_1_point<mixture>(zone, param, i, j, k);

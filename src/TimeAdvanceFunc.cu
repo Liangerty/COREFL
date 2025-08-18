@@ -18,6 +18,66 @@ __global__ void cfd::store_last_step(DZone *zone) {
   zone->bv_last(i, j, k, 3) = bv(i, j, k, 5);
 }
 
+__global__ void cfd::local_time_step_without_reaction(DZone *zone, DParameter *param) {
+  const int extent[3]{zone->mx, zone->my, zone->mz};
+  const int i = blockDim.x * blockIdx.x + threadIdx.x;
+  const int j = blockDim.y * blockIdx.y + threadIdx.y;
+  const int k = blockDim.z * blockIdx.z + threadIdx.z;
+  if (i >= extent[0] || j >= extent[1] || k >= extent[2]) return;
+
+  const auto &m{zone->metric(i, j, k)};
+  const auto &bv = zone->bv;
+  const int dim{zone->mz == 1 ? 2 : 3};
+
+  const real grad_xi = std::sqrt(m(1, 1) * m(1, 1) + m(1, 2) * m(1, 2) + m(1, 3) * m(1, 3));
+  const real grad_eta = std::sqrt(m(2, 1) * m(2, 1) + m(2, 2) * m(2, 2) + m(2, 3) * m(2, 3));
+  const real grad_zeta = std::sqrt(m(3, 1) * m(3, 1) + m(3, 2) * m(3, 2) + m(3, 3) * m(3, 3));
+
+  const real u{bv(i, j, k, 1)}, v{bv(i, j, k, 2)}, w{bv(i, j, k, 3)};
+  const real U = u * m(1, 1) + v * m(1, 2) + w * m(1, 3);
+  const real V = u * m(2, 1) + v * m(2, 2) + w * m(2, 3);
+  const real W = u * m(3, 1) + v * m(3, 2) + w * m(3, 3);
+
+  real acoustic_speed{0};
+  acoustic_speed = zone->acoustic_speed(i, j, k);
+
+  auto &inviscid_spectral_radius = zone->inv_spectr_rad(i, j, k);
+  inviscid_spectral_radius[0] = std::abs(U) + acoustic_speed * grad_xi;
+  inviscid_spectral_radius[1] = std::abs(V) + acoustic_speed * grad_eta;
+  real max_spectral_radius = max(inviscid_spectral_radius[0], inviscid_spectral_radius[1]);
+  inviscid_spectral_radius[2] = 0;
+  if (dim == 3) {
+    inviscid_spectral_radius[2] = std::abs(W) + acoustic_speed * grad_zeta;
+    max_spectral_radius = max(max_spectral_radius, inviscid_spectral_radius[2]);
+  }
+  // const real spectral_radius_inv =
+  //     inviscid_spectral_radius[0] + inviscid_spectral_radius[1] + inviscid_spectral_radius[2];
+
+  // Next, compute the viscous spectral radius
+  real max_length{grad_xi};
+  max_length = max(max_length, grad_eta);
+  if (dim == 3)
+    max_length = max(max_length, grad_zeta);
+
+  real max_diffuse_vel{0.0};
+  const real iRho = 1.0 / bv(i, j, k, 0);
+  max_diffuse_vel = zone->mul(i, j, k) * iRho;
+  max_diffuse_vel = max(max_diffuse_vel,
+                        zone->thermal_conductivity(i, j, k) * iRho * zone->gamma(i, j, k) / zone->cp(i, j, k));
+  real max_rhoD{0};
+  for (int l = 0; l < param->n_spec; ++l) {
+    max_rhoD = max(max_rhoD, zone->rho_D(i, j, k, l));
+    // D[l] = zone->rho_D(i, j, k, l) * iRho;
+  }
+  max_diffuse_vel = max(max_diffuse_vel, max_rhoD * iRho);
+
+
+  max_spectral_radius = max(max_spectral_radius, max_length * max_length * max_diffuse_vel);
+  const real dt = param->cfl / max_spectral_radius;
+
+  zone->dt_local(i, j, k) = dt;
+}
+
 __global__ void cfd::compute_square_of_dbv(DZone *zone) {
   const int mx{zone->mx}, my{zone->my}, mz{zone->mz};
   const int i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);

@@ -154,6 +154,7 @@ public:
    *             \f]
    */
   gxl::Array3D<gxl::Matrix<real, 3, 3, 1>> metric;
+  gxl::Array2D<int> bType_il, bType_ir, bType_jl, bType_jr, bType_kl, bType_kr;
   gxl::Array3D<real> des_scale;
 
   void compute_des_scale(const Parameter &parameter);
@@ -192,8 +193,9 @@ private:
    * \brief read the physical boundary of the current process
    * \param myid the process id of the current process
    * \param need_extend_boundary
+   * \param periodic_label
    */
-  void read_boundary(int myid, bool need_extend_boundary);
+  void read_boundary(int myid, bool need_extend_boundary, int periodic_label);
 
   /**
    * \brief read the inner face communication message of the current process

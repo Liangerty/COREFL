@@ -200,12 +200,6 @@ void cfd::Parameter::deduce_known_info() {
     reconstruction_name = "MUSCL";
   } else if (reconstruction_scheme == 3) {
     reconstruction_name = "NND2";
-  } else if (reconstruction_scheme == 4) {
-    reconstruction_name = "AWENO5";
-    ngg = 3;
-  } else if (reconstruction_scheme == 5) {
-    reconstruction_name = "AWENO7";
-    ngg = 4;
   }
 
   // Next, based on the reconstruction scheme and inviscid flux method, we re-assign a new field called "inviscid_tag"
@@ -217,16 +211,10 @@ void cfd::Parameter::deduce_known_info() {
   // Summary: 2-Roe, 3-AUSM+, 4-HLLC, 14-HLLC+WENO
   int inviscid_type{0};
   auto hybrid_inviscid_scheme{get_string("hybrid_inviscid_scheme")};
-  if (hybrid_inviscid_scheme == "EP+WENO5") {
-    update_parameter("inviscid_scheme", 52);
-    inviscid_type = 5;
-    ngg = 3;
-  } else if (hybrid_inviscid_scheme == "EP+WENO7") {
-    update_parameter("inviscid_scheme", 72);
-    inviscid_type = 5;
-    ngg = 4;
-  } else if (hybrid_inviscid_scheme == "UD7+WENO7") {
-    update_parameter("inviscid_scheme", 72);
+  if (hybrid_inviscid_scheme == "UD7+WENO7") {
+    int inviscid_scheme{get_int("inviscid_scheme")};
+    if (inviscid_scheme != 71 && inviscid_scheme != 72)
+      update_parameter("inviscid_scheme", 72);
     inviscid_type = 6;
     ngg = 4;
   } else {
@@ -239,8 +227,25 @@ void cfd::Parameter::deduce_known_info() {
       inviscid_type = 1;
       // WENO reconstructions
     }
-    if (inviscid_scheme == 51 || inviscid_scheme == 52 || inviscid_scheme == 71 || inviscid_scheme == 72) {
+    if (inviscid_scheme == 51 || inviscid_scheme == 52) {
+      if (get_real("shockSensor_threshold") > 1e-10) {
+        // If the shock sensor is set to 0 or negative value, the WENO7 is used throughout
+        // If not, the hybrid scheme is used
+        hybrid_inviscid_scheme = "UD5+WENO5";
+        update_parameter("hybrid_inviscid_scheme", hybrid_inviscid_scheme);
+      }
       inviscid_type = 3;
+      ngg = 3;
+    }
+    if (inviscid_scheme == 71 || inviscid_scheme == 72) {
+      if (get_real("shockSensor_threshold") > 1e-10) {
+        // If the shock sensor is set to 0 or negative value, the WENO7 is used throughout
+        // If not, the hybrid scheme is used
+        hybrid_inviscid_scheme = "UD7+WENO7";
+        update_parameter("hybrid_inviscid_scheme", hybrid_inviscid_scheme);
+      }
+      inviscid_type = 3;
+      ngg = 4;
     }
     if (inviscid_scheme == 6) {
       inviscid_type = 4;
@@ -285,9 +290,10 @@ void cfd::Parameter::deduce_known_info() {
     }
   }
 
-  int viscous_order = get_int("viscous_order");
-  if (viscous_order == 6) {
+  if (int viscous_order = get_int("viscous_order"); viscous_order == 6) {
     if (ngg < 3) ngg = 3;
+  } else if (viscous_order == 8) {
+    if (ngg < 4) ngg = 4;
   }
 
   update_parameter("ngg", ngg);
@@ -368,7 +374,8 @@ void cfd::Parameter::setup_default_settings() {
   int_parameters["viscous_order"] = 2;           // The default viscous order is 2.
   bool_parameters["gradPInDiffusionFlux"] = false;
   string_parameters["hybrid_inviscid_scheme"] = "NO";
-  real_parameters["shockSensor_threshold"] = 0.1;
+  int_parameters["shock_sensor"] = 0;
+  real_parameters["shockSensor_threshold"] = 0;
   real_parameters["shockSensor_epsilon"] = -1;
 
   // When WENO is used, pp limiter is a choice

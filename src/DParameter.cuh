@@ -58,7 +58,9 @@ struct DParameter {
   real Pr = 0.72;
   real cfl = 1;
 
-  real *mw = nullptr;
+  // real *mw = nullptr;
+  real *imw = nullptr; // Inverse molecular weight
+  real *gas_const = nullptr; // Gas constant for each species
 #ifdef HighTempMultiPart
   int *n_temperature_range = nullptr;
   ggxl::MatrixDyn<real> temperature_cuts;

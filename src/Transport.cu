@@ -40,15 +40,14 @@ real cfd::compute_viscosity(real temperature, real mw_total, real const *Y, cons
   return viscosity;
 }
 
-__device__ void
-cfd::compute_transport_property(int i, int j, int k, real temperature, real mw_total, const real *cp, DParameter *param,
-  DZone *zone) {
+__device__ void cfd::compute_transport_property(int i, int j, int k, real temperature, real mw_total, const real *cp,
+  DParameter *param, DZone *zone) {
   const auto n_spec{param->n_spec};
-  const real *mw = param->mw;
+  const real *imw = param->imw;
 
   real X[MAX_SPEC_NUMBER], vis[MAX_SPEC_NUMBER], d_ij[MAX_SPEC_NUMBER * MAX_SPEC_NUMBER], ZRot[MAX_SPEC_NUMBER];
   for (int l = 0; l < n_spec; ++l) {
-    X[l] = zone->sv(i, j, k, l) * mw_total / mw[l];
+    X[l] = zone->sv(i, j, k, l) * mw_total * imw[l];
     const real t_dl{temperature * param->LJ_potent_inv[l]}; //dimensionless temperature
     const real collision_integral{1.147 * std::pow(t_dl, -0.145) + std::pow(t_dl + 0.5, -2)};
     vis[l] = param->vis_coeff[l] * std::sqrt(temperature) / collision_integral;
@@ -78,7 +77,7 @@ cfd::compute_transport_property(int i, int j, int k, real temperature, real mw_t
   // const real density = zone->bv(i, j, k, 0);
   for (int m = 0; m < n_spec; ++m) {
     // compute the thermal conductivity
-    real R = R_u / mw[m];
+    real R = param->gas_const[m];
     real lambda = 15 * 0.25 * vis[m] * R;
     if (param->geometry[m] == 1) {
       // Linear geometry
@@ -128,10 +127,12 @@ cfd::compute_transport_property(int i, int j, int k, real temperature, real mw_t
 
     for (int n = 0; n < n_spec; ++n) {
       if (l != n) {
-        num += (X[n] + eps) * mw[n];
+        num += (X[n] + eps) / param->imw[n];
         den += (X[n] + eps) / d_ij[l * n_spec + n];
       }
     }
+    // num = mw_total - X[l] / param->imw[l];
+    // num = 1 - zone->sv(i, j, k, l); // If Y[l]==1, the rhoD would be zero, and the diffusivity may be wrong.
     zone->rho_D(i, j, k, l) = zone->bv(i, j, k, 0) * num / (den * mw_total);
   }
 }
@@ -139,12 +140,12 @@ cfd::compute_transport_property(int i, int j, int k, real temperature, real mw_t
 __device__ real
 cfd::compute_viscosity(int i, int j, int k, real temperature, real mw_total, DParameter *param, const DZone *zone) {
   const auto n_spec{param->n_spec};
-  const real *mw = param->mw;
+  const real *imw = param->imw;
   const auto &yk = zone->sv;
 
   real X[MAX_SPEC_NUMBER], vis[MAX_SPEC_NUMBER];
   for (int l = 0; l < n_spec; ++l) {
-    X[l] = yk(i, j, k, l) * mw_total / mw[l];
+    X[l] = yk(i, j, k, l) * mw_total * imw[l];
     const real t_dl{temperature * param->LJ_potent_inv[l]}; //dimensionless temperature
     const real collision_integral{1.147 * std::pow(t_dl, -0.145) + std::pow(t_dl + 0.5, -2)};
     vis[l] = param->vis_coeff[l] * std::sqrt(temperature) / collision_integral;
@@ -172,11 +173,11 @@ __device__ real cfd::compute_Omega_D(real t_red) {
 
 __device__ real cfd::compute_viscosity(real temperature, real mw_total, const real *Y, DParameter *param) {
   const auto n_spec{param->n_spec};
-  const real *mw = param->mw;
+  const real *imw = param->imw;
 
   real X[MAX_SPEC_NUMBER], vis[MAX_SPEC_NUMBER];
   for (int l = 0; l < n_spec; ++l) {
-    X[l] = Y[l] * mw_total / mw[l];
+    X[l] = Y[l] * mw_total * imw[l];
     const real t_dl{temperature * param->LJ_potent_inv[l]}; //dimensionless temperature
     const real collision_integral{1.147 * std::pow(t_dl, -0.145) + std::pow(t_dl + 0.5, -2)};
     vis[l] = param->vis_coeff[l] * std::sqrt(temperature) / collision_integral;

@@ -6,6 +6,9 @@
 #include "SpongeLayer.cuh"
 #include "Parallel.h"
 #include "Fluctuation.cuh"
+#include "TimeAdvanceFunc.cuh"
+#include "SchemeSelector.cuh"
+#include <random>
 
 namespace cfd {
 namespace SSPRK3 {
@@ -93,6 +96,10 @@ void RK3(Driver<mix_model> &driver) {
   const auto hybrid_inviscid_scheme{parameter.get_string("hybrid_inviscid_scheme")};
   const int monitor_block_frequency = parameter.get_int("monitor_block_frequency");
 
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<real> dist(-1, 1);
+
   while (!finished) {
     ++step;
 
@@ -126,6 +133,9 @@ void RK3(Driver<mix_model> &driver) {
       for (auto b = 0; b < n_block; ++b) {
         compute_shock_sensor<<<bpg[b], tpb>>>(field[b].d_ptr, param);
       }
+      cudaDeviceSynchronize();
+      // After computing the values on the nodes, we exchange the shock sensors to acquire values on ghost grids.
+      // exchange_value(mesh, field, parameter, param, 2);
     }
 
     if (!fixed_time_step) {
@@ -141,7 +151,7 @@ void RK3(Driver<mix_model> &driver) {
     // Compute the fluctuation values. This is updated every step, not every sub-iter in RK
     if (fluctuation_form > 0) {
       for (int b = 0; b < n_block; ++b) {
-        compute_fluctuation(mesh[b], field[b].d_ptr, param, fluctuation_form, parameter);
+        compute_fluctuation(mesh[b], field[b].d_ptr, param, fluctuation_form, parameter, dist, gen);
       }
     }
 
@@ -150,7 +160,11 @@ void RK3(Driver<mix_model> &driver) {
       for (auto b = 0; b < n_block; ++b) {
         // Set dq to 0
         cudaMemset(field[b].h_ptr->dq.data(), 0, field[b].h_ptr->dq.size() * n_var * sizeof(real));
+      }
 
+      compute_viscous_flux<mix_model>(mesh, field, param, parameter);
+
+      for (auto b = 0; b < n_block; ++b) {
         // First, compute the source term, because properties such as mut are updated here, which is used by computing dt.
         if (parameter.get_int("reaction") == 1) {
           finite_rate_chemistry<<<bpg[b], tpb>>>(field[b].d_ptr, param);
@@ -158,7 +172,6 @@ void RK3(Driver<mix_model> &driver) {
 
         // Second, for each block, compute the residual dq
         compute_inviscid_flux<mix_model>(mesh[b], field[b].d_ptr, param, n_var, parameter);
-        compute_viscous_flux<mix_model>(mesh[b], field[b].d_ptr, param, parameter);
 
         // Explicit temporal schemes should not use any implicit treatment.
 
@@ -309,7 +322,11 @@ __global__ void update_cv_and_bv_rk(DZone *zone, DParameter *param, real dt, int
   auto &sv = zone->sv;
   real sum_part_den{0};
   for (int l = 0; l < param->n_spec; ++l) {
-    sum_part_den += cv(i, j, k, l + 5);
+    if (cv(i, j, k, 5 + l) < 0) {
+      // If the species mass fraction is negative, we set it to zero.
+      cv(i, j, k, 5 + l) = 0;
+    } else
+      sum_part_den += cv(i, j, k, l + 5);
   }
   sum_part_den = 1.0 / sum_part_den;
   const auto denComDivDenReal = cv(i, j, k, 0) * sum_part_den;

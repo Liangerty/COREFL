@@ -43,11 +43,11 @@ spongeZPlusEnd{parameter.get_real("spongeZPlusEnd")}*/ {
     dt = parameter.get_real("dt");
   }
 
-  if (parameter.get_string("hybrid_inviscid_scheme") != "NO") {
+  // if (parameter.get_string("hybrid_inviscid_scheme") != "NO") {
     shock_sensor = parameter.get_int("shock_sensor");
     sensor_eps = parameter.get_real("shockSensor_epsilon");
     sensor_threshold = parameter.get_real("shockSensor_threshold");
-  }
+  // }
 
   const auto &spec = species;
   n_spec = spec.n_spec;
@@ -69,8 +69,17 @@ spongeZPlusEnd{parameter.get_real("spongeZPlusEnd")}*/ {
 
   // species info
   auto mem_sz = n_spec * sizeof(real);
-  cudaMalloc(&mw, mem_sz);
-  cudaMemcpy(mw, spec.mw.data(), mem_sz, cudaMemcpyHostToDevice);
+  // cudaMalloc(&mw, mem_sz);
+  // cudaMemcpy(mw, spec.mw.data(), mem_sz, cudaMemcpyHostToDevice);
+  std::vector<real> imw_vec(n_spec), Rl(n_spec);
+  for (int l = 0; l < n_spec; ++l) {
+    imw_vec[l] = 1.0 / spec.mw[l];
+    Rl[l] = R_u / spec.mw[l];
+  }
+  cudaMalloc(&imw, mem_sz);
+  cudaMemcpy(imw, imw_vec.data(), mem_sz, cudaMemcpyHostToDevice);
+  cudaMalloc(&gas_const, mem_sz);
+  cudaMemcpy(gas_const, Rl.data(), mem_sz, cudaMemcpyHostToDevice);
   #ifdef HighTempMultiPart
   cudaMalloc(&n_temperature_range, n_spec * sizeof(int));
   cudaMemcpy(n_temperature_range, spec.n_temperature_range.data(), n_spec * sizeof(int), cudaMemcpyHostToDevice);

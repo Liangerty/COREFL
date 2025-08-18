@@ -6,12 +6,10 @@ cfd::compute_temperature_and_pressure(int i, int j, int k, const DParameter *par
   auto &Y = zone->sv;
   auto &bv = zone->bv;
 
-  real mw{0};
+  real gas_const{0};
   for (int l = 0; l < n_spec; ++l) {
-    mw += Y(i, j, k, l) / param->mw[l];
+    gas_const += Y(i, j, k, l) * param->gas_const[l];
   }
-  mw = 1 / mw;
-  const real gas_const = R_u / mw;
   const real e =
       total_energy / bv(i, j, k, 0) - 0.5 * (bv(i, j, k, 1) * bv(i, j, k, 1) + bv(i, j, k, 2) * bv(i, j, k, 2) +
                                              bv(i, j, k, 3) * bv(i, j, k, 3));

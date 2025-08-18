@@ -234,7 +234,9 @@ void cfd::ParallelFace::register_boundary(const int dim) {
 
 cfd::Block::Block(int _mx, int _my, int _mz, int _ngg, int _id, const Parameter &parameter) :
   mx{_mx}, my{_my}, mz{_mz}, n_grid{mx * my * mz}, block_id{_id}, ngg{_ngg}, x{mx, my, mz, _ngg + 1},
-  y{mx, my, mz, _ngg + 1}, z{mx, my, mz, _ngg + 1}, jacobian{mx, my, mz, _ngg}, metric{mx, my, mz, _ngg} {
+  y{mx, my, mz, _ngg + 1}, z{mx, my, mz, _ngg + 1}, jacobian{mx, my, mz, _ngg},
+  bType_il(_my, _mz, 0), bType_ir(_my, _mz, 0), bType_jl(_mx, _mz, 0), bType_jr(_mx, _mz, 0), bType_kl(_mx, _my, 0),
+  bType_kr(_mx, _my, 0), metric{mx, my, mz, _ngg} {
   if (parameter.get_bool("turbulence") && parameter.get_int("turbulence_method") == 2) {
     des_scale.resize(mx, my, mz, ngg);
   }
@@ -271,13 +273,13 @@ void cfd::Block::compute_jac_metric(int myid) {
                      y(i + 1, j, k), y(i - 1, j, k), dyd1,
                      z(i + 1, j, k), z(i - 1, j, k), dzd1);
           fmt::print("dxd2=({} - {})/2={}, dyd2=({} - {})/2={}, dzd2=({} - {})/2={}\n",
-                      x(i, j + 1, k), x(i, j - 1, k), dxd2,
-                      y(i, j + 1, k), y(i, j - 1, k), dyd2,
-                      z(i, j + 1, k), z(i, j - 1, k), dzd2);
+                     x(i, j + 1, k), x(i, j - 1, k), dxd2,
+                     y(i, j + 1, k), y(i, j - 1, k), dyd2,
+                     z(i, j + 1, k), z(i, j - 1, k), dzd2);
           fmt::print("dxd3=({} - {})/2={}, dyd3=({} - {})/2={}, dzd3=({} - {})/2={}\n",
-                      x(i, j, k + 1), x(i, j, k - 1), dxd3,
-                      y(i, j, k + 1), y(i, j, k - 1), dyd3,
-                      z(i, j, k + 1), z(i, j, k - 1), dzd3);
+                     x(i, j, k + 1), x(i, j, k - 1), dxd3,
+                     y(i, j, k + 1), y(i, j, k - 1), dyd3,
+                     z(i, j, k + 1), z(i, j, k - 1), dzd3);
           // for (int zz = 0; zz < mz; ++zz) {
           //   fmt::print("z({},{},{}) = {}\n", i, j, zz, z(i, j, zz));
           // }
@@ -742,7 +744,17 @@ cfd::Mesh::Mesh(Parameter &parameter) :
   }
 
   const bool need_extend_boundary = parameter.get_int("viscous_order") == 2;
-  read_boundary(myid, need_extend_boundary);
+
+  const auto bcs = parameter.get_string_array("boundary_conditions");
+  int periodic_label{-100};
+  for (auto &n: bcs) {
+    const auto& st = parameter.get_struct(n);
+    if (auto type = std::get<std::string>(st.at("type")); type == "periodic")
+      periodic_label = std::get<int>(st.at("label"));
+  }
+  parameter.update_parameter("periodic_label", periodic_label);
+
+  read_boundary(myid, need_extend_boundary, periodic_label);
 
   read_inner_interface(myid/*, ngg*/);
 
@@ -928,7 +940,7 @@ void cfd::Mesh::read_grid(const int myid, const Parameter &parameter) {
   }
 }
 
-void cfd::Mesh::read_boundary(int myid, bool need_extend_boundary) {
+void cfd::Mesh::read_boundary(int myid, bool need_extend_boundary, int periodic_label) {
   std::ifstream grd(fmt::format("./input/boundary_condition/boundary{:>4}.txt", myid), std::ios::in);
   std::string input{};
   for (int blk = 0; blk < n_block; ++blk) {
@@ -944,6 +956,66 @@ void cfd::Mesh::read_boundary(int myid, bool need_extend_boundary) {
         block[blk].boundary[ii].register_boundary(dimension, ngg);
       else
         block[blk].boundary[ii].register_boundary(dimension);
+
+      // assign the type to bTypes
+      if (i7 != periodic_label) {
+        if (i1 == i2) {
+          // The i=const face
+          if (i1 == 0) {
+            // il face
+            auto &f = block[blk].bType_il;
+            for (int j = i3; j <= i4; ++j) {
+              for (int k = i5; k <= i6; ++k) {
+                f(j, k) = i7;
+              }
+            }
+          } else if (i1 != 0) {
+            // ir face
+            auto &f = block[blk].bType_ir;
+            for (int j = i3; j <= i4; ++j) {
+              for (int k = i5; k <= i6; ++k) {
+                f(j, k) = i7;
+              }
+            }
+          }
+        } else if (i3 == i4) {
+          // The j=const face
+          if (i3 == 0) {
+            // jl face
+            auto &f = block[blk].bType_jl;
+            for (int i = i1; i <= i2; ++i) {
+              for (int k = i5; k <= i6; ++k) {
+                f(i, k) = i7;
+              }
+            }
+          } else if (i3 != 0) {
+            // jr face
+            auto &f = block[blk].bType_jr;
+            for (int i = i1; i <= i2; ++i) {
+              for (int k = i5; k <= i6; ++k) {
+                f(i, k) = i7;
+              }
+            }
+          }
+        } else if (i5 == i6) {
+          // The k=const face
+          if (i5 == 0) {
+            auto &f = block[blk].bType_kl;
+            for (int i = i1; i <= i2; ++i) {
+              for (int j = i3; j <= i4; ++j) {
+                f(i, j) = i7;
+              }
+            }
+          } else if (i5 != 0) {
+            auto &f = block[blk].bType_kr;
+            for (int i = i1; i <= i2; ++i) {
+              for (int j = i3; j <= i4; ++j) {
+                f(i, j) = i7;
+              }
+            }
+          }
+        }
+      }
     }
     block[blk].boundary.shrink_to_fit();
   }

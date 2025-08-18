@@ -12,23 +12,27 @@
 namespace cfd {
 template<MixtureModel mix_model>
 void data_communication(const Mesh &mesh, std::vector<Field> &field, const Parameter &parameter, int step,
-                        DParameter *param);
+  DParameter *param);
 
 template<MixtureModel mix_model>
 __global__ void inner_communication(DZone *zone, DZone *tar_zone, int i_face, DParameter *param);
 
 template<MixtureModel mix_model>
 void parallel_communication(const Mesh &mesh, std::vector<Field> &field, int step, const Parameter &parameter,
-                            DParameter *param);
+  DParameter *param);
 
 __global__ void setup_data_to_be_sent(const DZone *zone, int i_face, real *data, const DParameter *param);
 
 template<MixtureModel mix_model>
 __global__ void assign_data_received(DZone *zone, int i_face, const real *data, DParameter *param);
 
+__global__ void setup_data_to_be_sent(const DZone *zone, int i_face, real *data, const DParameter *param, int task);
+
+__global__ void assign_data_received(DZone *zone, int i_face, const real *data, DParameter *param, int task);
+
 template<MixtureModel mix_model>
 void data_communication(const Mesh &mesh, std::vector<Field> &field, const Parameter &parameter, int step,
-                        DParameter *param) {
+  DParameter *param) {
   // -1 - inner faces
   for (auto blk = 0; blk < mesh.n_block; ++blk) {
     auto &inF = mesh[blk].inner_face;
@@ -106,7 +110,7 @@ __global__ void inner_communication(DZone *zone, DZone *tar_zone, int i_face, DP
 
 template<MixtureModel mix_model>
 void parallel_communication(const Mesh &mesh, std::vector<Field> &field, int step, const Parameter &parameter,
-                            DParameter *param) {
+  DParameter *param) {
   const int n_block{mesh.n_block};
   const int n_trans{parameter.get_int("n_scalar") + 6}; // All primitive variables are to be transferred
   const int ngg{mesh[0].ngg};
@@ -251,4 +255,14 @@ __global__ void assign_data_received(DZone *zone, int i_face, const real *data, 
     compute_cv_from_bv_1_point<mix_model>(zone, param, idx[0], idx[1], idx[2]);
   }
 }
+
+void exchange_value(const Mesh &mesh, std::vector<Field> &field, const Parameter &parameter,
+  DParameter *param, int task);
+
+__global__ void inner_exchange(DZone *zone, DZone *tar_zone, int i_face, DParameter *param, int task);
+
+void parallel_exchange(const Mesh &mesh, std::vector<Field> &field, const Parameter &parameter,
+  DParameter *param, int task);
+
+__global__ void periodic_exchange(DZone *zone, DParameter *param, int task, int i_face);
 }
