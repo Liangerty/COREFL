@@ -554,6 +554,14 @@ cfd::Wall::Wall(const std::map<std::string, std::variant<std::string, int, real>
         fluctuation_x1 = std::get<real>(info.at("fluctuation_x1"));
     } else if (fluctuation_type == 4) {
       parameter.update_parameter("wall_white_noise", true);
+    } else if (fluctuation_type == 5) {
+      parameter.update_parameter("wall_white_noise", true);
+      if (info.find("fluctuation_intensity") != info.end())
+        fluctuation_intensity = std::get<real>(info.at("fluctuation_intensity"));
+      if (info.find("fluctuation_x0") != info.end())
+        fluctuation_x0 = std::get<real>(info.at("fluctuation_x0"));
+      if (info.find("fluctuation_x1") != info.end())
+        fluctuation_x1 = std::get<real>(info.at("fluctuation_x1"));
     }
   }
   if (info.find("if_blow_shock_wave") != info.end()) {

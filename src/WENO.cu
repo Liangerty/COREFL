@@ -573,7 +573,7 @@ compute_weno_flux_ch(const real *cv, DParameter *param, int tid, const real *met
   const int n_var = param->n_var;
 
   // 0: acans; 1: li xinliang(own flux splitting); 2: my(same spectral radius)
-  constexpr int method = 2;
+  constexpr int method = 1;
 
   int weno_scheme_i = 4;
   if (param->inviscid_scheme == 52) {

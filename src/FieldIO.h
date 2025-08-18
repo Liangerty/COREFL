@@ -107,7 +107,7 @@ void FieldIO<mix_model, output_time_choice>::write_header() {
     // 2. Title
     gxl::write_str("Solution file", fp, offset);
     // 3. Number of variables in the datafile, for this file, n_var = 3(x,y,z)+7(density,u,v,w,p,t,Ma)+n_spec+n_scalar
-    const auto varName = parameter.get_string_array("var_name");
+    auto varName = parameter.get_string_array("var_name");
     n_var = static_cast<int>(varName.size());
     // std::vector<std::string> var_name{"x", "y", "z", "density", "u", "v", "w", "pressure", "temperature", "mach"};
     // n_var = acquire_variable_names(var_name);
