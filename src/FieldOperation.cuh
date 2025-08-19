@@ -60,7 +60,7 @@ __global__ void compute_cv_from_bv(DZone *zone, DParameter *param) {
   for (auto l = 0; l < n_scalar; ++l) {
     cv(i, j, k, 5 + l) = rho * sv(i, j, k, l);
   }
-  
+
   compute_total_energy<mix_model>(i, j, k, zone, param);
 }
 
@@ -84,8 +84,8 @@ __device__ void compute_cv_from_bv_1_point(DZone *zone, const DParameter *param,
   compute_total_energy<mix_model>(i, j, k, zone, param);
 }
 
-template<MixtureModel mix_model>
-__global__ void update_physical_properties(DZone *zone, DParameter *param) {
+template<MixtureModel mix_model> __global__ void // __maxnreg__(64)
+update_physical_properties(DZone *zone, DParameter *param) {
   const int mx{zone->mx}, my{zone->my}, mz{zone->mz}, ngg{zone->ngg};
   const int i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x) - ngg;
   const int j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y) - ngg;
@@ -93,25 +93,26 @@ __global__ void update_physical_properties(DZone *zone, DParameter *param) {
   if (i >= mx + ngg || j >= my + ngg || k >= mz + ngg) return;
 
   const real temperature{zone->bv(i, j, k, 5)};
-  const auto V = sqrt(zone->bv(i, j, k, 1) * zone->bv(i, j, k, 1) + zone->bv(i, j, k, 2) * zone->bv(i, j, k, 2) +
-                      zone->bv(i, j, k, 3) * zone->bv(i, j, k, 3));
+  const auto V = norm3d(zone->bv(i, j, k, 1), zone->bv(i, j, k, 2), zone->bv(i, j, k, 3));
   if constexpr (mix_model != MixtureModel::Air) {
     const int n_spec{param->n_spec};
     auto &yk = zone->sv;
-    real mw{0}, cp_tot{0}, cv{0};
+    real mw{0}, temp{0}, R{0}; // temp is cp_tot first
     real cp[MAX_SPEC_NUMBER];
     compute_cp(temperature, cp, param);
     for (auto l = 0; l < n_spec; ++l) {
-      mw += yk(i, j, k, l) * param->imw[l];
-      cp_tot += yk(i, j, k, l) * cp[l];
-      cv += yk(i, j, k, l) * (cp[l] - param->gas_const[l]);
+      const auto y = yk(i, j, k, l);
+      mw += y * param->imw[l];
+      temp += y * cp[l];
+      R += y * param->gas_const[l];
     }
-    mw = 1 / mw;
-    zone->cp(i, j, k) = cp_tot;
-    zone->gamma(i, j, k) = cp_tot / cv;
-    zone->acoustic_speed(i, j, k) = std::sqrt(zone->gamma(i, j, k) * R_u * temperature / mw);
-    compute_transport_property(i, j, k, temperature, mw, cp, param, zone);
-    zone->mach(i, j, k) = V / zone->acoustic_speed(i, j, k);
+    zone->cp(i, j, k) = temp;
+    temp = temp / (temp - R); // temp is specific heat ratio (gamma) now, gamma = cp / cv = cp / (cp - R)
+    zone->gamma(i, j, k) = temp; // gamma = cp / cv
+    temp = sqrt(temp * R_u * temperature * mw); // temp is acoustic speed now
+    zone->acoustic_speed(i, j, k) = temp;
+    zone->mach(i, j, k) = V / temp;
+    compute_transport_property(i, j, k, temperature, 1 / mw, cp, param, zone);
   } else {
     constexpr real c_temp{gamma_air * R_u / mw_air};
     zone->mul(i, j, k) = Sutherland(temperature);

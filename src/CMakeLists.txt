@@ -41,7 +41,8 @@ find_package(MPI REQUIRED)
 add_executable(corefl ${src_file})
 
 set_target_properties(corefl PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON)
+    CUDA_SEPARABLE_COMPILATION ON
+    INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 set_target_properties(corefl
     PROPERTIES

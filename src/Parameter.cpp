@@ -475,6 +475,7 @@ void cfd::Parameter::setup_default_settings() {
 
   // stat control
   string_array["stat_rey_1st"] = {};
+  string_array["stat_species"] = {};
   bool_parameters["rho_p_correlation"] = false;
   bool_parameters["stat_tke_budget"] = false;
   bool_parameters["stat_scalar_fluc_budget"] = false;
