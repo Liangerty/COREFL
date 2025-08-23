@@ -39,11 +39,11 @@ template<MixtureModel mix_model> __global__ void compute_convective_term_weno_y(
 
 template<MixtureModel mix_model> __global__ void compute_convective_term_weno_z(DZone *zone, DParameter *param);
 
-__device__ void compute_flux(const real *Q, const DParameter *param, const real *metric, real jac, real *Fp, real *Fm);
+__device__ void compute_flux(const real *Q, const DParameter *param, const real *metric, real jac, real *Fp, real *Fm, real p, real cc);
 
-template<MixtureModel mix_model> __device__ void compute_weno_flux_ch(const real *cv, DParameter *param, int tid,
-  const real *metric, const real *jac, real *fc, int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add,
-  [[maybe_unused]] real *f_1st, bool if_shock);
+template<MixtureModel mix_model> __device__ void compute_weno_flux_ch(const real *cv, const real *p, DParameter *param, int tid,
+  const real *metric, const real *jac, real *fc, int i_shared, real *Fp, real *Fm,
+  bool if_shock);
 
 template<MixtureModel mix_model>
 __device__ void compute_weno_flux_ch(const real *cv, const real *p, DParameter *param, const real *metric,
