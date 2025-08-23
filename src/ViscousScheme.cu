@@ -350,10 +350,17 @@ __global__ void compute_viscous_flux_collocated(DZone *zone, const DParameter *p
   const real t_zeta = d_dZeta<ORDER>(pv, i, j, k, 5, mz, compute_type[4], compute_type[5]);
 
   // chain rule for derivative
-  const auto &m = zone->metric(i, j, k);
-  const real xi_x{m(1, 1)}, xi_y{m(1, 2)}, xi_z{m(1, 3)};
-  const real eta_x{m(2, 1)}, eta_y{m(2, 2)}, eta_z{m(2, 3)};
-  const real zeta_x{m(3, 1)}, zeta_y{m(3, 2)}, zeta_z{m(3, 3)};
+  const auto &metric = zone->metric;
+
+  const real xi_x = metric(i, j, k, 0);
+  const real xi_y = metric(i, j, k, 1);
+  const real xi_z = metric(i, j, k, 2);
+  const real eta_x = metric(i, j, k, 3);
+  const real eta_y = metric(i, j, k, 4);
+  const real eta_z = metric(i, j, k, 5);
+  const real zeta_x = metric(i, j, k, 6);
+  const real zeta_y = metric(i, j, k, 7);
+  const real zeta_z = metric(i, j, k, 8);
   const real u_x = u_xi * xi_x + u_eta * eta_x + u_zeta * zeta_x;
   const real u_y = u_xi * xi_y + u_eta * eta_y + u_zeta * zeta_y;
   const real u_z = u_xi * xi_z + u_eta * eta_z + u_zeta * zeta_z;
@@ -430,10 +437,17 @@ __global__ void compute_viscous_flux_collocated_scalar(DZone *zone, const DParam
   if (zone->bType_kr(i, j) != 0)
     compute_type[5] = 1;
 
-  const auto &m = zone->metric(i, j, k);
-  const real xi_x{m(1, 1)}, xi_y{m(1, 2)}, xi_z{m(1, 3)};
-  const real eta_x{m(2, 1)}, eta_y{m(2, 2)}, eta_z{m(2, 3)};
-  const real zeta_x{m(3, 1)}, zeta_y{m(3, 2)}, zeta_z{m(3, 3)};
+  const auto &metric = zone->metric;
+
+  const real xi_x = metric(i, j, k, 0);
+  const real xi_y = metric(i, j, k, 1);
+  const real xi_z = metric(i, j, k, 2);
+  const real eta_x = metric(i, j, k, 3);
+  const real eta_y = metric(i, j, k, 4);
+  const real eta_z = metric(i, j, k, 5);
+  const real zeta_x = metric(i, j, k, 6);
+  const real zeta_y = metric(i, j, k, 7);
+  const real zeta_z = metric(i, j, k, 8);
 
   // Here, we only consider the influence of species diffusion.
   // That is, if we are solving mixture or finite rate,

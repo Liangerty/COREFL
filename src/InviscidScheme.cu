@@ -77,8 +77,9 @@ compute_convective_term_pv_1D(DZone *zone, int direction, int max_extent, DParam
   for (auto l = 0; l < n_scalar; ++l) { // Y_k, k, omega, z, zPrime
     pv[i_shared * n_reconstruct + 5 + l] = zone->sv(idx[0], idx[1], idx[2], l);
   }
-  for (auto l = 1; l < 4; ++l) {
-    metric[i_shared * 3 + l - 1] = zone->metric(idx[0], idx[1], idx[2])(direction + 1, l);
+  for (auto l = 0; l < 3; ++l) {
+    metric[i_shared * 3 + l] = zone->metric(idx[0], idx[1], idx[2], direction * 3 + l);
+    //    metric[i_shared * 3 + l - 1] = zone->metric(idx[0], idx[1], idx[2])(direction + 1, l);
   }
   jac[i_shared] = zone->jac(idx[0], idx[1], idx[2]);
 
@@ -95,8 +96,8 @@ compute_convective_term_pv_1D(DZone *zone, int direction, int max_extent, DParam
       for (auto l = 0; l < n_scalar; ++l) { // Y_k, k, omega, Z, Z_prime...
         pv[ig_shared * n_reconstruct + 5 + l] = zone->sv(g_idx[0], g_idx[1], g_idx[2], l);
       }
-      for (auto l = 1; l < 4; ++l) {
-        metric[ig_shared * 3 + l - 1] = zone->metric(g_idx[0], g_idx[1], g_idx[2])(direction + 1, l);
+      for (auto l = 0; l < 3; ++l) {
+        metric[ig_shared * 3 + l] = zone->metric(g_idx[0], g_idx[1], g_idx[2], direction * 3 + l);
       }
       jac[ig_shared] = zone->jac(g_idx[0], g_idx[1], g_idx[2]);
     }
@@ -113,8 +114,8 @@ compute_convective_term_pv_1D(DZone *zone, int direction, int max_extent, DParam
       for (auto l = 0; l < n_scalar; ++l) { // Y_k, k, omega, Z, Z_prime...
         pv[ig_shared * n_reconstruct + 5 + l] = zone->sv(g_idx[0], g_idx[1], g_idx[2], l);
       }
-      for (auto l = 1; l < 4; ++l) {
-        metric[ig_shared * 3 + l - 1] = zone->metric(g_idx[0], g_idx[1], g_idx[2])(direction + 1, l);
+      for (auto l = 0; l < 3; ++l) {
+        metric[ig_shared * 3 + l] = zone->metric(g_idx[0], g_idx[1], g_idx[2], direction * 3 + l);
       }
       jac[ig_shared] = zone->jac(g_idx[0], g_idx[1], g_idx[2]);
     }
@@ -261,15 +262,18 @@ __global__ void compute_entropy_fix_delta(DZone *zone, DParameter *param) {
   if (i >= mx + 1 || j >= my + 1 || k >= mz + 1) return;
 
   const auto &bv{zone->bv};
-  const auto &metric{zone->metric(i, j, k)};
+  const auto &metric{zone->metric};
 
-  const real U = abs(bv(i, j, k, 1) * metric(1, 1) + bv(i, j, k, 2) * metric(1, 2) + bv(i, j, k, 3) * metric(1, 3));
-  const real V = abs(bv(i, j, k, 1) * metric(2, 1) + bv(i, j, k, 2) * metric(2, 2) + bv(i, j, k, 3) * metric(2, 3));
-  const real W = abs(bv(i, j, k, 1) * metric(3, 1) + bv(i, j, k, 2) * metric(3, 2) + bv(i, j, k, 3) * metric(3, 3));
+  const real U = abs(
+    bv(i, j, k, 1) * metric(i, j, k, 0) + bv(i, j, k, 2) * metric(i, j, k, 1) + bv(i, j, k, 3) * metric(i, j, k, 2));
+  const real V = abs(
+    bv(i, j, k, 1) * metric(i, j, k, 3) + bv(i, j, k, 2) * metric(i, j, k, 4) + bv(i, j, k, 3) * metric(i, j, k, 5));
+  const real W = abs(
+    bv(i, j, k, 1) * metric(i, j, k, 6) + bv(i, j, k, 2) * metric(i, j, k, 7) + bv(i, j, k, 3) * metric(i, j, k, 8));
 
-  const real kx = sqrt(metric(1, 1) * metric(1, 1) + metric(1, 2) * metric(1, 2) + metric(1, 3) * metric(1, 3));
-  const real ky = sqrt(metric(2, 1) * metric(2, 1) + metric(2, 2) * metric(2, 2) + metric(2, 3) * metric(2, 3));
-  const real kz = sqrt(metric(3, 1) * metric(3, 1) + metric(3, 2) * metric(3, 2) + metric(3, 3) * metric(3, 3));
+  const real kx = norm3d(metric(i, j, k, 0), metric(i, j, k, 1), metric(i, j, k, 2));
+  const real ky = norm3d(metric(i, j, k, 3), metric(i, j, k, 4), metric(i, j, k, 5));
+  const real kz = norm3d(metric(i, j, k, 6), metric(i, j, k, 7), metric(i, j, k, 8));
 
   real acoustic_speed{0};
   if constexpr (mix_model != MixtureModel::Air) {
@@ -322,8 +326,8 @@ Roe_compute_inviscid_flux_1D(DZone *zone, int direction, int max_extent, DParame
   for (auto l = 0; l < n_scalar; ++l) { // Y_k, k, omega, z, zPrime
     pv[i_shared * n_reconstruct + 5 + l] = zone->sv(idx[0], idx[1], idx[2], l);
   }
-  for (auto l = 1; l < 4; ++l) {
-    metric[i_shared * 3 + l - 1] = zone->metric(idx[0], idx[1], idx[2])(direction + 1, l);
+  for (auto l = 0; l < 3; ++l) {
+    metric[i_shared * 3 + l] = zone->metric(idx[0], idx[1], idx[2], direction * 3 + l);
   }
   jac[i_shared] = zone->jac(idx[0], idx[1], idx[2]);
   entropy_fix_delta[i_shared] = zone->entropy_fix_delta(idx[0], idx[1], idx[2]);
@@ -341,8 +345,8 @@ Roe_compute_inviscid_flux_1D(DZone *zone, int direction, int max_extent, DParame
       for (auto l = 0; l < n_scalar; ++l) { // Y_k, k, omega, Z, Z_prime...
         pv[ig_shared * n_reconstruct + 5 + l] = zone->sv(g_idx[0], g_idx[1], g_idx[2], l);
       }
-      for (auto l = 1; l < 4; ++l) {
-        metric[ig_shared * 3 + l - 1] = zone->metric(g_idx[0], g_idx[1], g_idx[2])(direction + 1, l);
+      for (auto l = 0; l < 3; ++l) {
+        metric[ig_shared * 3 + l] = zone->metric(g_idx[0], g_idx[1], g_idx[2], direction * 3 + l);
       }
       jac[ig_shared] = zone->jac(g_idx[0], g_idx[1], g_idx[2]);
     }
@@ -360,8 +364,8 @@ Roe_compute_inviscid_flux_1D(DZone *zone, int direction, int max_extent, DParame
       for (auto l = 0; l < n_scalar; ++l) { // Y_k, k, omega, Z, Z_prime...
         pv[ig_shared * n_reconstruct + 5 + l] = zone->sv(g_idx[0], g_idx[1], g_idx[2], l);
       }
-      for (auto l = 1; l < 4; ++l) {
-        metric[ig_shared * 3 + l - 1] = zone->metric(g_idx[0], g_idx[1], g_idx[2])(direction + 1, l);
+      for (auto l = 0; l < 3; ++l) {
+        metric[ig_shared * 3 + l] = zone->metric(g_idx[0], g_idx[1], g_idx[2], direction * 3 + l);
       }
       jac[ig_shared] = zone->jac(g_idx[0], g_idx[1], g_idx[2]);
     }

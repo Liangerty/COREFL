@@ -236,7 +236,7 @@ cfd::Block::Block(int _mx, int _my, int _mz, int _ngg, int _id, const Parameter 
   mx{_mx}, my{_my}, mz{_mz}, n_grid{mx * my * mz}, block_id{_id}, ngg{_ngg}, x{mx, my, mz, _ngg + 1},
   y{mx, my, mz, _ngg + 1}, z{mx, my, mz, _ngg + 1}, jacobian{mx, my, mz, _ngg},
   bType_il(_my, _mz, 0), bType_ir(_my, _mz, 0), bType_jl(_mx, _mz, 0), bType_jr(_mx, _mz, 0), bType_kl(_mx, _my, 0),
-  bType_kr(_mx, _my, 0), metric{mx, my, mz, _ngg} {
+  bType_kr(_mx, _my, 0), metric{mx, my, mz, 9, _ngg} {
   if (parameter.get_bool("turbulence") && parameter.get_int("turbulence_method") == 2) {
     des_scale.resize(mx, my, mz, ngg);
   }
@@ -286,16 +286,15 @@ void cfd::Block::compute_jac_metric(int myid) {
           MPI_Abort(MPI_COMM_WORLD, 1);
         }
         jacobian(i, j, k) = jac;
-        auto &m = metric(i, j, k);
-        m(1, 1) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
-        m(1, 2) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
-        m(1, 3) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
-        m(2, 1) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
-        m(2, 2) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
-        m(2, 3) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
-        m(3, 1) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
-        m(3, 2) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
-        m(3, 3) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
+        metric(i, j, k, 0) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
+        metric(i, j, k, 1) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
+        metric(i, j, k, 2) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
+        metric(i, j, k, 3) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
+        metric(i, j, k, 4) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
+        metric(i, j, k, 5) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
+        metric(i, j, k, 6) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
+        metric(i, j, k, 7) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
+        metric(i, j, k, 8) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
       }
     }
   }
@@ -321,20 +320,22 @@ void cfd::Block::compute_jac_metric(int myid) {
         if (jac <= 0) {
           log_negative_jacobian(myid, i, j, k);
           jacobian(i, j, k) = jacobian(i, j, k + 1);
-          metric(i, j, k) = metric(i, j, k + 1);
+          for (int l = 0; l < 9; ++l) {
+            metric(i, j, k, l) = metric(i, j, k + 1, l);
+          }
+//          metric(i, j, k) = metric(i, j, k + 1);
           continue;
         }
         jacobian(i, j, k) = jac;
-        auto &m = metric(i, j, k);
-        m(1, 1) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
-        m(1, 2) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
-        m(1, 3) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
-        m(2, 1) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
-        m(2, 2) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
-        m(2, 3) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
-        m(3, 1) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
-        m(3, 2) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
-        m(3, 3) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
+        metric(i, j, k, 0) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
+        metric(i, j, k, 1) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
+        metric(i, j, k, 2) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
+        metric(i, j, k, 3) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
+        metric(i, j, k, 4) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
+        metric(i, j, k, 5) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
+        metric(i, j, k, 6) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
+        metric(i, j, k, 7) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
+        metric(i, j, k, 8) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
       }
     }
   }
@@ -357,20 +358,22 @@ void cfd::Block::compute_jac_metric(int myid) {
         if (jac <= 0) {
           log_negative_jacobian(myid, i, j, k);
           jacobian(i, j, k) = jacobian(i, j, k - 1);
-          metric(i, j, k) = metric(i, j, k - 1);
+          for (int l = 0; l < 9; ++l) {
+            metric(i, j, k, l) = metric(i, j, k - 1, l);
+          }
+//          metric(i, j, k) = metric(i, j, k - 1);
           continue;
         }
         jacobian(i, j, k) = jac;
-        auto &m = metric(i, j, k);
-        m(1, 1) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
-        m(1, 2) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
-        m(1, 3) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
-        m(2, 1) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
-        m(2, 2) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
-        m(2, 3) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
-        m(3, 1) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
-        m(3, 2) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
-        m(3, 3) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
+        metric(i, j, k, 0) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
+        metric(i, j, k, 1) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
+        metric(i, j, k, 2) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
+        metric(i, j, k, 3) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
+        metric(i, j, k, 4) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
+        metric(i, j, k, 5) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
+        metric(i, j, k, 6) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
+        metric(i, j, k, 7) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
+        metric(i, j, k, 8) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
       }
     }
   }
@@ -393,20 +396,22 @@ void cfd::Block::compute_jac_metric(int myid) {
         if (jac <= 0) {
           log_negative_jacobian(myid, i, j, k);
           jacobian(i, j, k) = jacobian(i, j + 1, k);
-          metric(i, j, k) = metric(i, j + 1, k);
+          for (int l = 0; l < 9; ++l) {
+            metric(i, j, k, l) = metric(i, j + 1, k, l);
+          }
+//          metric(i, j, k) = metric(i, j + 1, k);
           continue;
         }
         jacobian(i, j, k) = jac;
-        auto &m = metric(i, j, k);
-        m(1, 1) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
-        m(1, 2) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
-        m(1, 3) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
-        m(2, 1) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
-        m(2, 2) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
-        m(2, 3) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
-        m(3, 1) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
-        m(3, 2) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
-        m(3, 3) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
+        metric(i, j, k, 0) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
+        metric(i, j, k, 1) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
+        metric(i, j, k, 2) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
+        metric(i, j, k, 3) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
+        metric(i, j, k, 4) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
+        metric(i, j, k, 5) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
+        metric(i, j, k, 6) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
+        metric(i, j, k, 7) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
+        metric(i, j, k, 8) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
       }
     }
   }
@@ -429,20 +434,22 @@ void cfd::Block::compute_jac_metric(int myid) {
         if (jac <= 0) {
           log_negative_jacobian(myid, i, j, k);
           jacobian(i, j, k) = jacobian(i, j - 1, k);
-          metric(i, j, k) = metric(i, j - 1, k);
+          for (int l = 0; l < 9; ++l) {
+            metric(i, j, k, l) = metric(i, j - 1, k, l);
+          }
+//          metric(i, j, k) = metric(i, j - 1, k);
           continue;
         }
         jacobian(i, j, k) = jac;
-        auto &m = metric(i, j, k);
-        m(1, 1) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
-        m(1, 2) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
-        m(1, 3) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
-        m(2, 1) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
-        m(2, 2) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
-        m(2, 3) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
-        m(3, 1) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
-        m(3, 2) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
-        m(3, 3) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
+        metric(i, j, k, 0) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
+        metric(i, j, k, 1) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
+        metric(i, j, k, 2) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
+        metric(i, j, k, 3) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
+        metric(i, j, k, 4) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
+        metric(i, j, k, 5) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
+        metric(i, j, k, 6) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
+        metric(i, j, k, 7) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
+        metric(i, j, k, 8) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
       }
     }
   }
@@ -465,20 +472,22 @@ void cfd::Block::compute_jac_metric(int myid) {
         if (jac <= 0) {
           log_negative_jacobian(myid, i, j, k);
           jacobian(i, j, k) = jacobian(i + 1, j, k);
-          metric(i, j, k) = metric(i + 1, j, k);
+          for (int l = 0; l < 9; ++l) {
+            metric(i, j, k, l) = metric(i + 1, j, k, l);
+          }
+//          metric(i, j, k) = metric(i + 1, j, k);
           continue;
         }
         jacobian(i, j, k) = jac;
-        auto &m = metric(i, j, k);
-        m(1, 1) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
-        m(1, 2) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
-        m(1, 3) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
-        m(2, 1) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
-        m(2, 2) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
-        m(2, 3) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
-        m(3, 1) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
-        m(3, 2) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
-        m(3, 3) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
+        metric(i, j, k, 0) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
+        metric(i, j, k, 1) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
+        metric(i, j, k, 2) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
+        metric(i, j, k, 3) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
+        metric(i, j, k, 4) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
+        metric(i, j, k, 5) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
+        metric(i, j, k, 6) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
+        metric(i, j, k, 7) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
+        metric(i, j, k, 8) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
       }
     }
   }
@@ -501,20 +510,22 @@ void cfd::Block::compute_jac_metric(int myid) {
         if (jac <= 0) {
           log_negative_jacobian(myid, i, j, k);
           jacobian(i, j, k) = jacobian(i - 1, j, k);
-          metric(i, j, k) = metric(i - 1, j, k);
+          for (int l = 0; l < 9; ++l) {
+            metric(i, j, k, l) = metric(i - 1, j, k, l);
+          }
+//          metric(i, j, k) = metric(i - 1, j, k);
           continue;
         }
         jacobian(i, j, k) = jac;
-        auto &m = metric(i, j, k);
-        m(1, 1) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
-        m(1, 2) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
-        m(1, 3) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
-        m(2, 1) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
-        m(2, 2) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
-        m(2, 3) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
-        m(3, 1) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
-        m(3, 2) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
-        m(3, 3) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
+        metric(i, j, k, 0) = (dyd2 * dzd3 - dyd3 * dzd2) / jac;
+        metric(i, j, k, 1) = (dxd3 * dzd2 - dxd2 * dzd3) / jac;
+        metric(i, j, k, 2) = (dxd2 * dyd3 - dxd3 * dyd2) / jac;
+        metric(i, j, k, 3) = (dyd3 * dzd1 - dyd1 * dzd3) / jac;
+        metric(i, j, k, 4) = (dxd1 * dzd3 - dxd3 * dzd1) / jac;
+        metric(i, j, k, 5) = (dxd3 * dyd1 - dxd1 * dyd3) / jac;
+        metric(i, j, k, 6) = (dyd1 * dzd2 - dyd2 * dzd1) / jac;
+        metric(i, j, k, 7) = (dxd2 * dzd1 - dxd1 * dzd2) / jac;
+        metric(i, j, k, 8) = (dxd1 * dyd2 - dxd2 * dyd1) / jac;
       }
     }
   }

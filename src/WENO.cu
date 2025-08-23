@@ -46,9 +46,9 @@ compute_convective_term_weno_x(DZone *zone, DParameter *param) {
       cc[iSh] = zone->acoustic_speed(il, j, k);
     else
       cc[iSh] = sqrt(gamma_air * R_air * zone->bv(il, j, k, 5));
-    metric[iSh * 3] = zone->metric(il, j, k)(1, 1);
-    metric[iSh * 3 + 1] = zone->metric(il, j, k)(1, 2);
-    metric[iSh * 3 + 2] = zone->metric(il, j, k)(1, 3);
+    metric[iSh * 3] = zone->metric(il, j, k, 0);
+    metric[iSh * 3 + 1] = zone->metric(il, j, k, 1);
+    metric[iSh * 3 + 2] = zone->metric(il, j, k, 2);
     jac[iSh] = zone->jac(il, j, k);
     compute_flux(&cv[iSh], p[iSh], cc[iSh], param, &metric[iSh * 3], jac[iSh], &fp[iSh],
                  &fm[iSh], n_point);
@@ -133,9 +133,9 @@ compute_convective_term_weno_y(DZone *zone, DParameter *param) {
     cv[i_shared * n_reconstruct + n_var + 1] = zone->acoustic_speed(i, j, k);
   else
     cv[i_shared * n_reconstruct + n_var + 1] = sqrt(gamma_air * R_air * zone->bv(i, j, k, 5));
-  metric[i_shared * 3] = zone->metric(i, j, k)(2, 1);
-  metric[i_shared * 3 + 1] = zone->metric(i, j, k)(2, 2);
-  metric[i_shared * 3 + 2] = zone->metric(i, j, k)(2, 3);
+  metric[i_shared * 3] = zone->metric(i, j, k, 3);
+  metric[i_shared * 3 + 1] = zone->metric(i, j, k, 4);
+  metric[i_shared * 3 + 2] = zone->metric(i, j, k, 5);
   jac[i_shared] = zone->jac(i, j, k);
 
   // ghost cells
@@ -153,9 +153,9 @@ compute_convective_term_weno_y(DZone *zone, DParameter *param) {
       cv[tid * n_reconstruct + n_var + 1] = zone->acoustic_speed(i, gj, k);
     else
       cv[tid * n_reconstruct + n_var + 1] = sqrt(gamma_air * R_air * zone->bv(i, gj, k, 5));
-    metric[tid * 3] = zone->metric(i, gj, k)(2, 1);
-    metric[tid * 3 + 1] = zone->metric(i, gj, k)(2, 2);
-    metric[tid * 3 + 2] = zone->metric(i, gj, k)(2, 3);
+    metric[tid * 3] = zone->metric(i, gj, k, 3);
+    metric[tid * 3 + 1] = zone->metric(i, gj, k, 4);
+    metric[tid * 3 + 2] = zone->metric(i, gj, k, 5);
     jac[tid] = zone->jac(i, gj, k);
     ++additional_loaded;
   }
@@ -171,9 +171,9 @@ compute_convective_term_weno_y(DZone *zone, DParameter *param) {
       cv[iSh * n_reconstruct + n_var + 1] = zone->acoustic_speed(i, gj, k);
     else
       cv[iSh * n_reconstruct + n_var + 1] = sqrt(gamma_air * R_air * zone->bv(i, gj, k, 5));
-    metric[iSh * 3] = zone->metric(i, gj, k)(2, 1);
-    metric[iSh * 3 + 1] = zone->metric(i, gj, k)(2, 2);
-    metric[iSh * 3 + 2] = zone->metric(i, gj, k)(2, 3);
+    metric[iSh * 3] = zone->metric(i, gj, k, 3);
+    metric[iSh * 3 + 1] = zone->metric(i, gj, k, 4);
+    metric[iSh * 3 + 2] = zone->metric(i, gj, k, 5);
     jac[iSh] = zone->jac(i, gj, k);
     ++additional_loaded;
   }
@@ -191,9 +191,9 @@ compute_convective_term_weno_y(DZone *zone, DParameter *param) {
         cv[iSh * n_reconstruct + n_var + 1] = zone->acoustic_speed(i, gj, k);
       else
         cv[iSh * n_reconstruct + n_var + 1] = sqrt(gamma_air * R_air * zone->bv(i, gj, k, 5));
-      metric[iSh * 3] = zone->metric(i, gj, k)(2, 1);
-      metric[iSh * 3 + 1] = zone->metric(i, gj, k)(2, 2);
-      metric[iSh * 3 + 2] = zone->metric(i, gj, k)(2, 3);
+      metric[iSh * 3] = zone->metric(i, gj, k, 3);
+      metric[iSh * 3 + 1] = zone->metric(i, gj, k, 4);
+      metric[iSh * 3 + 2] = zone->metric(i, gj, k, 5);
       jac[iSh] = zone->jac(i, gj, k);
       ++additional_loaded;
     }
@@ -210,9 +210,9 @@ compute_convective_term_weno_y(DZone *zone, DParameter *param) {
         cv[iSh * n_reconstruct + n_var + 1] = zone->acoustic_speed(i, gj, k);
       else
         cv[iSh * n_reconstruct + n_var + 1] = sqrt(gamma_air * R_air * zone->bv(i, gj, k, 5));
-      metric[iSh * 3] = zone->metric(i, gj, k)(2, 1);
-      metric[iSh * 3 + 1] = zone->metric(i, gj, k)(2, 2);
-      metric[iSh * 3 + 2] = zone->metric(i, gj, k)(2, 3);
+      metric[iSh * 3] = zone->metric(i, gj, k, 3);
+      metric[iSh * 3 + 1] = zone->metric(i, gj, k, 4);
+      metric[iSh * 3 + 2] = zone->metric(i, gj, k, 5);
       jac[iSh] = zone->jac(i, gj, k);
       ++additional_loaded;
     }
@@ -295,9 +295,9 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
     cv[i_shared * n_reconstruct + n_var + 1] = zone->acoustic_speed(i, j, k);
   else
     cv[i_shared * n_reconstruct + n_var + 1] = sqrt(gamma_air * R_air * zone->bv(i, j, k, 5));
-  metric[i_shared * 3] = zone->metric(i, j, k)(3, 1);
-  metric[i_shared * 3 + 1] = zone->metric(i, j, k)(3, 2);
-  metric[i_shared * 3 + 2] = zone->metric(i, j, k)(3, 3);
+  metric[i_shared * 3] = zone->metric(i, j, k, 6);
+  metric[i_shared * 3 + 1] = zone->metric(i, j, k, 7);
+  metric[i_shared * 3 + 2] = zone->metric(i, j, k, 8);
   jac[i_shared] = zone->jac(i, j, k);
 
   // ghost cells
@@ -315,9 +315,9 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
       cv[tid * n_reconstruct + n_var + 1] = zone->acoustic_speed(i, j, gk);
     else
       cv[tid * n_reconstruct + n_var + 1] = sqrt(gamma_air * R_air * zone->bv(i, j, gk, 5));
-    metric[tid * 3] = zone->metric(i, j, gk)(3, 1);
-    metric[tid * 3 + 1] = zone->metric(i, j, gk)(3, 2);
-    metric[tid * 3 + 2] = zone->metric(i, j, gk)(3, 3);
+    metric[tid * 3] = zone->metric(i, j, gk, 6);
+    metric[tid * 3 + 1] = zone->metric(i, j, gk, 7);
+    metric[tid * 3 + 2] = zone->metric(i, j, gk, 8);
     jac[tid] = zone->jac(i, j, gk);
     ++additional_loaded;
   }
@@ -333,9 +333,9 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
       cv[iSh * n_reconstruct + n_var + 1] = zone->acoustic_speed(i, j, gk);
     else
       cv[iSh * n_reconstruct + n_var + 1] = sqrt(gamma_air * R_air * zone->bv(i, j, gk, 5));
-    metric[iSh * 3] = zone->metric(i, j, gk)(3, 1);
-    metric[iSh * 3 + 1] = zone->metric(i, j, gk)(3, 2);
-    metric[iSh * 3 + 2] = zone->metric(i, j, gk)(3, 3);
+    metric[iSh * 3] = zone->metric(i, j, gk, 6);
+    metric[iSh * 3 + 1] = zone->metric(i, j, gk, 7);
+    metric[iSh * 3 + 2] = zone->metric(i, j, gk, 8);
     jac[iSh] = zone->jac(i, j, gk);
     ++additional_loaded;
   }
@@ -353,9 +353,9 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
         cv[iSh * n_reconstruct + n_var + 1] = zone->acoustic_speed(i, j, gk);
       else
         cv[iSh * n_reconstruct + n_var + 1] = sqrt(gamma_air * R_air * zone->bv(i, j, gk, 5));
-      metric[iSh * 3] = zone->metric(i, j, gk)(3, 1);
-      metric[iSh * 3 + 1] = zone->metric(i, j, gk)(3, 2);
-      metric[iSh * 3 + 2] = zone->metric(i, j, gk)(3, 3);
+      metric[iSh * 3] = zone->metric(i, j, gk, 6);
+      metric[iSh * 3 + 1] = zone->metric(i, j, gk, 7);
+      metric[iSh * 3 + 2] = zone->metric(i, j, gk, 8);
       jac[iSh] = zone->jac(i, j, gk);
       ++additional_loaded;
     }
@@ -372,9 +372,9 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
         cv[iSh * n_reconstruct + n_var + 1] = zone->acoustic_speed(i, j, gk);
       else
         cv[iSh * n_reconstruct + n_var + 1] = sqrt(gamma_air * R_air * zone->bv(i, j, gk, 5));
-      metric[iSh * 3] = zone->metric(i, j, gk)(3, 1);
-      metric[iSh * 3 + 1] = zone->metric(i, j, gk)(3, 2);
-      metric[iSh * 3 + 2] = zone->metric(i, j, gk)(3, 3);
+      metric[iSh * 3] = zone->metric(i, j, gk, 6);
+      metric[iSh * 3 + 1] = zone->metric(i, j, gk, 7);
+      metric[iSh * 3 + 2] = zone->metric(i, j, gk, 8);
       jac[iSh] = zone->jac(i, j, gk);
       ++additional_loaded;
     }

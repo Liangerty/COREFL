@@ -126,10 +126,18 @@ __device__ void cfd::collect_tke_budget(DZone *zone, DParameter *param, int i, i
   auto &coll = zone->collect_tke_budget;
   auto &bv = zone->bv;
 
-  const auto &m = zone->metric(i, j, k);
-  const real xi_x{m(1, 1)}, xi_y{m(1, 2)}, xi_z{m(1, 3)};
-  const real eta_x{m(2, 1)}, eta_y{m(2, 2)}, eta_z{m(2, 3)};
-  const real zeta_x{m(3, 1)}, zeta_y{m(3, 2)}, zeta_z{m(3, 3)};
+  const auto &metric = zone->metric;
+
+  const real xi_x = metric(i, j, k, 0);
+  const real xi_y = metric(i, j, k, 1);
+  const real xi_z = metric(i, j, k, 2);
+  const real eta_x = metric(i, j, k, 3);
+  const real eta_y = metric(i, j, k, 4);
+  const real eta_z = metric(i, j, k, 5);
+  const real zeta_x = metric(i, j, k, 6);
+  const real zeta_y = metric(i, j, k, 7);
+  const real zeta_z = metric(i, j, k, 8);
+
   const real u_x = 0.5 * (xi_x * (bv(i + 1, j, k, 1) - bv(i - 1, j, k, 1)) +
                           eta_x * (bv(i, j + 1, k, 1) - bv(i, j - 1, k, 1)) +
                           zeta_x * (bv(i, j, k + 1, 1) - bv(i, j, k - 1, 1)));

@@ -25,18 +25,18 @@ __global__ void cfd::local_time_step_without_reaction(DZone *zone, DParameter *p
   const int k = blockDim.z * blockIdx.z + threadIdx.z;
   if (i >= extent[0] || j >= extent[1] || k >= extent[2]) return;
 
-  const auto &m{zone->metric(i, j, k)};
+  const auto &metric{zone->metric};
   const auto &bv = zone->bv;
   const int dim{zone->mz == 1 ? 2 : 3};
 
-  const real grad_xi = std::sqrt(m(1, 1) * m(1, 1) + m(1, 2) * m(1, 2) + m(1, 3) * m(1, 3));
-  const real grad_eta = std::sqrt(m(2, 1) * m(2, 1) + m(2, 2) * m(2, 2) + m(2, 3) * m(2, 3));
-  const real grad_zeta = std::sqrt(m(3, 1) * m(3, 1) + m(3, 2) * m(3, 2) + m(3, 3) * m(3, 3));
+  const real grad_xi =   norm3d(metric(i, j, k, 0), metric(i, j, k, 1), metric(i, j, k, 2));
+  const real grad_eta =  norm3d(metric(i, j, k, 3), metric(i, j, k, 4), metric(i, j, k, 5));
+  const real grad_zeta = norm3d(metric(i, j, k, 6), metric(i, j, k, 7), metric(i, j, k, 8));
 
   const real u{bv(i, j, k, 1)}, v{bv(i, j, k, 2)}, w{bv(i, j, k, 3)};
-  const real U = u * m(1, 1) + v * m(1, 2) + w * m(1, 3);
-  const real V = u * m(2, 1) + v * m(2, 2) + w * m(2, 3);
-  const real W = u * m(3, 1) + v * m(3, 2) + w * m(3, 3);
+  const real U = u * metric(i, j, k, 0) + v * metric(i, j, k, 1) + w *metric(i, j, k, 2);
+  const real V = u * metric(i, j, k, 3) + v * metric(i, j, k, 4) + w * metric(i, j, k, 5);
+  const real W = u * metric(i, j, k, 6) + v * metric(i, j, k, 7) + w * metric(i, j, k, 8);
 
   real acoustic_speed{0};
   acoustic_speed = zone->acoustic_speed(i, j, k);

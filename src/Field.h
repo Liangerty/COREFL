@@ -21,7 +21,8 @@ struct DZone {
   InnerFace *innerFace = nullptr;
   ParallelFace *parFace = nullptr;
   ggxl::Array3D<real> jac;
-  ggxl::Array3D<gxl::Matrix<real, 3, 3, 1>> metric;
+//  ggxl::Array3D<gxl::Matrix<real, 3, 3, 1>> metric;
+  ggxl::VectorField3D<real> metric;
   ggxl::Array3D<real> wall_distance;
   // DES related grid scale
   ggxl::Array3D<real> des_delta;

@@ -62,7 +62,7 @@ public:
   auto extent() const { return std::array<int, 4>{n1, n2, n3, ng}; }
 };
 
-template<typename T, Major major> inline Array3D<T, major>::Array3D(const Array3D &arr):
+template<typename T, Major major> inline Array3D<T, major>::Array3D(const Array3D &arr) :
   Array3D<T, major>(arr.n1, arr.n2, arr.n3, arr.ng) {
   data_ = arr.data_;
 }
@@ -90,7 +90,7 @@ class Array2D {
   std::vector<T> val;
 
 public:
-  explicit Array2D(int dim1, int dim2, int ng, T dd = T{}):
+  explicit Array2D(int dim1, int dim2, int ng, T dd = T{}) :
     disp1(dim1 + 2 * ng), dispt(ng * (1 + dim1 + 2 * ng)), sz((dim1 + 2 * ng) * (dim2 + 2 * ng)), val(sz, dd) {}
 
   void allocate_memory(int dim1, int dim2, int n_ghost = 0);
@@ -136,6 +136,20 @@ class VectorField3D {
   int disp2{0}, disp1{0}, dispt{0};
 
 public:
+  explicit VectorField3D(const int ni = 0, const int nj = 0, const int nk = 0, const int nl = 0, const int _n_ghost = 0,
+    T dd = T{}) :
+    ng(_n_ghost), n1(ni + 2 * ng), n2(nj + 2 * ng), n3(nk + 2 * ng), n4(nl), disp2(n1), disp1(n2 * disp2),
+    dispt((disp1 + disp2 + 1) * ng), data_(n1 * n2 * n3 * n4, dd), sz{n1 * n2 * n3} {
+    if constexpr (major == Major::RowMajor) {
+      disp2 = n3 * n4;
+      disp1 = n2 * disp2;
+      dispt = (disp1 + disp2 + n4) * ng;
+    }
+    n1 = ni;
+    n2 = nj;
+    n3 = nk;
+  }
+
   auto data() const { return data_.data(); }
 
   auto data() { return data_.data(); }

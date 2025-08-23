@@ -80,10 +80,10 @@ __global__ void cfd::eliminate_k_gradient(DZone *zone, const DParameter *param) 
 
 __device__ real ducros_sensor(const cfd::DZone *zone, real eps, int i, int j, int k) {
   const auto &bv = zone->bv;
-  const auto &metric = zone->metric(i, j, k);
-  const auto xi_x = metric(1, 1), xi_y = metric(1, 2), xi_z = metric(1, 3);
-  const auto eta_x = metric(2, 1), eta_y = metric(2, 2), eta_z = metric(2, 3);
-  const auto zeta_x = metric(3, 1), zeta_y = metric(3, 2), zeta_z = metric(3, 3);
+  const auto &metric = zone->metric;
+  const auto xi_x = metric(i, j, k, 0), xi_y = metric(i, j, k, 1), xi_z = metric(i, j, k, 2);
+  const auto eta_x = metric(i, j, k, 3), eta_y = metric(i, j, k, 4), eta_z = metric(i, j, k, 5);
+  const auto zeta_x = metric(i, j, k, 6), zeta_y = metric(i, j, k, 7), zeta_z = metric(i, j, k, 8);
 
   constexpr real oneD12 = 1.0 / 12.0, twoD3 = 2.0 / 3.0;
   const real dud1 = oneD12 * bv(i - 2, j, k, 1) - twoD3 * bv(i - 1, j, k, 1) +

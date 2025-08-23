@@ -154,8 +154,8 @@ __global__ void apply_symmetry(DZone *zone, int i_face, DParameter *param) {
 
   const int inner_idx[3]{i - dir[0], j - dir[1], k - dir[2]};
 
-  auto metric = zone->metric(i, j, k);
-  real k_x{metric(face + 1, 1)}, k_y{metric(face + 1, 2)}, k_z{metric(face + 1, 3)};
+  const auto &metric = zone->metric;
+  real k_x{metric(i, j, k, face * 3)}, k_y{metric(i, j, k, face * 3 + 1)}, k_z{metric(i, j, k, face * 3 + 2)};
   const real k_magnitude = sqrt(k_x * k_x + k_y * k_y + k_z * k_z);
   k_x /= k_magnitude;
   k_y /= k_magnitude;
@@ -767,9 +767,9 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
 
   if (wall->if_blow_shock_wave && step >= 0 && step <= 50) {
     gxl::Matrix<real, 3, 3, 1> bdJin;
-    real d1 = zone->metric(i, j, k)(2, 1);
-    real d2 = zone->metric(i, j, k)(2, 2);
-    real d3 = zone->metric(i, j, k)(2, 3);
+    real d1 = zone->metric(i, j, k, 3);
+    real d2 = zone->metric(i, j, k, 4);
+    real d3 = zone->metric(i, j, k, 5);
     real kk = sqrt(d1 * d1 + d2 * d2 + d3 * d3);
     bdJin(1, 1) = d1 / kk;
     bdJin(1, 2) = d2 / kk;
@@ -1109,8 +1109,8 @@ __global__ void apply_outflow_nr(DZone *zone, int i_face, const DParameter *para
   auto &bv = zone->bv;
 
   const int face = b.face;
-  real kx{zone->metric(i, j, k)(face + 1, 1)}, ky{zone->metric(i, j, k)(face + 1, 2)},
-      kz{zone->metric(i, j, k)(face + 1, 3)};
+  real kx{zone->metric(i, j, k, face * 3)}, ky{zone->metric(i, j, k, face * 3 + 1)},
+      kz{zone->metric(i, j, k, face * 3 + 2)};
   const real gradKInv = 1 / norm3d(kx, ky, kz);
 
   const real u = bv(i, j, k, 1), v = bv(i, j, k, 2), w = bv(i, j, k, 3);
@@ -1309,8 +1309,8 @@ __global__ void apply_outflow_nr_conserv(DZone *zone, int i_face, const DParamet
   // Compute the contravariant speed Uk
   auto &bv = zone->bv;
   const real r = bv(i, j, k, 0), u = bv(i, j, k, 1), v = bv(i, j, k, 2), w = bv(i, j, k, 3), p = bv(i, j, k, 4);
-  real kx{zone->metric(i, j, k)(face + 1, 1)}, ky{zone->metric(i, j, k)(face + 1, 2)},
-      kz{zone->metric(i, j, k)(face + 1, 3)};
+  real kx{zone->metric(i, j, k, face * 3)}, ky{zone->metric(i, j, k, face * 3 + 1)},
+      kz{zone->metric(i, j, k, face * 3 + 2)};
   const real gradKInv = 1 / norm3d(kx, ky, kz);
   kx *= gradKInv;
   ky *= gradKInv;

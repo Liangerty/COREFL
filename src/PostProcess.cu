@@ -53,9 +53,9 @@ __global__ void cfd::wall_friction_heatFlux_2d(DZone *zone, real *friction, real
 
   auto &pv = zone->bv;
 
-  auto &metric = zone->metric(i, 0, 0);
-  const real xi_x = metric(1, 1), xi_y = metric(1, 2);
-  const real eta_x = metric(2, 1), eta_y = metric(2, 2);
+  auto &metric = zone->metric;
+  const real xi_x = metric(i, 0, 0, 0), xi_y = metric(i, 0, 0, 1);
+  const real eta_x = metric(i, 0, 0, 3), eta_y = metric(i, 0, 0, 4);
 
   const real viscosity = zone->mul(i, 0, 0);
   const double u_parallel_wall = (xi_x * pv(i, 1, 0, 1) + xi_y * pv(i, 1, 0, 2)) / sqrt(xi_x * xi_x + xi_y * xi_y);
@@ -139,9 +139,8 @@ cfd::wall_friction_heatFlux_3d(DZone *zone, ggxl::VectorField2D<real> *cfQw, con
   if (i >= zone->mx || k >= zone->mz) return;
 
   constexpr int j = 1;
-  auto &metric = zone->metric(i, 0, k);
-  const real d_wini =
-      1.0 / sqrt(metric(2, 1) * metric(2, 1) + metric(2, 2) * metric(2, 2) + metric(2, 3) * metric(2, 3));
+  auto &metric = zone->metric;
+  const real d_wini = rnorm3d(metric(i, 0, k, 3), metric(i, 0, k, 4), metric(i, 0, k, 5));
 
   real u, v, w;
   real rho_w;
@@ -158,9 +157,9 @@ cfd::wall_friction_heatFlux_3d(DZone *zone, ggxl::VectorField2D<real> *cfQw, con
   }
   const real rho_ref = param->rho_ref, v_ref = param->v_ref;
   gxl::Matrix<real, 3, 3, 1> bdjin;
-  real d1 = metric(2, 1);
-  real d2 = metric(2, 2);
-  real d3 = metric(2, 3);
+  real d1 = metric(i, 0, k, 3);
+  real d2 = metric(i, 0, k, 4);
+  real d3 = metric(i, 0, k, 5);
   real kk = sqrt(d1 * d1 + d2 * d2 + d3 * d3);
   bdjin(1, 1) = d1 / kk;
   bdjin(1, 2) = d2 / kk;

@@ -223,16 +223,16 @@ void compute_jac_metric(int myid, Block &block, Parameter &parameter) {
         }
         block.jacobian(i, j, k) = jac;
         const real jI = 0.5 / jac;
-        auto &m = block.metric(i, j, k);
-        m(1, 1) = (gxl::Derivatives<6>(xyz123, i, j, k, 14, 3) - gxl::Derivatives<6>(xyz123, i, j, k, 8, 2)) * jI;
-        m(1, 2) = (gxl::Derivatives<6>(xyz123, i, j, k, 16, 3) - gxl::Derivatives<6>(xyz123, i, j, k, 10, 2)) * jI;
-        m(1, 3) = (gxl::Derivatives<6>(xyz123, i, j, k, 12, 3) - gxl::Derivatives<6>(xyz123, i, j, k, 6, 2)) * jI;
-        m(2, 1) = (gxl::Derivatives<6>(xyz123, i, j, k, 8, 1) - gxl::Derivatives<6>(xyz123, i, j, k, 2, 3)) * jI;
-        m(2, 2) = (gxl::Derivatives<6>(xyz123, i, j, k, 10, 1) - gxl::Derivatives<6>(xyz123, i, j, k, 4, 3)) * jI;
-        m(2, 3) = (gxl::Derivatives<6>(xyz123, i, j, k, 6, 1) - gxl::Derivatives<6>(xyz123, i, j, k, 0, 3)) * jI;
-        m(3, 1) = (gxl::Derivatives<6>(xyz123, i, j, k, 2, 2) - gxl::Derivatives<6>(xyz123, i, j, k, 14, 1)) * jI;
-        m(3, 2) = (gxl::Derivatives<6>(xyz123, i, j, k, 4, 2) - gxl::Derivatives<6>(xyz123, i, j, k, 16, 1)) * jI;
-        m(3, 3) = (gxl::Derivatives<6>(xyz123, i, j, k, 0, 2) - gxl::Derivatives<6>(xyz123, i, j, k, 12, 1)) * jI;
+        auto &m = block.metric;
+        m(i, j, k, 0) = (gxl::Derivatives<6>(xyz123, i, j, k, 14, 3) - gxl::Derivatives<6>(xyz123, i, j, k, 8, 2)) * jI;
+        m(i, j, k, 1) = (gxl::Derivatives<6>(xyz123, i, j, k, 16, 3) - gxl::Derivatives<6>(xyz123, i, j, k, 10, 2)) * jI;
+        m(i, j, k, 2) = (gxl::Derivatives<6>(xyz123, i, j, k, 12, 3) - gxl::Derivatives<6>(xyz123, i, j, k, 6, 2)) * jI;
+        m(i, j, k, 3) = (gxl::Derivatives<6>(xyz123, i, j, k, 8, 1) - gxl::Derivatives<6>(xyz123, i, j, k, 2, 3)) * jI;
+        m(i, j, k, 4) = (gxl::Derivatives<6>(xyz123, i, j, k, 10, 1) - gxl::Derivatives<6>(xyz123, i, j, k, 4, 3)) * jI;
+        m(i, j, k, 5) = (gxl::Derivatives<6>(xyz123, i, j, k, 6, 1) - gxl::Derivatives<6>(xyz123, i, j, k, 0, 3)) * jI;
+        m(i, j, k, 6) = (gxl::Derivatives<6>(xyz123, i, j, k, 2, 2) - gxl::Derivatives<6>(xyz123, i, j, k, 14, 1)) * jI;
+        m(i, j, k, 7) = (gxl::Derivatives<6>(xyz123, i, j, k, 4, 2) - gxl::Derivatives<6>(xyz123, i, j, k, 16, 1)) * jI;
+        m(i, j, k, 8) = (gxl::Derivatives<6>(xyz123, i, j, k, 0, 2) - gxl::Derivatives<6>(xyz123, i, j, k, 12, 1)) * jI;
       }
     }
   }

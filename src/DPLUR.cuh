@@ -65,8 +65,8 @@ template<MixtureModel mixture_model>
 __device__ void
 compute_jacobian_times_dq(const DParameter *param, DZone *zone, int i, int j, int k, int dir, real pm_spectral_radius,
   real *convJacTimesDq) {
-  const auto &m = zone->metric(i, j, k);
-  const auto xi_x{m(dir + 1, 1)}, xi_y{m(dir + 1, 2)}, xi_z{m(dir + 1, 3)};
+  const auto &m = zone->metric;
+  const auto xi_x{m(i, j, k, dir * 3)}, xi_y{m(i, j, k, dir * 3 + 1)}, xi_z{m(i, j, k, dir * 3 + 2)};
 
   const auto &pv = zone->bv;
   const real u = pv(i, j, k, 1), v = pv(i, j, k, 2), w = pv(i, j, k, 3);

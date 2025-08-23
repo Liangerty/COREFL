@@ -5,10 +5,17 @@
 __device__ void cfd::collect_species_dissipation_rate(DZone *zone, const DParameter *param, int i, int j, int k) {
   auto &collect = zone->collect_scalar_budget;
   const auto &sv = zone->sv;
-  const auto &m = zone->metric(i, j, k);
-  const real xi_x{m(1, 1)}, xi_y{m(1, 2)}, xi_z{m(1, 3)};
-  const real eta_x{m(2, 1)}, eta_y{m(2, 2)}, eta_z{m(2, 3)};
-  const real zeta_x{m(3, 1)}, zeta_y{m(3, 2)}, zeta_z{m(3, 3)};
+  const auto &metric = zone->metric;
+
+  const real xi_x = metric(i, j, k, 0);
+  const real xi_y = metric(i, j, k, 1);
+  const real xi_z = metric(i, j, k, 2);
+  const real eta_x = metric(i, j, k, 3);
+  const real eta_y = metric(i, j, k, 4);
+  const real eta_z = metric(i, j, k, 5);
+  const real zeta_x = metric(i, j, k, 6);
+  const real zeta_y = metric(i, j, k, 7);
+  const real zeta_z = metric(i, j, k, 8);
 
   for (int i_s = 0; i_s < param->n_species_stat; ++i_s) {
     const int is = param->specStatIndex[i_s];
@@ -115,11 +122,18 @@ __device__ void cfd::collect_scalar_fluc_budget(DZone *zone, const DParameter *p
   auto &collect = zone->collect_scalar_budget;
   const auto &sv = zone->sv;
   const auto &bv = zone->bv;
-  const auto &m = zone->metric(i, j, k);
   const auto &tau = zone->collect_tke_budget;
-  const real xi_x{m(1, 1)}, xi_y{m(1, 2)}, xi_z{m(1, 3)};
-  const real eta_x{m(2, 1)}, eta_y{m(2, 2)}, eta_z{m(2, 3)};
-  const real zeta_x{m(3, 1)}, zeta_y{m(3, 2)}, zeta_z{m(3, 3)};
+  const auto &metric = zone->metric;
+
+  const real xi_x = metric(i, j, k, 0);
+  const real xi_y = metric(i, j, k, 1);
+  const real xi_z = metric(i, j, k, 2);
+  const real eta_x = metric(i, j, k, 3);
+  const real eta_y = metric(i, j, k, 4);
+  const real eta_z = metric(i, j, k, 5);
+  const real zeta_x = metric(i, j, k, 6);
+  const real zeta_y = metric(i, j, k, 7);
+  const real zeta_z = metric(i, j, k, 8);
 
   const auto rho = bv(i, j, k, 0), u = bv(i, j, k, 1), v = bv(i, j, k, 2), w = bv(i, j, k, 3);
   const int ns_stat = param->n_species_stat;

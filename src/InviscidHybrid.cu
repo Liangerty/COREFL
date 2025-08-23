@@ -597,9 +597,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_x(DZone *zone, DParameter
   }
 
   const int i_shared = tid - 1 + ngg;
-  metric[i_shared * 3] = zone->metric(i, j, k)(1, 1);
-  metric[i_shared * 3 + 1] = zone->metric(i, j, k)(1, 2);
-  metric[i_shared * 3 + 2] = zone->metric(i, j, k)(1, 3);
+  metric[i_shared * 3] = zone->metric(i, j, k, 0);
+  metric[i_shared * 3 + 1] = zone->metric(i, j, k, 1);
+  metric[i_shared * 3 + 2] = zone->metric(i, j, k, 2);
   jac[i_shared] = zone->jac(i, j, k);
   for (auto l = 0; l < 5; ++l) {
     pv[i_shared * n_var + l] = zone->bv(i, j, k, l);
@@ -623,9 +623,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_x(DZone *zone, DParameter
   if (tid < ngg - 1) {
     const int gi = i - (ngg - 1);
 
-    metric[tid * 3] = zone->metric(gi, j, k)(1, 1);
-    metric[tid * 3 + 1] = zone->metric(gi, j, k)(1, 2);
-    metric[tid * 3 + 2] = zone->metric(gi, j, k)(1, 3);
+    metric[tid * 3] = zone->metric(gi, j, k, 0);
+    metric[tid * 3 + 1] = zone->metric(gi, j, k, 1);
+    metric[tid * 3 + 2] = zone->metric(gi, j, k, 2);
     jac[tid] = zone->jac(gi, j, k);
     for (auto l = 0; l < 5; ++l) {
       pv[tid * n_var + l] = zone->bv(gi, j, k, l);
@@ -648,9 +648,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_x(DZone *zone, DParameter
   if (tid > block_dim - ngg - 1 || i > max_extent - ngg - 1) {
     const int iSh = tid + 2 * ngg - 1;
     const int gi = i + ngg;
-    metric[iSh * 3] = zone->metric(gi, j, k)(1, 1);
-    metric[iSh * 3 + 1] = zone->metric(gi, j, k)(1, 2);
-    metric[iSh * 3 + 2] = zone->metric(gi, j, k)(1, 3);
+    metric[iSh * 3] = zone->metric(gi, j, k, 0);
+    metric[iSh * 3 + 1] = zone->metric(gi, j, k, 1);
+    metric[iSh * 3 + 2] = zone->metric(gi, j, k, 2);
     jac[iSh] = zone->jac(gi, j, k);
     for (auto l = 0; l < 5; ++l) {
       pv[iSh * n_var + l] = zone->bv(gi, j, k, l);
@@ -676,9 +676,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_x(DZone *zone, DParameter
       const int iSh = tid + m + 1;
       const int gi = i - (ngg - 1 - m - 1);
 
-      metric[iSh * 3] = zone->metric(gi, j, k)(1, 1);
-      metric[iSh * 3 + 1] = zone->metric(gi, j, k)(1, 2);
-      metric[iSh * 3 + 2] = zone->metric(gi, j, k)(1, 3);
+      metric[iSh * 3] = zone->metric(gi, j, k, 0);
+      metric[iSh * 3 + 1] = zone->metric(gi, j, k, 1);
+      metric[iSh * 3 + 2] = zone->metric(gi, j, k, 2);
       jac[iSh] = zone->jac(gi, j, k);
       for (auto l = 0; l < 5; ++l) {
         pv[iSh * n_var + l] = zone->bv(gi, j, k, l);
@@ -703,9 +703,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_x(DZone *zone, DParameter
       const int iSh = i_shared + m + 1;
       const int gi = i + (m + 1);
 
-      metric[iSh * 3] = zone->metric(gi, j, k)(1, 1);
-      metric[iSh * 3 + 1] = zone->metric(gi, j, k)(1, 2);
-      metric[iSh * 3 + 2] = zone->metric(gi, j, k)(1, 3);
+      metric[iSh * 3] = zone->metric(gi, j, k, 0);
+      metric[iSh * 3 + 1] = zone->metric(gi, j, k, 1);
+      metric[iSh * 3 + 2] = zone->metric(gi, j, k, 2);
       jac[iSh] = zone->jac(gi, j, k);
       for (auto l = 0; l < 5; ++l) {
         pv[iSh * n_var + l] = zone->bv(gi, j, k, l);
@@ -795,9 +795,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_y(DZone *zone, DParameter
   }
 
   const int i_shared = tid - 1 + ngg;
-  metric[i_shared * 3] = zone->metric(i, j, k)(2, 1);
-  metric[i_shared * 3 + 1] = zone->metric(i, j, k)(2, 2);
-  metric[i_shared * 3 + 2] = zone->metric(i, j, k)(2, 3);
+  metric[i_shared * 3] = zone->metric(i, j, k, 3);
+  metric[i_shared * 3 + 1] = zone->metric(i, j, k, 4);
+  metric[i_shared * 3 + 2] = zone->metric(i, j, k, 5);
   jac[i_shared] = zone->jac(i, j, k);
   for (auto l = 0; l < 5; ++l) {
     pv[i_shared * n_var + l] = zone->bv(i, j, k, l);
@@ -821,9 +821,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_y(DZone *zone, DParameter
   if (tid < ngg - 1) {
     const int gj = j - (ngg - 1);
 
-    metric[tid * 3] = zone->metric(i, gj, k)(2, 1);
-    metric[tid * 3 + 1] = zone->metric(i, gj, k)(2, 2);
-    metric[tid * 3 + 2] = zone->metric(i, gj, k)(2, 3);
+    metric[tid * 3] = zone->metric(i, gj, k, 3);
+    metric[tid * 3 + 1] = zone->metric(i, gj, k, 4);
+    metric[tid * 3 + 2] = zone->metric(i, gj, k, 5);
     jac[tid] = zone->jac(i, gj, k);
     for (auto l = 0; l < 5; ++l) {
       pv[tid * n_var + l] = zone->bv(i, gj, k, l);
@@ -846,9 +846,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_y(DZone *zone, DParameter
   if (tid > block_dim - ngg - 1 || j > max_extent - ngg - 1) {
     const int iSh = tid + 2 * ngg - 1;
     const int gj = j + ngg;
-    metric[iSh * 3] = zone->metric(i, gj, k)(2, 1);
-    metric[iSh * 3 + 1] = zone->metric(i, gj, k)(2, 2);
-    metric[iSh * 3 + 2] = zone->metric(i, gj, k)(2, 3);
+    metric[iSh * 3] = zone->metric(i, gj, k, 3);
+    metric[iSh * 3 + 1] = zone->metric(i, gj, k, 4);
+    metric[iSh * 3 + 2] = zone->metric(i, gj, k, 5);
     jac[iSh] = zone->jac(i, gj, k);
     for (auto l = 0; l < 5; ++l) {
       pv[iSh * n_var + l] = zone->bv(i, gj, k, l);
@@ -874,9 +874,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_y(DZone *zone, DParameter
       const int iSh = tid + m + 1;
       const int gj = j - (ngg - 1 - m - 1);
 
-      metric[iSh * 3] = zone->metric(i, gj, k)(2, 1);
-      metric[iSh * 3 + 1] = zone->metric(i, gj, k)(2, 2);
-      metric[iSh * 3 + 2] = zone->metric(i, gj, k)(2, 3);
+      metric[iSh * 3] = zone->metric(i, gj, k, 3);
+      metric[iSh * 3 + 1] = zone->metric(i, gj, k, 4);
+      metric[iSh * 3 + 2] = zone->metric(i, gj, k, 5);
       jac[iSh] = zone->jac(i, gj, k);
       for (auto l = 0; l < 5; ++l) {
         pv[iSh * n_var + l] = zone->bv(i, gj, k, l);
@@ -901,9 +901,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_y(DZone *zone, DParameter
       const int iSh = i_shared + m + 1;
       const int gj = j + (m + 1);
 
-      metric[iSh * 3] = zone->metric(i, gj, k)(2, 1);
-      metric[iSh * 3 + 1] = zone->metric(i, gj, k)(2, 2);
-      metric[iSh * 3 + 2] = zone->metric(i, gj, k)(2, 3);
+      metric[iSh * 3] = zone->metric(i, gj, k, 3);
+      metric[iSh * 3 + 1] = zone->metric(i, gj, k, 4);
+      metric[iSh * 3 + 2] = zone->metric(i, gj, k, 5);
       jac[iSh] = zone->jac(i, gj, k);
       for (auto l = 0; l < 5; ++l) {
         pv[iSh * n_var + l] = zone->bv(i, gj, k, l);
@@ -992,9 +992,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_z(DZone *zone, DParameter
 
   const int tid = static_cast<int>(threadIdx.z);
   const int i_shared = tid - 1 + ngg;
-  metric[i_shared * 3] = zone->metric(i, j, k)(3, 1);
-  metric[i_shared * 3 + 1] = zone->metric(i, j, k)(3, 2);
-  metric[i_shared * 3 + 2] = zone->metric(i, j, k)(3, 3);
+  metric[i_shared * 3] = zone->metric(i, j, k, 6);
+  metric[i_shared * 3 + 1] = zone->metric(i, j, k, 7);
+  metric[i_shared * 3 + 2] = zone->metric(i, j, k, 8);
   jac[i_shared] = zone->jac(i, j, k);
   for (auto l = 0; l < 5; ++l) {
     pv[i_shared * n_var + l] = zone->bv(i, j, k, l);
@@ -1018,9 +1018,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_z(DZone *zone, DParameter
   if (tid < ngg - 1) {
     const int gk = k - (ngg - 1);
 
-    metric[tid * 3] = zone->metric(i, j, gk)(3, 1);
-    metric[tid * 3 + 1] = zone->metric(i, j, gk)(3, 2);
-    metric[tid * 3 + 2] = zone->metric(i, j, gk)(3, 3);
+    metric[tid * 3] = zone->metric(i, j, gk, 6);
+    metric[tid * 3 + 1] = zone->metric(i, j, gk, 7);
+    metric[tid * 3 + 2] = zone->metric(i, j, gk, 8);
     jac[tid] = zone->jac(i, j, gk);
     for (auto l = 0; l < 5; ++l) {
       pv[tid * n_var + l] = zone->bv(i, j, gk, l);
@@ -1044,9 +1044,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_z(DZone *zone, DParameter
     const int iSh = tid + 2 * ngg - 1;
     const int gk = k + ngg;
 
-    metric[iSh * 3] = zone->metric(i, j, gk)(3, 1);
-    metric[iSh * 3 + 1] = zone->metric(i, j, gk)(3, 2);
-    metric[iSh * 3 + 2] = zone->metric(i, j, gk)(3, 3);
+    metric[iSh * 3] = zone->metric(i, j, gk, 6);
+    metric[iSh * 3 + 1] = zone->metric(i, j, gk, 7);
+    metric[iSh * 3 + 2] = zone->metric(i, j, gk, 8);
     jac[iSh] = zone->jac(i, j, gk);
     for (auto l = 0; l < 5; ++l) {
       pv[iSh * n_var + l] = zone->bv(i, j, gk, l);
@@ -1072,9 +1072,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_z(DZone *zone, DParameter
       const int iSh = tid + m + 1;
       const int gk = k - (ngg - 1 - m - 1);
 
-      metric[iSh * 3] = zone->metric(i, j, gk)(3, 1);
-      metric[iSh * 3 + 1] = zone->metric(i, j, gk)(3, 2);
-      metric[iSh * 3 + 2] = zone->metric(i, j, gk)(3, 3);
+      metric[iSh * 3] = zone->metric(i, j, gk, 6);
+      metric[iSh * 3 + 1] = zone->metric(i, j, gk, 7);
+      metric[iSh * 3 + 2] = zone->metric(i, j, gk, 8);
       jac[iSh] = zone->jac(i, j, gk);
       for (auto l = 0; l < 5; ++l) {
         pv[iSh * n_var + l] = zone->bv(i, j, gk, l);
@@ -1099,9 +1099,9 @@ __global__ void compute_convective_term_hybrid_ud_weno_z(DZone *zone, DParameter
       const int iSh = i_shared + m + 1;
       const int gk = k + (m + 1);
 
-      metric[iSh * 3] = zone->metric(i, j, gk)(3, 1);
-      metric[iSh * 3 + 1] = zone->metric(i, j, gk)(3, 2);
-      metric[iSh * 3 + 2] = zone->metric(i, j, gk)(3, 3);
+      metric[iSh * 3] = zone->metric(i, j, gk, 6);
+      metric[iSh * 3 + 1] = zone->metric(i, j, gk, 7);
+      metric[iSh * 3 + 2] = zone->metric(i, j, gk, 8);
       jac[iSh] = zone->jac(i, j, gk);
       for (auto l = 0; l < 5; ++l) {
         pv[iSh * n_var + l] = zone->bv(i, j, gk, l);

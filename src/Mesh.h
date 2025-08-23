@@ -153,7 +153,8 @@ public:
    *             \end{array}\right]
    *             \f]
    */
-  gxl::Array3D<gxl::Matrix<real, 3, 3, 1>> metric;
+//  gxl::Array3D<gxl::Matrix<real, 3, 3, 1>> metric;
+  gxl::VectorField3D<real> metric;
   gxl::Array2D<int> bType_il, bType_ir, bType_jl, bType_jr, bType_kl, bType_kr;
   gxl::Array3D<real> des_scale;
 

@@ -42,18 +42,17 @@ __global__ void compute_fv_2nd_order(DZone *zone, DParameter *param) {
   const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
   if (i >= zone->mx || j >= zone->my || k >= zone->mz) return;
 
-  const auto &m = zone->metric(i, j, k);
-  const auto &m1 = zone->metric(i + 1, j, k);
+  const auto &metric = zone->metric;
 
-  const real xi_x = 0.5 * (m(1, 1) + m1(1, 1));
-  const real xi_y = 0.5 * (m(1, 2) + m1(1, 2));
-  const real xi_z = 0.5 * (m(1, 3) + m1(1, 3));
-  const real eta_x = 0.5 * (m(2, 1) + m1(2, 1));
-  const real eta_y = 0.5 * (m(2, 2) + m1(2, 2));
-  const real eta_z = 0.5 * (m(2, 3) + m1(2, 3));
-  const real zeta_x = 0.5 * (m(3, 1) + m1(3, 1));
-  const real zeta_y = 0.5 * (m(3, 2) + m1(3, 2));
-  const real zeta_z = 0.5 * (m(3, 3) + m1(3, 3));
+  const real xi_x = 0.5 * (metric(i, j, k, 0) + metric(i + 1, j, k, 0));
+  const real xi_y = 0.5 * (metric(i, j, k, 1) + metric(i + 1, j, k, 1));
+  const real xi_z = 0.5 * (metric(i, j, k, 2) + metric(i + 1, j, k, 2));
+  const real eta_x = 0.5 * (metric(i, j, k, 3) + metric(i + 1, j, k, 3));
+  const real eta_y = 0.5 * (metric(i, j, k, 4) + metric(i + 1, j, k, 4));
+  const real eta_z = 0.5 * (metric(i, j, k, 5) + metric(i + 1, j, k, 5));
+  const real zeta_x = 0.5 * (metric(i, j, k, 6) + metric(i + 1, j, k, 6));
+  const real zeta_y = 0.5 * (metric(i, j, k, 7) + metric(i + 1, j, k, 7));
+  const real zeta_z = 0.5 * (metric(i, j, k, 8) + metric(i + 1, j, k, 8));
 
   // 1st order partial derivative of velocity to computational coordinate
   const auto &pv = zone->bv;
@@ -95,9 +94,12 @@ __global__ void compute_fv_2nd_order(DZone *zone, DParameter *param) {
   const real tau_xz = mul * (u_z + w_x);
   const real tau_yz = mul * (v_z + w_y);
 
-  const real xi_x_div_jac = 0.5 * (m(1, 1) * zone->jac(i, j, k) + m1(1, 1) * zone->jac(i + 1, j, k));
-  const real xi_y_div_jac = 0.5 * (m(1, 2) * zone->jac(i, j, k) + m1(1, 2) * zone->jac(i + 1, j, k));
-  const real xi_z_div_jac = 0.5 * (m(1, 3) * zone->jac(i, j, k) + m1(1, 3) * zone->jac(i + 1, j, k));
+  const real xi_x_div_jac =
+      0.5 * (metric(i, j, k, 0) * zone->jac(i, j, k) + metric(i + 1, j, k, 0) * zone->jac(i + 1, j, k));
+  const real xi_y_div_jac =
+      0.5 * (metric(i, j, k, 1) * zone->jac(i, j, k) + metric(i + 1, j, k, 1) * zone->jac(i + 1, j, k));
+  const real xi_z_div_jac =
+      0.5 * (metric(i, j, k, 2) * zone->jac(i, j, k) + metric(i + 1, j, k, 2) * zone->jac(i + 1, j, k));
 
   auto &fv = zone->vis_flux;
   fv(i, j, k, 0) = xi_x_div_jac * tau_xx + xi_y_div_jac * tau_xy + xi_z_div_jac * tau_xz;
@@ -230,18 +232,17 @@ __global__ void compute_gv_2nd_order(DZone *zone, DParameter *param) {
   const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
   if (i >= zone->mx || j >= zone->my || k >= zone->mz) return;
 
-  const auto &m = zone->metric(i, j, k);
-  const auto &m1 = zone->metric(i, j + 1, k);
+  const auto &metric = zone->metric;
 
-  const real xi_x = 0.5 * (m(1, 1) + m1(1, 1));
-  const real xi_y = 0.5 * (m(1, 2) + m1(1, 2));
-  const real xi_z = 0.5 * (m(1, 3) + m1(1, 3));
-  const real eta_x = 0.5 * (m(2, 1) + m1(2, 1));
-  const real eta_y = 0.5 * (m(2, 2) + m1(2, 2));
-  const real eta_z = 0.5 * (m(2, 3) + m1(2, 3));
-  const real zeta_x = 0.5 * (m(3, 1) + m1(3, 1));
-  const real zeta_y = 0.5 * (m(3, 2) + m1(3, 2));
-  const real zeta_z = 0.5 * (m(3, 3) + m1(3, 3));
+  const real xi_x = 0.5 * (metric(i, j, k, 0) + metric(i, j + 1, k, 0));
+  const real xi_y = 0.5 * (metric(i, j, k, 1) + metric(i, j + 1, k, 1));
+  const real xi_z = 0.5 * (metric(i, j, k, 2) + metric(i, j + 1, k, 2));
+  const real eta_x = 0.5 * (metric(i, j, k, 3) + metric(i, j + 1, k, 3));
+  const real eta_y = 0.5 * (metric(i, j, k, 4) + metric(i, j + 1, k, 4));
+  const real eta_z = 0.5 * (metric(i, j, k, 5) + metric(i, j + 1, k, 5));
+  const real zeta_x = 0.5 * (metric(i, j, k, 6) + metric(i, j + 1, k, 6));
+  const real zeta_y = 0.5 * (metric(i, j, k, 7) + metric(i, j + 1, k, 7));
+  const real zeta_z = 0.5 * (metric(i, j, k, 8) + metric(i, j + 1, k, 8));
 
   // 1st order partial derivative of velocity to computational coordinate
   const auto &pv = zone->bv;
@@ -283,9 +284,12 @@ __global__ void compute_gv_2nd_order(DZone *zone, DParameter *param) {
   const real tau_xz = mul * (u_z + w_x);
   const real tau_yz = mul * (v_z + w_y);
 
-  const real eta_x_div_jac = 0.5 * (m(2, 1) * zone->jac(i, j, k) + m1(2, 1) * zone->jac(i, j + 1, k));
-  const real eta_y_div_jac = 0.5 * (m(2, 2) * zone->jac(i, j, k) + m1(2, 2) * zone->jac(i, j + 1, k));
-  const real eta_z_div_jac = 0.5 * (m(2, 3) * zone->jac(i, j, k) + m1(2, 3) * zone->jac(i, j + 1, k));
+  const real eta_x_div_jac =
+      0.5 * (metric(i, j, k, 3) * zone->jac(i, j, k) + metric(i, j + 1, k, 3) * zone->jac(i, j + 1, k));
+  const real eta_y_div_jac =
+      0.5 * (metric(i, j, k, 4) * zone->jac(i, j, k) + metric(i, j + 1, k, 4) * zone->jac(i, j + 1, k));
+  const real eta_z_div_jac =
+      0.5 * (metric(i, j, k, 5) * zone->jac(i, j, k) + metric(i, j + 1, k, 5) * zone->jac(i, j + 1, k));
 
   auto &gv = zone->vis_flux;
   gv(i, j, k, 0) = eta_x_div_jac * tau_xx + eta_y_div_jac * tau_xy + eta_z_div_jac * tau_xz;
@@ -417,18 +421,17 @@ __global__ void compute_hv_2nd_order(DZone *zone, DParameter *param) {
   const auto k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z) - 1;
   if (i >= zone->mx || j >= zone->my || k >= zone->mz) return;
 
-  const auto &m = zone->metric(i, j, k);
-  const auto &m1 = zone->metric(i, j, k + 1);
+  const auto &metric = zone->metric;
 
-  const real xi_x = 0.5 * (m(1, 1) + m1(1, 1));
-  const real xi_y = 0.5 * (m(1, 2) + m1(1, 2));
-  const real xi_z = 0.5 * (m(1, 3) + m1(1, 3));
-  const real eta_x = 0.5 * (m(2, 1) + m1(2, 1));
-  const real eta_y = 0.5 * (m(2, 2) + m1(2, 2));
-  const real eta_z = 0.5 * (m(2, 3) + m1(2, 3));
-  const real zeta_x = 0.5 * (m(3, 1) + m1(3, 1));
-  const real zeta_y = 0.5 * (m(3, 2) + m1(3, 2));
-  const real zeta_z = 0.5 * (m(3, 3) + m1(3, 3));
+  const real xi_x = 0.5 * (metric(i, j, k, 0) + metric(i, j, k + 1, 0));
+  const real xi_y = 0.5 * (metric(i, j, k, 1) + metric(i, j, k + 1, 1));
+  const real xi_z = 0.5 * (metric(i, j, k, 2) + metric(i, j, k + 1, 2));
+  const real eta_x = 0.5 * (metric(i, j, k, 3) + metric(i, j, k + 1, 3));
+  const real eta_y = 0.5 * (metric(i, j, k, 4) + metric(i, j, k + 1, 4));
+  const real eta_z = 0.5 * (metric(i, j, k, 5) + metric(i, j, k + 1, 5));
+  const real zeta_x = 0.5 * (metric(i, j, k, 6) + metric(i, j, k + 1, 6));
+  const real zeta_y = 0.5 * (metric(i, j, k, 7) + metric(i, j, k + 1, 7));
+  const real zeta_z = 0.5 * (metric(i, j, k, 8) + metric(i, j, k + 1, 8));
 
   // 1st order partial derivative of velocity to computational coordinate
   const auto &pv = zone->bv;
@@ -466,9 +469,12 @@ __global__ void compute_hv_2nd_order(DZone *zone, DParameter *param) {
   const real tau_xz = mul * (u_z + w_x);
   const real tau_yz = mul * (v_z + w_y);
 
-  const real zeta_x_div_jac = 0.5 * (m(3, 1) * zone->jac(i, j, k) + m1(3, 1) * zone->jac(i, j, k + 1));
-  const real zeta_y_div_jac = 0.5 * (m(3, 2) * zone->jac(i, j, k) + m1(3, 2) * zone->jac(i, j, k + 1));
-  const real zeta_z_div_jac = 0.5 * (m(3, 3) * zone->jac(i, j, k) + m1(3, 3) * zone->jac(i, j, k + 1));
+  const real zeta_x_div_jac =
+      0.5 * (metric(i, j, k, 6) * zone->jac(i, j, k) + metric(i, j, k + 1, 6) * zone->jac(i, j, k + 1));
+  const real zeta_y_div_jac =
+      0.5 * (metric(i, j, k, 7) * zone->jac(i, j, k) + metric(i, j, k + 1, 7) * zone->jac(i, j, k + 1));
+  const real zeta_z_div_jac =
+      0.5 * (metric(i, j, k, 8) * zone->jac(i, j, k) + metric(i, j, k + 1, 8) * zone->jac(i, j, k + 1));
 
   auto &hv = zone->vis_flux;
   hv(i, j, k, 0) = zeta_x_div_jac * tau_xx + zeta_y_div_jac * tau_xy + zeta_z_div_jac * tau_xz;
