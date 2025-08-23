@@ -46,14 +46,11 @@ template<MixtureModel mix_model> __device__ void compute_weno_flux_ch(const real
   [[maybe_unused]] real *f_1st, bool if_shock);
 
 template<MixtureModel mix_model>
-__device__ void
-compute_weno_flux_ch(const real *cv, const real *p, const real *cc, DParameter *param, int tid, const real *metric,
-  const real *jac, real *fc, int i_shared, const real *Fp, const real *Fm,
-  bool if_shock, int n_point, int block_dim);
+__device__ void compute_weno_flux_ch(const real *cv, const real *p, DParameter *param, const real *metric,
+  const real *jac, real *fc, int i_shared, const real *Fp, const real *Fm, bool if_shock);
 
-__device__ void
-compute_flux(const real *Q, real p, real cc, const DParameter *param, const real *metric, real jac,
-  real *Fp, real *Fm, int n_point);
+__device__ void compute_flux(const real *Q, real p, real cc, const DParameter *param, const real *metric, real jac,
+  real *Fp, real *Fm);
 
 __device__ void compute_weno_flux_cp(const real *cv, DParameter *param, int tid, const real *metric, const real *jac,
   real *fc, int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add, real *f_1st, bool if_shock);
@@ -61,10 +58,8 @@ __device__ void compute_weno_flux_cp(const real *cv, DParameter *param, int tid,
 __device__ void positive_preserving_limiter(const real *f_1st, int n_var, int tid, real *fc, const DParameter *param,
   int i_shared, real dt, int idx_in_mesh, int max_extent, const real *cv, const real *jac);
 
-__device__ void
-positive_preserving_limiter_1(int dim, int n_scalar, const real *cv, int n_point, int i_shared, const real *jac,
-  real dt, real *fc, int n_active, int tid, const real *metric, const real *cc,
-  const real *Fp);
+__device__ void positive_preserving_limiter_1(int dim, int n_var, const real *cv, int i_shared, const real *jac,
+  real dt, real *fci, const real *metric, const real *cc, const real *Fp);
 
 __device__ real WENO5(const real *vp, const real *vm, real eps, bool if_shock);
 
