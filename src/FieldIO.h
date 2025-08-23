@@ -111,7 +111,7 @@ void FieldIO<mix_model, output_time_choice>::write_header() {
     n_var = static_cast<int>(varName.size());
     // std::vector<std::string> var_name{"x", "y", "z", "density", "u", "v", "w", "pressure", "temperature", "mach"};
     // n_var = acquire_variable_names(var_name);
-    // n_var = add_other_variable_name(var_name, parameter);
+    n_var = add_other_variable_name(varName, parameter);
     MPI_File_write_at(fp, offset, &n_var, 1, MPI_INT32_T, &status);
     offset += 4;
     // 4. Variable names.

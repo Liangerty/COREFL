@@ -129,7 +129,7 @@ void read_flowfield(Parameter &parameter, const Mesh &mesh, std::vector<Field> &
   auto index_order = cfd::identify_variable_labels<mix_model>(parameter, var_name, species,
                                                                     old_data_info);
 
-  auto index_or = parameter.identify_variable_labels(var_name, species);
+  // auto index_or = parameter.identify_variable_labels(var_name, species);
 
   const int n_spec{species.n_spec};
   const int n_turb{parameter.get_int("n_turb")};
