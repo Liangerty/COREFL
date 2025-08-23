@@ -571,8 +571,11 @@ compute_weno_flux_ch(const real *cv, const real *p, const real *cc, DParameter *
   real kz = metric[i_shared * 3 + 2] * jac[i_shared] + metric[(i_shared + 1) * 3 + 2] * jac[i_shared + 1];
   constexpr real eps{1e-40};
   const real eps_scaled = eps * param->weno_eps_scale * 0.25 * (kx * kx + ky * ky + kz * kz);
-  temp1 = 1 / (jac[i_shared] + jac[i_shared + 1]);
-  temp1 = norm3d(kx * temp1, ky * temp1, kz * temp1); // temp1 is the norm of the unit normal vector
+  temp1 = 1 / (jac[i_shared] + jac[i_shared + 1]); // temp1 is 1/(jac_l + jac_r) in these 4 lines
+  kx *= temp1;
+  ky *= temp1;
+  kz *= temp1;
+  temp1 = rnorm3d(kx, ky, kz); // temp1 is the norm of the unit normal vector
   kx *= temp1;
   ky *= temp1;
   kz *= temp1;
