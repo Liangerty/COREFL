@@ -188,7 +188,6 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
   if (k >= max_extent) return;
 
   const auto tid = static_cast<int>(threadIdx.z);
-  // const auto block_dim = static_cast<int>(blockDim.z);
   const auto ngg{zone->ngg};
   const auto n_var{param->n_var};
   const auto n_active = min(static_cast<int>(blockDim.z),
@@ -204,9 +203,6 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
   real *fp = &jac[n_point];
   real *fm = &fp[n_point * n_var];
   real *fc = &fm[n_point * n_var];
-  // real *f_1st = nullptr;
-  // if (param->positive_preserving)
-    // f_1st = &fc[n_active * n_var];
 
   const int kl0 = static_cast<int>((blockDim.z - 1) * blockIdx.z) - ngg;
   for (int kl = kl0 + tid; kl <= kl0 + n_point - 1; kl += n_active) {
@@ -227,98 +223,6 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
                  &fm[iSh * n_var]);
   }
   const int i_shared = tid - 1 + ngg;
-  // for (auto l = 0; l < n_var; ++l) { // 0-rho,1-rho*u,2-rho*v,3-rho*w,4-rho*E, ..., Nv-rho*scalar
-  //   cv[i_shared * n_var + l] = zone->cv(i, j, k, l);
-  // }
-  // p[i_shared] = zone->bv(i, j, k, 4);
-  // if constexpr (mix_model != MixtureModel::Air)
-  //   cc[i_shared] = zone->acoustic_speed(i, j, k);
-  // else
-  //   cc[i_shared] = sqrt(gamma_air * R_air * zone->bv(i, j, k, 5));
-  // metric[i_shared * 3] = zone->metric(i, j, k, 6);
-  // metric[i_shared * 3 + 1] = zone->metric(i, j, k, 7);
-  // metric[i_shared * 3 + 2] = zone->metric(i, j, k, 8);
-  // jac[i_shared] = zone->jac(i, j, k);
-  //
-  // // ghost cells
-  // constexpr int max_additional_ghost_point_loaded = 9; // This is for 11th-order weno, with 7 ghost points on each side.
-  // int ig_shared[max_additional_ghost_point_loaded];
-  // int additional_loaded{0};
-  // if (tid < ngg - 1) {
-  //   ig_shared[additional_loaded] = tid;
-  //   const int gk = k - (ngg - 1);
-  //   for (auto l = 0; l < n_var; ++l) { // 0-rho,1-rho*u,2-rho*v,3-rho*w,4-rho*E, ..., Nv-rho*scalar
-  //     cv[tid * n_var + l] = zone->cv(i, j, gk, l);
-  //   }
-  //   p[tid] = zone->bv(i, j, gk, 4);
-  //   if constexpr (mix_model != MixtureModel::Air)
-  //     cc[tid] = zone->acoustic_speed(i, j, gk);
-  //   else
-  //     cc[tid] = sqrt(gamma_air * R_air * zone->bv(i, j, gk, 5));
-  //   metric[tid * 3] = zone->metric(i, j, gk, 6);
-  //   metric[tid * 3 + 1] = zone->metric(i, j, gk, 7);
-  //   metric[tid * 3 + 2] = zone->metric(i, j, gk, 8);
-  //   jac[tid] = zone->jac(i, j, gk);
-  //   ++additional_loaded;
-  // }
-  // if (tid > static_cast<int>(blockDim.z) - ngg - 1 || k > max_extent - ngg - 1) {
-  //   const int iSh = tid + 2 * ngg - 1;
-  //   ig_shared[additional_loaded] = iSh;
-  //   const int gk = k + ngg;
-  //   for (auto l = 0; l < n_var; ++l) { // 0-rho,1-rho*u,2-rho*v,3-rho*w,4-rho*E, ..., Nv-rho*scalar
-  //     cv[iSh * n_var + l] = zone->cv(i, j, gk, l);
-  //   }
-  //   p[iSh] = zone->bv(i, j, gk, 4);
-  //   if constexpr (mix_model != MixtureModel::Air)
-  //     cc[iSh] = zone->acoustic_speed(i, j, gk);
-  //   else
-  //     cc[iSh] = sqrt(gamma_air * R_air * zone->bv(i, j, gk, 5));
-  //   metric[iSh * 3] = zone->metric(i, j, gk, 6);
-  //   metric[iSh * 3 + 1] = zone->metric(i, j, gk, 7);
-  //   metric[iSh * 3 + 2] = zone->metric(i, j, gk, 8);
-  //   jac[iSh] = zone->jac(i, j, gk);
-  //   ++additional_loaded;
-  // }
-  // if (k == max_extent - 1 && tid < ngg - 1) {
-  //   const int n_more_left = ngg - 1 - tid - 1;
-  //   for (int m = 0; m < n_more_left; ++m) {
-  //     const int iSh = tid + m + 1;
-  //     ig_shared[additional_loaded] = iSh;
-  //     const int gk = k - (ngg - 1 - m - 1);
-  //     for (auto l = 0; l < n_var; ++l) { // 0-rho,1-rho*u,2-rho*v,3-rho*w,4-rho*E, ..., Nv-rho*scalar
-  //       cv[iSh * n_var + l] = zone->cv(i, j, gk, l);
-  //     }
-  //     p[iSh] = zone->bv(i, j, gk, 4);
-  //     if constexpr (mix_model != MixtureModel::Air)
-  //       cc[iSh] = zone->acoustic_speed(i, j, gk);
-  //     else
-  //       cc[iSh] = sqrt(gamma_air * R_air * zone->bv(i, j, gk, 5));
-  //     metric[iSh * 3] = zone->metric(i, j, gk, 6);
-  //     metric[iSh * 3 + 1] = zone->metric(i, j, gk, 7);
-  //     metric[iSh * 3 + 2] = zone->metric(i, j, gk, 8);
-  //     jac[iSh] = zone->jac(i, j, gk);
-  //     ++additional_loaded;
-  //   }
-  //   const int n_more_right = ngg - 1 - tid;
-  //   for (int m = 0; m < n_more_right; ++m) {
-  //     const int iSh = i_shared + m + 1;
-  //     ig_shared[additional_loaded] = iSh;
-  //     const int gk = k + (m + 1);
-  //     for (auto l = 0; l < n_var; ++l) { // 0-rho,1-rho*u,2-rho*v,3-rho*w,4-rho*E
-  //       cv[iSh * n_var + l] = zone->cv(i, j, gk, l);
-  //     }
-  //     p[iSh] = zone->bv(i, j, gk, 4);
-  //     if constexpr (mix_model != MixtureModel::Air)
-  //       cc[iSh] = zone->acoustic_speed(i, j, gk);
-  //     else
-  //       cc[iSh] = sqrt(gamma_air * R_air * zone->bv(i, j, gk, 5));
-  //     metric[iSh * 3] = zone->metric(i, j, gk, 6);
-  //     metric[iSh * 3 + 1] = zone->metric(i, j, gk, 7);
-  //     metric[iSh * 3 + 2] = zone->metric(i, j, gk, 8);
-  //     jac[iSh] = zone->jac(i, j, gk);
-  //     ++additional_loaded;
-  //   }
-  // }
   __syncthreads();
 
   bool if_shock = false;
@@ -333,20 +237,11 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
     if_shock = true;
   }
 
-  // compute_flux(&cv[i_shared * n_var], param, &metric[i_shared * 3], jac[i_shared], &fp[i_shared * n_var],
-  //              &fm[i_shared * n_var], p[i_shared], cc[i_shared]);
-  // for (size_t ss = 0; ss < additional_loaded; ss++) {
-  //   compute_flux(&cv[ig_shared[ss] * n_var], param, &metric[ig_shared[ss] * 3], jac[ig_shared[ss]],
-  //                &fp[ig_shared[ss] * n_var], &fm[ig_shared[ss] * n_var], p[ig_shared[ss]], cc[ig_shared[ss]]);
-  // }
-  // __syncthreads();
-  // reconstruct the half-point left/right primitive variables with the chosen reconstruction method.
   if (const auto sch = param->inviscid_scheme; sch == 51 || sch == 71) {
     // compute_weno_flux_cp(cv, param, tid, metric, jac, fc, i_shared, fp, fm, ig_shared, additional_loaded, f_1st,
                          // if_shock);
   } else if (sch == 52 || sch == 72) {
     compute_weno_flux_ch<mix_model>(cv, p, param, metric, jac, &fc[tid * n_var], i_shared, fp, fm, if_shock);
-    // compute_weno_flux_ch<mix_model>(cv, p, param, tid, metric, jac, fc, i_shared, fp, fm, if_shock);
   }
   __syncthreads();
 
