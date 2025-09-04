@@ -625,6 +625,9 @@ void cfd::Field::setup_device_memory(const Parameter &parameter) {
       // rk scheme
       h_ptr->qn.allocate_memory(mx, my, mz, n_var, ngg);
     }
+    if (parameter.get_int("reaction") > 0) {
+      h_ptr->Cn.allocate_memory(mx, my, mz, n_var, 0);
+    }
   }
 
   if (int n_rand = parameter.get_int("random_number_per_point"); n_rand > 0) {

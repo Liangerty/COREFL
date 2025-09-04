@@ -36,19 +36,11 @@ cfd::compute_temperature_and_pressure(int i, int j, int k, const DParameter *par
   bv(i, j, k, 5) = t;
   bv(i, j, k, 4) = bv(i, j, k, 0) * t * gas_const;
   if (t < 0 || bv(i, j, k, 4) < 0) {
-    // if (isnan(abs(t))) {
     printf("(%d,%d,%d) in p[%d]: duvwpt=(%f,%f,%f,%f,%f,%f)"
-      // ",Y=(%f,%f,%f,%f,%f,%f,%f,%f,%f)"
-      "\n", i, j, k, param->myid,
+           "\n", i, j, k, param->myid,
            bv(i, j, k, 0), bv(i, j, k, 1), bv(i, j, k, 2), bv(i, j, k, 3), bv(i, j, k, 4), bv(i, j, k, 5)
-          // ,Y(i, j, k, 0), Y(i, j, k, 1), Y(i, j, k, 2), Y(i, j, k, 3), Y(i, j, k, 4), Y(i, j, k, 5), Y(i, j, k, 6),
-          //  Y(i, j, k, 7), Y(i, j, k, 8)
-          );
+    );
   }
-  // if (param->myid == 1 && i == 133 && j == 9 && k == 145) {
-  //   printf("pressure=%f, T=%f\n", bv(i, j, k, 4), bv(i, j, k, 5));
-  // }
-  // __syncthreads();
 }
 
 __global__ void cfd::eliminate_k_gradient(DZone *zone, const DParameter *param) {

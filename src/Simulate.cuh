@@ -76,7 +76,8 @@ void simulate(Driver<mix_model> &driver) {
     }
 
     if (parameter.get_int("reaction") == 1) {
-      strang_splitting<mix_model>(driver);
+      wu_splitting<mix_model>(driver);
+      // strang_splitting<mix_model>(driver);
     } else {
       switch (const auto temporal_tag{parameter.get_int("temporal_scheme")}) {
         case 2:

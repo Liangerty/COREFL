@@ -87,6 +87,9 @@ struct DZone {
   ggxl::VectorField3D<real> qn_star;      // qn_star=(4*qn-qn1)/(2J*dt)
   ggxl::VectorField3D<real> in_last_step; // The basic variables of the last inner iteration.
 
+  // wu splitting related variables
+  ggxl::VectorField3D<real> Cn;
+
   // single point statistics
   // collect arrays
   ggxl::VectorField3D<real> collect_reynolds_1st;
