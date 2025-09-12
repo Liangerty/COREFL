@@ -670,17 +670,15 @@ apply_wall(DZone *zone, Wall *wall, DParameter *param, int i_face, int step = -1
     for (int i_jet = 0; i_jet < param->n_jet; i_jet++) {
       const real xc = param->xc_jet[i_jet];
       const real zc = param->zc_jet[i_jet];
-      if (x > xc - r - 1e-6 && x < xc + r + 1e-6 && z > zc - r - 1e-6 && z < zc + r + 1e-6) {
-        jet_label = i_jet;
-        // printf("(%d,%d,%d),x=%f,z=%f,xc=%f,zc=%f,r=%f,jet_label=%d\n", i, j, k, x, z, xc, zc, r, jet_label);
-        break;
-      }
-      // const auto dis = sqrt((x - xc) * (x - xc) + (z - zc) * (z - zc));
-      // if (dis <= r) {
+      // if (x > xc - r - 1e-6 && x < xc + r + 1e-6 && z > zc - r - 1e-6 && z < zc + r + 1e-6) {
       //   jet_label = i_jet;
-      //   // printf("(%d,%d,%d),x=%f,z=%f,dis=%f,xc=%f,zc=%f,r=%f,jet_label=%d\n", i, j, k, x, z, dis, xc, zc, r, jet_label);
+      //   // printf("(%d,%d,%d),x=%f,z=%f,xc=%f,zc=%f,r=%f,jet_label=%d\n", i, j, k, x, z, xc, zc, r, jet_label);
       //   break;
       // }
+      if (hypot(x - xc, z - zc) <= r) {
+        jet_label = i_jet;
+        break;
+      }
     }
   }
   if (jet_label >= 0) {
