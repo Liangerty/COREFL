@@ -783,11 +783,11 @@ void wu_RK_subStep(std::vector<Field> &field, DParameter *param, Parameter &para
     }
 
     // update physical properties such as Mach number, transport coefficients et, al.
-    for (auto b = 0; b < n_block; ++b) {
-      const int mx{mesh[b].mx}, my{mesh[b].my}, mz{mesh[b].mz};
-      dim3 BPG{(mx + ng_1) / tpb.x + 1, (my + ng_1) / tpb.y + 1, (mz + ng_1) / tpb.z + 1};
-      update_physical_properties<mix_model><<<BPG, tpb>>>(field[b].d_ptr, param);
-    }
+    // for (auto b = 0; b < n_block; ++b) {
+    //   const int mx{mesh[b].mx}, my{mesh[b].my}, mz{mesh[b].mz};
+    //   dim3 BPG{(mx + ng_1) / tpb.x + 1, (my + ng_1) / tpb.y + 1, (mz + ng_1) / tpb.z + 1};
+    //   update_physical_properties<mix_model><<<BPG, tpb>>>(field[b].d_ptr, param);
+    // }
   }
 }
 
