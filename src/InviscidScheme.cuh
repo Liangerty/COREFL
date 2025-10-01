@@ -39,11 +39,11 @@ template<MixtureModel mix_model> __global__ void compute_convective_term_weno_y(
 
 template<MixtureModel mix_model> __global__ void compute_convective_term_weno_z(DZone *zone, DParameter *param);
 
-__device__ void compute_flux(const real *Q, const DParameter *param, const real *metric, real jac, real *Fp, real *Fm, real p, real cc);
+__device__ void compute_flux(const real *Q, const DParameter *param, const real *metric, real jac, real *Fp, real *Fm,
+  real p, real cc);
 
-template<MixtureModel mix_model> __device__ void compute_weno_flux_ch(const real *cv, const real *p, DParameter *param, int tid,
-  const real *metric, const real *jac, real *fc, int i_shared, real *Fp, real *Fm,
-  bool if_shock);
+template<MixtureModel mix_model> __device__ void compute_weno_flux_ch(const real *cv, const real *p, DParameter *param,
+  int tid, const real *metric, const real *jac, real *fc, int i_shared, real *Fp, real *Fm, bool if_shock);
 
 template<MixtureModel mix_model>
 __device__ void compute_weno_flux_ch(const real *cv, const real *p, DParameter *param, const real *metric,
@@ -54,6 +54,9 @@ __device__ void compute_flux(const real *Q, real p, real cc, const DParameter *p
 
 __device__ void compute_weno_flux_cp(const real *cv, DParameter *param, int tid, const real *metric, const real *jac,
   real *fc, int i_shared, real *Fp, real *Fm, const int *ig_shared, int n_add, real *f_1st, bool if_shock);
+
+__device__ void compute_weno_flux_cp(DParameter *param, const real *metric, const real *jac, real *fci, int i_shared,
+  const real *Fp, const real *Fm, bool if_shock);
 
 __device__ void positive_preserving_limiter(const real *f_1st, int n_var, int tid, real *fc, const DParameter *param,
   int i_shared, real dt, int idx_in_mesh, int max_extent, const real *cv, const real *jac);
