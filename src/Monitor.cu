@@ -324,6 +324,7 @@ BlockMonitor::BlockMonitor(const Parameter &parameter, const Mesh &mesh_) {
   if (!exists(out_dir) && parameter.get_int("myid") == 0) {
     create_directories(out_dir);
   }
+  MPI_Barrier(MPI_COMM_WORLD);
   // write the mesh and jacobian
   ty = new MPI_Datatype[n_block_mon];
   for (int blk = 0; blk < n_block_mon; ++blk) {
@@ -358,6 +359,7 @@ BlockMonitor::BlockMonitor(const Parameter &parameter, const Mesh &mesh_) {
     MPI_File_write(fp, b.jacobian.data(), 1, ty1, &status);
     MPI_File_close(&fp);
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void BlockMonitor::output_data(const Parameter &parameter, const std::vector<Field> &field, real t) const {
