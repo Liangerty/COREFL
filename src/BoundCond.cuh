@@ -439,29 +439,29 @@ __global__ void apply_inflow(DZone *zone, Inflow *inflow, int i_face, DParameter
       // We assume it obeying a N(0,rms^2) distribution
       // The fluctuation is added to the velocity
       // Besides, we assume the range of fluctuation is restricted to 4*delta_omega ranges.
-      if (y < 4 * inflow->delta_omega && y > -4 * inflow->delta_omega) {
-        auto index{0};
-        switch (b.face) {
-          case 1:
-            index = (k + ngg) * (zone->mx + 2 * ngg) + (i + ngg);
-            break;
-          case 2:
-            index = (j + ngg) * (zone->mx + 2 * ngg) + (i + ngg);
-            break;
-          case 0:
-          default:
-            index = (k + ngg) * (zone->my + 2 * ngg) + (j + ngg);
-            break;
-        }
-        auto &rng_state = rng_states_d_ptr[index];
-
-        real rms = inflow->fluctuation_intensity;
-
-        u += curand_normal_double(&rng_state) * rms * inflow->u;
-        v += curand_normal_double(&rng_state) * rms * inflow->u;
-        w += curand_normal_double(&rng_state) * rms * inflow->u;
-        vel = sqrt(u * u + v * v + w * w);
+      // if (y < 4 * inflow->delta_omega && y > -4 * inflow->delta_omega) {
+      auto index{0};
+      switch (b.face) {
+        case 1:
+          index = (k + ngg) * (zone->mx + 2 * ngg) + (i + ngg);
+          break;
+        case 2:
+          index = (j + ngg) * (zone->mx + 2 * ngg) + (i + ngg);
+          break;
+        case 0:
+        default:
+          index = (k + ngg) * (zone->my + 2 * ngg) + (j + ngg);
+          break;
       }
+      auto &rng_state = rng_states_d_ptr[index];
+
+      real rms = inflow->fluctuation_intensity * u * exp(-y * y);
+
+      u += curand_normal_double(&rng_state) * rms;
+      v += curand_normal_double(&rng_state) * rms;
+      w += curand_normal_double(&rng_state) * rms;
+      vel = sqrt(u * u + v * v + w * w);
+      // }
     }
   } else {
     // Constant inflow
