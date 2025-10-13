@@ -62,9 +62,9 @@ struct DZone {
 
   // Variables used in computation
   ggxl::VectorField3D<real> dq;       // The residual for flux computing
-  ggxl::VectorField3D<real> fv; // The fluxes at the cell faces.
-  ggxl::VectorField3D<real> gv; // The fluxes at the cell faces.
-  ggxl::VectorField3D<real> hv; // The fluxes at the cell faces.
+  ggxl::VectorField3D<real> fFlux; // The fluxes at the cell faces.
+  ggxl::VectorField3D<real> gFlux; // The fluxes at the cell faces.
+  ggxl::VectorField3D<real> hFlux; // The fluxes at the cell faces.
   ggxl::VectorField3D<real> vis_flux; // The fluxes at the cell faces.
   // ggxl::VectorField3D<real> grad_bv;  // The gradient of basic variables
 

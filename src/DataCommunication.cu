@@ -59,21 +59,21 @@ __global__ void cfd::setup_data_to_be_sent(const DZone *zone, int i_face, real *
 
     auto bias = bias_0;
     for (int l = 0; l < n_var; ++l) {
-      data[bias] = zone->fv(idx[0], idx[1], idx[2], l);
+      data[bias] = zone->fFlux(idx[0], idx[1], idx[2], l);
       ++bias;
-      data[bias] = zone->gv(idx[0], idx[1], idx[2], l);
+      data[bias] = zone->gFlux(idx[0], idx[1], idx[2], l);
       ++bias;
-      data[bias] = zone->hv(idx[0], idx[1], idx[2], l);
+      data[bias] = zone->hFlux(idx[0], idx[1], idx[2], l);
       ++bias;
     }
     for (int ig = 0; ig < ngg; ++ig) {
       idx[f.face] -= f.direction;
       for (int l = 0; l < n_var; ++l) {
-        data[bias] = zone->fv(idx[0], idx[1], idx[2], l);
+        data[bias] = zone->fFlux(idx[0], idx[1], idx[2], l);
         ++bias;
-        data[bias] = zone->gv(idx[0], idx[1], idx[2], l);
+        data[bias] = zone->gFlux(idx[0], idx[1], idx[2], l);
         ++bias;
-        data[bias] = zone->hv(idx[0], idx[1], idx[2], l);
+        data[bias] = zone->hFlux(idx[0], idx[1], idx[2], l);
         ++bias;
       }
     }
@@ -108,21 +108,21 @@ __global__ void cfd::assign_data_received(DZone *zone, int i_face, const real *d
     const int bias_0 = 3 * n_var * (ngg + 1) * (n[f.loop_order[1]] * f.n_point[f.loop_order[2]] + n[f.loop_order[2]]);
     int bias = bias_0;
     for (int l = 0; l < n_var; ++l) {
-      zone->fv(idx[0], idx[1], idx[2], l) = data[bias];
+      zone->fFlux(idx[0], idx[1], idx[2], l) = data[bias];
       ++bias;
-      zone->gv(idx[0], idx[1], idx[2], l) = data[bias];
+      zone->gFlux(idx[0], idx[1], idx[2], l) = data[bias];
       ++bias;
-      zone->hv(idx[0], idx[1], idx[2], l) = data[bias];
+      zone->hFlux(idx[0], idx[1], idx[2], l) = data[bias];
       ++bias;
     }
     for (int ig = 0; ig < ngg; ++ig) {
       idx[f.face] += f.direction;
       for (int l = 0; l < n_var; ++l) {
-        zone->fv(idx[0], idx[1], idx[2], l) = data[bias];
+        zone->fFlux(idx[0], idx[1], idx[2], l) = data[bias];
         ++bias;
-        zone->gv(idx[0], idx[1], idx[2], l) = data[bias];
+        zone->gFlux(idx[0], idx[1], idx[2], l) = data[bias];
         ++bias;
-        zone->hv(idx[0], idx[1], idx[2], l) = data[bias];
+        zone->hFlux(idx[0], idx[1], idx[2], l) = data[bias];
         ++bias;
       }
     }
@@ -213,21 +213,21 @@ __global__ void cfd::inner_exchange(DZone *zone, DZone *tar_zone, int i_face, DP
     // Exchange the viscous fluxes, used in 8th-order CDS
     if (idx[f.face] == face_dir) {
       for (int l = 0; l < param->n_var - 1; ++l) {
-        real ave_v = 0.5 * (zone->fv(idx[0], idx[1], idx[2], l) + tar_zone->fv(idx_tar[0], idx_tar[1], idx_tar[2], l));
-        zone->fv(idx[0], idx[1], idx[2], l) = ave_v;
-        tar_zone->fv(idx_tar[0], idx_tar[1], idx_tar[2], l) = ave_v;
-        ave_v = 0.5 * (zone->gv(idx[0], idx[1], idx[2], l) + tar_zone->gv(idx_tar[0], idx_tar[1], idx_tar[2], l));
-        zone->gv(idx[0], idx[1], idx[2], l) = ave_v;
-        tar_zone->gv(idx_tar[0], idx_tar[1], idx_tar[2], l) = ave_v;
-        ave_v = 0.5 * (zone->hv(idx[0], idx[1], idx[2], l) + tar_zone->hv(idx_tar[0], idx_tar[1], idx_tar[2], l));
-        zone->hv(idx[0], idx[1], idx[2], l) = ave_v;
-        tar_zone->hv(idx_tar[0], idx_tar[1], idx_tar[2], l) = ave_v;
+        real ave_v = 0.5 * (zone->fFlux(idx[0], idx[1], idx[2], l) + tar_zone->fFlux(idx_tar[0], idx_tar[1], idx_tar[2], l));
+        zone->fFlux(idx[0], idx[1], idx[2], l) = ave_v;
+        tar_zone->fFlux(idx_tar[0], idx_tar[1], idx_tar[2], l) = ave_v;
+        ave_v = 0.5 * (zone->gFlux(idx[0], idx[1], idx[2], l) + tar_zone->gFlux(idx_tar[0], idx_tar[1], idx_tar[2], l));
+        zone->gFlux(idx[0], idx[1], idx[2], l) = ave_v;
+        tar_zone->gFlux(idx_tar[0], idx_tar[1], idx_tar[2], l) = ave_v;
+        ave_v = 0.5 * (zone->hFlux(idx[0], idx[1], idx[2], l) + tar_zone->hFlux(idx_tar[0], idx_tar[1], idx_tar[2], l));
+        zone->hFlux(idx[0], idx[1], idx[2], l) = ave_v;
+        tar_zone->hFlux(idx_tar[0], idx_tar[1], idx_tar[2], l) = ave_v;
       }
     } else {
       for (int l = 0; l < param->n_var - 1; ++l) {
-        zone->fv(idx[0], idx[1], idx[2], l) = tar_zone->fv(idx_tar[0], idx_tar[1], idx_tar[2], l);
-        zone->gv(idx[0], idx[1], idx[2], l) = tar_zone->gv(idx_tar[0], idx_tar[1], idx_tar[2], l);
-        zone->hv(idx[0], idx[1], idx[2], l) = tar_zone->hv(idx_tar[0], idx_tar[1], idx_tar[2], l);
+        zone->fFlux(idx[0], idx[1], idx[2], l) = tar_zone->fFlux(idx_tar[0], idx_tar[1], idx_tar[2], l);
+        zone->gFlux(idx[0], idx[1], idx[2], l) = tar_zone->gFlux(idx_tar[0], idx_tar[1], idx_tar[2], l);
+        zone->hFlux(idx[0], idx[1], idx[2], l) = tar_zone->hFlux(idx_tar[0], idx_tar[1], idx_tar[2], l);
       }
     }
   } else if (task == 2) {
@@ -384,7 +384,7 @@ __global__ void cfd::periodic_exchange(DZone *zone, DParameter *param, int task,
   }
 
   if (task == 1) {
-    auto &fv = zone->fv, &gv = zone->gv, &hv = zone->hv;
+    auto &fv = zone->fFlux, &gv = zone->gFlux, &hv = zone->hFlux;
     for (int l = 0; l < param->n_var - 1; ++l) {
       real ave = 0.5 * (fv(i, j, k, l) + fv(idx_other[0], idx_other[1], idx_other[2], l));
       fv(i, j, k, l) = ave;

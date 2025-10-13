@@ -17,12 +17,15 @@ __global__ void compute_dFv_dx(DZone *zone, const DParameter *param);
 __global__ void compute_dGv_dy(DZone *zone, const DParameter *param);
 
 __global__ void compute_dHv_dz(DZone *zone, const DParameter *param);
+
 template<int ORDER = 8>
 __device__ real d_dXi(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l, int nx,
   int phyBoundLeft, int phyBoundRight);
+
 template<int ORDER = 8>
 __device__ real d_dEta(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l, int ny,
   int phyBoundLeft, int phyBoundRight);
+
 template<int ORDER = 8>
 __device__ real d_dZeta(const ggxl::VectorField3D<real> &f, int i, int j, int k, int l, int nz,
   int phyBoundLeft, int phyBoundRight);

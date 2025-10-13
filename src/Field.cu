@@ -577,13 +577,17 @@ void cfd::Field::setup_device_memory(const Parameter &parameter) {
   if (parameter.get_string("hybrid_inviscid_scheme") != "NO") {
     h_ptr->shock_sensor.allocate_memory(mx, my, mz, ngg);
   }
+  h_ptr->fFlux.allocate_memory(mx, my, mz, n_var, ngg);
+  h_ptr->gFlux.allocate_memory(mx, my, mz, n_var, ngg);
+  h_ptr->hFlux.allocate_memory(mx, my, mz, n_var, ngg);
   if (parameter.get_int("viscous_order") == 2) {
     h_ptr->vis_flux.allocate_memory(mx, my, mz, n_var - 1, 1);
-  } else {
-    h_ptr->fv.allocate_memory(mx, my, mz, n_var - 1, ngg);
-    h_ptr->gv.allocate_memory(mx, my, mz, n_var - 1, ngg);
-    h_ptr->hv.allocate_memory(mx, my, mz, n_var - 1, ngg);
   }
+  // else {
+  //   h_ptr->fv.allocate_memory(mx, my, mz, n_var - 1, ngg);
+  //   h_ptr->gv.allocate_memory(mx, my, mz, n_var - 1, ngg);
+  //   h_ptr->hv.allocate_memory(mx, my, mz, n_var - 1, ngg);
+  // }
   if (!(!parameter.get_bool("steady") && parameter.get_int("temporal_scheme") == 3 &&
         parameter.get_bool("fixed_time_step"))) {
     h_ptr->inv_spectr_rad.allocate_memory(mx, my, mz, 0);
