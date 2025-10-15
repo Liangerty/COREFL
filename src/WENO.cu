@@ -177,11 +177,9 @@ compute_convective_term_weno_y(DZone *zone, DParameter *param) {
 
 template<MixtureModel mix_model>
 __global__ void
-// __launch_bounds__(64, 8)
 compute_convective_term_weno_y1(DZone *zone, DParameter *param) {
   const int i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
   const int j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y) - 1;
-  // const int j = static_cast<int>((blockDim.y - 1) * blockIdx.y + threadIdx.y) - 1;
   const int k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
   const int max_extent = zone->my;
   if (j >= max_extent || i >= zone->mx) return;
@@ -190,19 +188,14 @@ compute_convective_term_weno_y1(DZone *zone, DParameter *param) {
   const auto ngg{zone->ngg};
   const auto n_var{param->n_var};
   const auto n_active = min(static_cast<int>(blockDim.y), max_extent - static_cast<int>(blockDim.y * blockIdx.y) + 1);
-  // const auto n_active = min(static_cast<int>(blockDim.y), max_extent - static_cast<int>((blockDim.y - 1) * blockIdx.y) +
-                                                          // 1); // n_active is the number of active threads in the block.
   const int n_point = n_active + 2 * ngg - 1;
 
   extern __shared__ real s[];
   constexpr int nyy = 32;
   auto fp = reinterpret_cast<real (*)[nyy + 2 * 4 - 1][4]>(s);
   auto fm = reinterpret_cast<real (*)[nyy + 2 * 4 - 1][4]>(s + n_var * (nyy + 2 * 4 - 1) * 4);
-  // __shared__ real fp[5 + MAX_SPEC_NUMBER + MAX_PASSIVE_SCALAR_NUMBER][64 + 2 * 4 - 1][4];
-  // __shared__ real fm[5 + MAX_SPEC_NUMBER + MAX_PASSIVE_SCALAR_NUMBER][64 + 2 * 4 - 1][4];
 
   const int jl0 = static_cast<int>(blockDim.y * blockIdx.y) - ngg;
-  // const int jl0 = static_cast<int>((blockDim.y - 1) * blockIdx.y) - ngg;
   const auto &cv = zone->cv;
   const auto &bv = zone->bv;
   for (int jl = jl0 + tid; jl <= jl0 + n_point - 1; jl += n_active) {
@@ -550,6 +543,289 @@ compute_convective_term_weno_z(DZone *zone, DParameter *param) {
 }
 
 template<MixtureModel mix_model>
+__global__ void
+compute_convective_term_weno_z1(DZone *zone, DParameter *param) {
+  const int i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
+  const int j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
+  const int k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z) - 1;
+  const int max_extent = zone->mz;
+  if (k >= max_extent || i >= zone->mx) return;
+
+  const auto tid = static_cast<int>(threadIdx.z), tx = static_cast<int>(threadIdx.x);
+  const auto ngg{zone->ngg};
+  const auto n_var{param->n_var};
+  const auto n_active = min(static_cast<int>(blockDim.z), max_extent - static_cast<int>(blockDim.z * blockIdx.z) + 1);
+  const int n_point = n_active + 2 * ngg - 1;
+
+  extern __shared__ real s[];
+  constexpr int nyy = 32;
+  auto fp = reinterpret_cast<real (*)[nyy + 2 * 4 - 1][4]>(s);
+  auto fm = reinterpret_cast<real (*)[nyy + 2 * 4 - 1][4]>(s + n_var * (nyy + 2 * 4 - 1) * 4);
+
+  const int kl0 = static_cast<int>(blockDim.z * blockIdx.z) - ngg;
+  const auto &cv = zone->cv;
+  const auto &bv = zone->bv;
+  for (int kl = kl0 + tid; kl <= kl0 + n_point - 1; kl += n_active) {
+    int iSh = kl - kl0; // iSh is the shared index
+    real q[5 + MAX_SPEC_NUMBER + MAX_PASSIVE_SCALAR_NUMBER], metric[3];
+    for (auto l = 0; l < n_var; ++l) { // 0-rho,1-rho*u,2-rho*v,3-rho*w,4-rho*E, ..., Nv-rho*scalar
+      q[l] = cv(i, j, kl, l);
+    }
+    metric[0] = zone->metric(i, j, kl, 6);
+    metric[1] = zone->metric(i, j, kl, 7);
+    metric[2] = zone->metric(i, j, kl, 8);
+
+    const real Uk{(q[1] * metric[0] + q[2] * metric[1] + q[3] * metric[2]) / q[0]};
+    const real pk = bv(i, j, kl, 4);
+    real cGradK = norm3d(metric[0], metric[1], metric[2]);
+    if constexpr (mix_model != MixtureModel::Air)
+      cGradK *= zone->acoustic_speed(i, j, kl);
+    else
+      cGradK *= sqrt(gamma_air * R_air * bv(i, j, kl, 5));
+    const real lambda0 = abs(Uk) + cGradK;
+    const real jac = zone->jac(i, j, kl);
+
+    fp[0][iSh][tx] = 0.5 * jac * ((Uk + lambda0) * q[0]);
+    fp[1][iSh][tx] = 0.5 * jac * ((Uk + lambda0) * q[1] + pk * metric[0]);
+    fp[2][iSh][tx] = 0.5 * jac * ((Uk + lambda0) * q[2] + pk * metric[1]);
+    fp[3][iSh][tx] = 0.5 * jac * ((Uk + lambda0) * q[3] + pk * metric[2]);
+    fp[4][iSh][tx] = 0.5 * jac * ((Uk + lambda0) * q[4] + pk * Uk);
+
+    fm[0][iSh][tx] = 0.5 * jac * ((Uk - lambda0) * q[0]);
+    fm[1][iSh][tx] = 0.5 * jac * ((Uk - lambda0) * q[1] + pk * metric[0]);
+    fm[2][iSh][tx] = 0.5 * jac * ((Uk - lambda0) * q[2] + pk * metric[1]);
+    fm[3][iSh][tx] = 0.5 * jac * ((Uk - lambda0) * q[3] + pk * metric[2]);
+    fm[4][iSh][tx] = 0.5 * jac * ((Uk - lambda0) * q[4] + pk * Uk);
+
+    for (int l = 5; l < n_var; ++l) {
+      fp[l][iSh][tx] = 0.5 * jac * (Uk * q[l] + lambda0 * q[l]);
+      fm[l][iSh][tx] = 0.5 * jac * (Uk * q[l] - lambda0 * q[l]);
+    }
+  }
+  const int i_shared = tid - 1 + ngg;
+  // if (i == 0 && j == -1 && k == 0) {
+  //   printf("new, fM = %e,%e,%e,%e,%e\n", fm[0][i_shared][tx], fm[1][i_shared][tx], fm[2][i_shared][tx],
+  //          fm[3][i_shared][tx], fm[4][i_shared][tx]);
+  // }
+  __syncthreads();
+
+  bool if_shock = false;
+  if (param->sensor_threshold > 1e-10) {
+    for (int ii = -ngg + 1; ii <= ngg; ++ii) {
+      if (zone->shock_sensor(i, j, k + ii) > param->sensor_threshold) {
+        if_shock = true;
+        break;
+      }
+    }
+  } else {
+    if_shock = true;
+  }
+
+  // reconstruct the half-point left/right primitive variables with the chosen reconstruction method.
+  if (const auto sch = param->inviscid_scheme; sch == 51 || sch == 71) {
+    // compute_weno_flux_cp(param, metric, jac, &fc[tid * n_var], i_shared, fp, fm, if_shock);
+  } else if (sch == 52 || sch == 72) {
+    real rho_l = cv(i, j, k, 0);
+    real rho_r = cv(i, j, k + 1, 0);
+    // First, compute the Roe average of the half-point variables.
+    real temp1 = sqrt(rho_l * rho_r); // temp1 is sqrt(rhoL*rhoR), only used in the next two lines.
+    const real rlc{1 / (rho_l + temp1)};
+    const real rrc{1 / (temp1 + rho_r)};
+    const real um{rlc * cv(i, j, k, 1) + rrc * cv(i, j, k + 1, 1)};
+    const real vm{rlc * cv(i, j, k, 2) + rrc * cv(i, j, k + 1, 2)};
+    const real wm{rlc * cv(i, j, k, 3) + rrc * cv(i, j, k + 1, 3)};
+
+    real svm[MAX_SPEC_NUMBER] = {};
+    for (int l = 0; l < n_var - 5; ++l) {
+      svm[l] = rlc * cv(i, j, k, l + 5) + rrc * cv(i, j, k + 1, l + 5);
+    }
+
+    const int n_spec{param->n_spec};
+    temp1 = 0; // temp1 = gas_constant (R)
+    for (int l = 0; l < n_spec; ++l) {
+      temp1 += svm[l] * param->gas_const[l];
+    }
+    real temp3 = (rlc * bv(i, j, k, 4) + rrc * bv(i, j, k + 1, 4)) / temp1; // temp1 = R, temp3 = T
+
+    // The MAX_SPEC_NUMBER part of fChar are used for cp_i computation first, and later used as the characteristic flux.
+    real fChar[5 + MAX_SPEC_NUMBER];
+    real hI_alpI[MAX_SPEC_NUMBER];                         // First used as h_i, later used as alpha_i.
+    compute_enthalpy_and_cp(temp3, hI_alpI, fChar, param); // temp3 is T
+    real temp2{0};                                         // temp2 = cp
+    for (int l = 0; l < n_spec; ++l) {
+      temp2 += svm[l] * fChar[l];
+    }
+    const real gamma = temp2 / (temp2 - temp1);  // temp1 = R, temp2 = cp. After here, temp2 is not cp anymore.
+    const real cm = sqrt(gamma * temp1 * temp3); // temp1 is not R anymore.
+    const real gm1{gamma - 1};
+
+    // Next, we compute the left characteristic matrix at i+1/2.
+    const real jac_l{zone->jac(i, j, k)}, jac_r{zone->jac(i, j, k + 1)};
+    real kx = zone->metric(i, j, k, 6) * jac_l + zone->metric(i, j, k + 1, 6) * jac_r;
+    real ky = zone->metric(i, j, k, 7) * jac_l + zone->metric(i, j, k + 1, 7) * jac_r;
+    real kz = zone->metric(i, j, k, 8) * jac_l + zone->metric(i, j, k + 1, 8) * jac_r;
+    constexpr real eps{1e-40};
+    const real eps_scaled = eps * param->weno_eps_scale * 0.25 * (kx * kx + ky * ky + kz * kz);
+    temp1 = 1 / (jac_l + jac_r); // temp1 is 1/(jac_l + jac_r) in these 4 lines
+    kx *= temp1;
+    ky *= temp1;
+    kz *= temp1;
+    temp1 = rnorm3d(kx, ky, kz); // temp1 is the norm of the unit normal vector
+    kx *= temp1;
+    ky *= temp1;
+    kz *= temp1;
+    const real Uk_bar{kx * um + ky * vm + kz * wm};
+
+    // The matrix we consider here does not contain the turbulent variables, such as tke and omega.
+    //  const real cm2_inv{1.0 / (cm * cm)};
+    temp2 = 1.0 / (cm * cm); // temp2 is 1/(c^2), used in the next loop.
+    // Compute the characteristic flux with L.
+    // compute the partial derivative of pressure to species density
+    for (int l = 0; l < n_spec; ++l) {
+      hI_alpI[l] = gamma * param->gas_const[l] * temp3 - gm1 * hI_alpI[l]; // temp3 is not T anymore.
+      // The computations including this alpha_l are all combined with a division by cm2.
+      hI_alpI[l] *= temp2;
+    }
+
+    // Li Xinliang's flux splitting
+    //  const real alpha{gm1 * 0.5 * (um * um + vm * vm + wm * wm)};
+    temp3 = 0.5 * gm1 * (um * um + vm * vm + wm * wm); // temp3 = alpha, used in the next loop.
+    if (param->inviscid_scheme == 72) {
+      for (int l = 0; l < 5; ++l) {
+        temp1 = 0.5;
+        real L[5];
+        switch (l) {
+          case 0:
+            L[0] = (temp3 + Uk_bar * cm) * temp2 * 0.5;
+            L[1] = -(gm1 * um + kx * cm) * temp2 * 0.5;
+            L[2] = -(gm1 * vm + ky * cm) * temp2 * 0.5;
+            L[3] = -(gm1 * wm + kz * cm) * temp2 * 0.5;
+            L[4] = gm1 * temp2 * 0.5;
+            break;
+          case 1:
+            temp1 = -kx;
+            L[0] = kx * (1 - temp3 * temp2) - (kz * vm - ky * wm) / cm;
+            L[1] = kx * gm1 * um * temp2;
+            L[2] = (kx * gm1 * vm + kz * cm) * temp2;
+            L[3] = (kx * gm1 * wm - ky * cm) * temp2;
+            L[4] = -kx * gm1 * temp2;
+            break;
+          case 2:
+            temp1 = -ky;
+            L[0] = ky * (1 - temp3 * temp2) - (kx * wm - kz * um) / cm;
+            L[1] = (ky * gm1 * um - kz * cm) * temp2;
+            L[2] = ky * gm1 * vm * temp2;
+            L[3] = (ky * gm1 * wm + kx * cm) * temp2;
+            L[4] = -ky * gm1 * temp2;
+            break;
+          case 3:
+            temp1 = -kz;
+            L[0] = kz * (1 - temp3 * temp2) - (ky * um - kx * vm) / cm;
+            L[1] = (kz * gm1 * um + ky * cm) * temp2;
+            L[2] = (kz * gm1 * vm - kx * cm) * temp2;
+            L[3] = kz * gm1 * wm * temp2;
+            L[4] = -kz * gm1 * temp2;
+            break;
+          case 4:
+            L[0] = (temp3 - Uk_bar * cm) * temp2 * 0.5;
+            L[1] = -(gm1 * um - kx * cm) * temp2 * 0.5;
+            L[2] = -(gm1 * vm - ky * cm) * temp2 * 0.5;
+            L[3] = -(gm1 * wm - kz * cm) * temp2 * 0.5;
+            L[4] = gm1 * temp2 * 0.5;
+            break;
+          default:
+            break;
+        }
+
+        real vPlus[7] = {}, vMinus[7] = {};
+        for (int m = 0; m < 7; ++m) {
+          for (int n = 0; n < 5; ++n) {
+            vPlus[m] += L[n] * fp[n][i_shared - 3 + m][tx];
+            vMinus[m] += L[n] * fm[n][i_shared - 2 + m][tx];
+          }
+          for (int n = 0; n < n_spec; ++n) {
+            vPlus[m] += temp1 * hI_alpI[n] * fp[5 + n][i_shared - 3 + m][tx];
+            vMinus[m] += temp1 * hI_alpI[n] * fm[5 + n][i_shared - 2 + m][tx];
+          }
+        }
+        fChar[l] = WENO7(vPlus, vMinus, eps_scaled, if_shock);
+      }
+      for (int l = 0; l < n_spec; ++l) {
+        real vPlus[7], vMinus[7];
+        for (int m = 0; m < 7; ++m) {
+          vPlus[m] = -svm[l] * fp[0][i_shared - 3 + m][tx] + fp[5 + l][i_shared - 3 + m][tx];
+          vMinus[m] = -svm[l] * fm[0][i_shared - 2 + m][tx] + fm[5 + l][i_shared - 2 + m][tx];
+        }
+        fChar[5 + l] = WENO7(vPlus, vMinus, eps_scaled, if_shock);
+      }
+    } // temp2 is not 1/(c*c) anymore.
+
+    // Project the flux back to physical space
+    // We do not compute the right characteristic matrix here, because we explicitly write the components below.
+    temp1 = fChar[0] + kx * fChar[1] + ky * fChar[2] + kz * fChar[3] + fChar[4];
+    temp3 = fChar[0] - fChar[4];
+    auto &hc = zone->hFlux;
+    hc(i, j, k, 0) = temp1;
+    hc(i, j, k, 1) = um * temp1 - cm * (kx * temp3 + kz * fChar[2] - ky * fChar[3]);
+    hc(i, j, k, 2) = vm * temp1 - cm * (ky * temp3 + kx * fChar[3] - kz * fChar[1]);
+    hc(i, j, k, 3) = wm * temp1 - cm * (kz * temp3 + ky * fChar[1] - kx * fChar[2]);
+
+    temp2 = rlc * (cv(i, j, k, 4) + bv(i, j, k, 4)) +
+            rrc * (cv(i, j, k + 1, 4) + bv(i, j, k + 1, 4)); // temp2 is Roe averaged enthalpy
+    hc(i, j, k, 4) = temp2 * temp1 - cm * (Uk_bar * temp3 + (kx * cm / gm1 - kz * vm + ky * wm) * fChar[1]
+                                           + (ky * cm / gm1 - kx * wm + kz * um) * fChar[2]
+                                           + (kz * cm / gm1 - ky * um + kx * vm) * fChar[3]);
+
+    temp2 = 0;
+    for (int l = 0; l < n_spec; ++l) {
+      hc(i, j, k, 5 + l) = svm[l] * temp1 + fChar[l + 5];
+      temp2 += hI_alpI[l] * fChar[l + 5];
+    }
+    hc(i, j, k, 4) -= temp2 * cm * cm / gm1;
+    // if (i == 0 && j == 0 && k == 0) {
+    //   printf("new, fFlux = %e,%e,%e,%e,%e\n", gc(i, j, k, 0), gc(i, j, k, 1), gc(i, j, k, 2),
+    //          gc(i, j, k, 3), gc(i, j, k, 4));
+    // }
+  }
+  // __syncthreads();
+
+  // if (param->positive_preserving) {
+  //   real dt{0};
+  //   if (param->dt > 0)
+  //     dt = param->dt;
+  //   else
+  //     dt = zone->dt_local(i, j, k);
+  //   positive_preserving_limiter_1(param->dim, n_var, cv, i_shared, jac, dt, &fc[tid * n_var], metric, cc, fp);
+  // }
+  // __syncthreads();
+  //
+  // if (tid > 0 && j >= zone->jMin && j <= zone->jMax) {
+  //   for (int l = 0; l < n_var; ++l) {
+  //     zone->dq(i, j, k, l) -= fc[tid * n_var + l] - fc[(tid - 1) * n_var + l];
+  //   }
+  // }
+}
+
+__global__ void compute_derivative_z(DZone *zone, const DParameter *param) {
+  const int i = static_cast<int>(blockDim.x * blockIdx.x + threadIdx.x);
+  const int j = static_cast<int>(blockDim.y * blockIdx.y + threadIdx.y);
+  const int k = static_cast<int>(blockDim.z * blockIdx.z + threadIdx.z);
+  if (i >= zone->mx || j >= zone->my || k >= zone->mz) return;
+
+  const int nv = param->n_var;
+  auto &dq = zone->dq;
+  auto &hc = zone->hFlux;
+  dq(i, j, k, 0) -= hc(i, j, k, 0) - hc(i, j, k - 1, 0);
+  dq(i, j, k, 1) -= hc(i, j, k, 1) - hc(i, j, k - 1, 1);
+  dq(i, j, k, 2) -= hc(i, j, k, 2) - hc(i, j, k - 1, 2);
+  dq(i, j, k, 3) -= hc(i, j, k, 3) - hc(i, j, k - 1, 3);
+  dq(i, j, k, 4) -= hc(i, j, k, 4) - hc(i, j, k - 1, 4);
+  for (int l = 5; l < nv; ++l) {
+    dq(i, j, k, l) -= hc(i, j, k, l) - hc(i, j, k - 1, l);
+  }
+}
+
+template<MixtureModel mix_model>
 void compute_convective_term_weno(const Block &block, DZone *zone, DParameter *param, int n_var,
   const Parameter &parameter) {
   // The implementation of classic WENO.
@@ -583,9 +859,15 @@ void compute_convective_term_weno(const Block &block, DZone *zone, DParameter *p
   compute_derivative_y<<<BPG, TPB>>>(zone, param);
 
   if (extent[2] > 1) {
-    TPB = dim3(1, 1, 64);
-    BPG = dim3(extent[0], extent[1], (extent[2] - 1) / (64 - 1) + 1);
-    compute_convective_term_weno_z<mix_model><<<BPG, TPB, shared_mem>>>(zone, param);
+    // TPB = dim3(1, 1, 64);
+    // BPG = dim3(extent[0], extent[1], (extent[2] - 1) / (64 - 1) + 1);
+    // compute_convective_term_weno_z<mix_model><<<BPG, TPB, shared_mem>>>(zone, param);
+    TPB = dim3(4, 1, ny);
+    BPG = dim3((extent[0] - 1) / 4 + 1, extent[1], (extent[2] + 1 - 1) / ny + 1);
+    compute_convective_term_weno_z1<mix_model><<<BPG, TPB, shared_mem1>>>(zone, param);
+    TPB = dim3(16, 8, 8);
+    BPG = dim3((extent[0] - 1) / 16 + 1, (extent[1] - 1) / 8 + 1, (extent[2] - 1) / 8 + 1);
+    compute_derivative_z<<<BPG, TPB>>>(zone, param);
   }
 }
 
@@ -1704,18 +1986,19 @@ __device__ void compute_weno_flux_cp(DParameter *param, const real *metric, cons
   const int n_var = param->n_var;
 
   //  const real eps_ref = 1e-6 * param->weno_eps_scale;
-  constexpr real eps{1e-20};
-  const real eps_ref = eps * param->weno_eps_scale * 0.25 *
-                       ((metric[i_shared * 3] * jac[i_shared] + metric[(i_shared + 1) * 3] * jac[i_shared + 1]) *
-                        (metric[i_shared * 3] * jac[i_shared] + metric[(i_shared + 1) * 3] * jac[i_shared + 1]) +
-                        (metric[i_shared * 3 + 1] * jac[i_shared] + metric[(i_shared + 1) * 3 + 1] * jac[i_shared + 1])
-                        *
-                        (metric[i_shared * 3 + 1] * jac[i_shared] + metric[(i_shared + 1) * 3 + 1] * jac[i_shared + 1])
-                        +
-                        (metric[i_shared * 3 + 2] * jac[i_shared] + metric[(i_shared + 1) * 3 + 2] * jac[i_shared + 1])
-                        *
-                        (metric[i_shared * 3 + 2] * jac[i_shared] + metric[(i_shared + 1) * 3 + 2] * jac[
-                           i_shared + 1]));
+  constexpr real eps{1e-8};
+  const real eps_ref = eps * param->weno_eps_scale;
+  // * 0.25 *
+  // ((metric[i_shared * 3] * jac[i_shared] + metric[(i_shared + 1) * 3] * jac[i_shared + 1]) *
+  // (metric[i_shared * 3] * jac[i_shared] + metric[(i_shared + 1) * 3] * jac[i_shared + 1]) +
+  // (metric[i_shared * 3 + 1] * jac[i_shared] + metric[(i_shared + 1) * 3 + 1] * jac[i_shared + 1])
+  // *
+  // (metric[i_shared * 3 + 1] * jac[i_shared] + metric[(i_shared + 1) * 3 + 1] * jac[i_shared + 1])
+  // +
+  // (metric[i_shared * 3 + 2] * jac[i_shared] + metric[(i_shared + 1) * 3 + 2] * jac[i_shared + 1])
+  // *
+  // (metric[i_shared * 3 + 2] * jac[i_shared] + metric[(i_shared + 1) * 3 + 2] * jac[
+  // i_shared + 1]));
   real eps_scaled[3];
   eps_scaled[0] = eps_ref;
   eps_scaled[1] = eps_ref * param->v_ref * param->v_ref;
