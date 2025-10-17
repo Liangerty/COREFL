@@ -40,7 +40,7 @@ real cfd::compute_viscosity(real temperature, real mw_total, real const *Y, cons
   return viscosity;
 }
 
-__device__ void cfd::compute_transport_property(int i, int j, int k, real temperature, real mw_total, const real *cp,
+__device__ void cfd::compute_transport_property(int i, int j, int k, real temperature, real mw_total, real *cp,
   DParameter *param, DZone *zone) {
   const auto n_spec{param->n_spec};
 
@@ -129,15 +129,15 @@ __device__ void cfd::compute_transport_property(int i, int j, int k, real temper
 
   // The diffusivity is computed by mixture-averaged method.
   constexpr real eps{1e-12};
-  real numerator[MAX_SPEC_NUMBER];
-  memset(numerator, 0, sizeof(real) * MAX_SPEC_NUMBER);
+  // cp is reused for the numerator, while vis_denom is reused for the denominator of diffusivity
+  memset(cp, 0, sizeof(real) * MAX_SPEC_NUMBER);
   memset(vis_denom, 0, sizeof(real) * MAX_SPEC_NUMBER);
   // The viscosity of species are not used here, so we can reuse this array.
   for (int l = 0; l < n_spec; ++l) {
     temp = (X[l] + eps) * mw[l];
     for (int n = 0; n < n_spec; ++n) {
       if (l != n) {
-        numerator[n] += temp;
+        cp[n] += temp;
       }
 
       if (n > l) {
@@ -149,7 +149,7 @@ __device__ void cfd::compute_transport_property(int i, int j, int k, real temper
     }
   }
   for (int l = 0; l < n_spec; ++l) {
-    zone->rho_D(i, j, k, l) = numerator[l] / (vis_denom[l] * temperature * R_u);
+    zone->rho_D(i, j, k, l) = cp[l] / (vis_denom[l] * temperature * R_u);
   }
 }
 
