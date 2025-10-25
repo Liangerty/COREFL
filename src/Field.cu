@@ -465,8 +465,7 @@ void cfd::Field::initialize_basic_variables(const Parameter &parameter, const st
     (block.mx + 2 * ngg - 1) / tpb.x + 1, (block.my + 2 * ngg - 1) / tpb.y + 1, (block.mz + 2 * ngg - 1) / tpb.z + 1
   };
   initialize_bv_with_inflow<<<bpg, tpb>>>(var_info_device, n, d_ptr, coordinate_ranges_device,
-                                          n_scalar, if_profile_device,
-                                          profiles_device, extent_device);
+                                          n_scalar, if_profile_device, profiles_device, extent_device);
   cudaMemcpy(bv.data(), h_ptr->bv.data(), sizeof(real) * h_ptr->bv.size() * 6, cudaMemcpyDeviceToHost);
   cudaMemcpy(sv.data(), h_ptr->sv.data(), sizeof(real) * h_ptr->sv.size() * n_scalar, cudaMemcpyDeviceToHost);
 }
@@ -641,27 +640,27 @@ void cfd::Field::setup_device_memory(const Parameter &parameter) {
 
   // This is commented. We would allocate the statistical data even when we do not collect the statistics.
   // if (parameter.get_bool("if_collect_statistics")) {
-  if (parameter.get_bool("output_statistics_plt")) {
-    if (parameter.get_bool("perform_spanwise_average")) {
-      h_ptr->stat_reynolds_1st.allocate_memory(
-        mx, my, 1, parameter.get_int("n_stat_reynolds_1st") + parameter.get_int("n_stat_reynolds_1st_scalar"), 0);
-      h_ptr->stat_reynolds_2nd.allocate_memory(mx, my, 1, parameter.get_int("n_stat_reynolds_2nd"), 0);
-      h_ptr->stat_favre_1st.allocate_memory(mx, my, 1, parameter.get_int("n_stat_favre_1st"), 0);
-      h_ptr->stat_favre_2nd.allocate_memory(mx, my, 1, parameter.get_int("n_stat_favre_2nd"), 0);
-    } else {
-      h_ptr->stat_reynolds_1st.allocate_memory(
-        mx, my, mz, parameter.get_int("n_stat_reynolds_1st") + parameter.get_int("n_stat_reynolds_1st_scalar"), 1);
-      h_ptr->stat_reynolds_2nd.allocate_memory(mx, my, mz, parameter.get_int("n_stat_reynolds_2nd"), 1);
-      h_ptr->stat_favre_1st.allocate_memory(mx, my, mz, parameter.get_int("n_stat_favre_1st"), 1);
-      h_ptr->stat_favre_2nd.allocate_memory(mx, my, mz, parameter.get_int("n_stat_favre_2nd"), 1);
-    }
-  }
-  // The collected data includes one layer of ghost mesh, which may be used to compute the gradients.
-  h_ptr->collect_reynolds_1st.allocate_memory(
-    mx, my, mz, parameter.get_int("n_stat_reynolds_1st") + parameter.get_int("n_stat_reynolds_1st_scalar"), 1);
-  h_ptr->collect_reynolds_2nd.allocate_memory(mx, my, mz, parameter.get_int("n_stat_reynolds_2nd"), 1);
-  h_ptr->collect_favre_1st.allocate_memory(mx, my, mz, parameter.get_int("n_stat_favre_1st"), 1);
-  h_ptr->collect_favre_2nd.allocate_memory(mx, my, mz, parameter.get_int("n_stat_favre_2nd"), 1);
+  // if (parameter.get_bool("output_statistics_plt")) {
+  //   if (parameter.get_bool("perform_spanwise_average")) {
+  //     h_ptr->stat_reynolds_1st.allocate_memory(
+  //       mx, my, 1, parameter.get_int("n_stat_reynolds_1st") + parameter.get_int("n_stat_reynolds_1st_scalar"), 0);
+  //     h_ptr->stat_reynolds_2nd.allocate_memory(mx, my, 1, parameter.get_int("n_stat_reynolds_2nd"), 0);
+  //     h_ptr->stat_favre_1st.allocate_memory(mx, my, 1, parameter.get_int("n_stat_favre_1st"), 0);
+  //     h_ptr->stat_favre_2nd.allocate_memory(mx, my, 1, parameter.get_int("n_stat_favre_2nd"), 0);
+  //   } else {
+  //     h_ptr->stat_reynolds_1st.allocate_memory(
+  //       mx, my, mz, parameter.get_int("n_stat_reynolds_1st") + parameter.get_int("n_stat_reynolds_1st_scalar"), 1);
+  //     h_ptr->stat_reynolds_2nd.allocate_memory(mx, my, mz, parameter.get_int("n_stat_reynolds_2nd"), 1);
+  //     h_ptr->stat_favre_1st.allocate_memory(mx, my, mz, parameter.get_int("n_stat_favre_1st"), 1);
+  //     h_ptr->stat_favre_2nd.allocate_memory(mx, my, mz, parameter.get_int("n_stat_favre_2nd"), 1);
+  //   }
+  // }
+  // // The collected data includes one layer of ghost mesh, which may be used to compute the gradients.
+  // h_ptr->collect_reynolds_1st.allocate_memory(
+  //   mx, my, mz, parameter.get_int("n_stat_reynolds_1st") + parameter.get_int("n_stat_reynolds_1st_scalar"), 1);
+  // h_ptr->collect_reynolds_2nd.allocate_memory(mx, my, mz, parameter.get_int("n_stat_reynolds_2nd"), 1);
+  // h_ptr->collect_favre_1st.allocate_memory(mx, my, mz, parameter.get_int("n_stat_favre_1st"), 1);
+  // h_ptr->collect_favre_2nd.allocate_memory(mx, my, mz, parameter.get_int("n_stat_favre_2nd"), 1);
 
   // other statistics
   if (parameter.get_bool("stat_tke_budget")) {

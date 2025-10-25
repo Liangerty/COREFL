@@ -236,10 +236,6 @@ compute_convective_term_weno_y1(DZone *zone, DParameter *param) {
     }
   }
   const int i_shared = tid - 1 + ngg;
-  // if (i == 0 && j == -1 && k == 0) {
-  //   printf("new, fM = %e,%e,%e,%e,%e\n", fm[0][i_shared][tx], fm[1][i_shared][tx], fm[2][i_shared][tx],
-  //          fm[3][i_shared][tx], fm[4][i_shared][tx]);
-  // }
   __syncthreads();
 
   bool if_shock = false;
@@ -256,7 +252,54 @@ compute_convective_term_weno_y1(DZone *zone, DParameter *param) {
 
   // reconstruct the half-point left/right primitive variables with the chosen reconstruction method.
   if (const auto sch = param->inviscid_scheme; sch == 51 || sch == 71) {
-    // compute_weno_flux_cp(param, metric, jac, &fc[tid * n_var], i_shared, fp, fm, if_shock);
+    //  const real eps_ref = 1e-6 * param->weno_eps_scale;
+    constexpr real eps{1e-8};
+    const real jac = zone->jac(i, j, k), jac_r = zone->jac(i, j + 1, k);
+    const real eps_ref = eps * param->weno_eps_scale * 0.25 *
+                         ((zone->metric(i, j, k, 3) * jac + zone->metric(i, j + 1, k, 3) * jac_r)
+                          *
+                          (zone->metric(i, j, k, 3) * jac + zone->metric(i, j + 1, k, 3) * jac_r) +
+                          (zone->metric(i, j, k, 4) * jac + zone->metric(i, j + 1, k, 4) * jac_r)
+                          *
+                          (zone->metric(i, j, k, 4) * jac + zone->metric(i, j + 1, k, 4) * jac_r)
+                          +
+                          (zone->metric(i, j, k, 5) * jac + zone->metric(i, j + 1, k, 5) * jac_r)
+                          *
+                          (zone->metric(i, j, k, 6) * jac + zone->metric(i, j + 1, k, 5) * jac_r));
+    real eps_scaled[3];
+    eps_scaled[0] = eps_ref;
+    eps_scaled[1] = eps_ref * param->v_ref * param->v_ref;
+    eps_scaled[2] = eps_scaled[1] * param->v_ref * param->v_ref;
+
+    auto &gc = zone->gFlux;
+    for (int l = 0; l < n_var; ++l) {
+      real eps_here{eps_scaled[0]};
+      if (l == 1 || l == 2 || l == 3) {
+        eps_here = eps_scaled[1];
+      } else if (l == 4) {
+        eps_here = eps_scaled[2];
+      }
+
+      if (param->inviscid_scheme == 71) {
+        real vp[7], vm[7];
+        vp[0] = fp[l][i_shared - 3][tx];
+        vp[1] = fp[l][i_shared - 2][tx];
+        vp[2] = fp[l][i_shared - 1][tx];
+        vp[3] = fp[l][i_shared][tx];
+        vp[4] = fp[l][i_shared + 1][tx];
+        vp[5] = fp[l][i_shared + 2][tx];
+        vp[6] = fp[l][i_shared + 3][tx];
+        vm[0] = fm[l][i_shared - 2][tx];
+        vm[1] = fm[l][i_shared - 1][tx];
+        vm[2] = fm[l][i_shared][tx];
+        vm[3] = fm[l][i_shared + 1][tx];
+        vm[4] = fm[l][i_shared + 2][tx];
+        vm[5] = fm[l][i_shared + 3][tx];
+        vm[6] = fm[l][i_shared + 4][tx];
+
+        gc(i, j, k, l) = WENO7(vp, vm, eps_here, if_shock);
+      }
+    }
   } else if (sch == 52 || sch == 72) {
     real rho_l = cv(i, j, k, 0);
     real rho_r = cv(i, j + 1, k, 0);
@@ -603,10 +646,6 @@ compute_convective_term_weno_z1(DZone *zone, DParameter *param) {
     }
   }
   const int i_shared = tid - 1 + ngg;
-  // if (i == 0 && j == -1 && k == 0) {
-  //   printf("new, fM = %e,%e,%e,%e,%e\n", fm[0][i_shared][tx], fm[1][i_shared][tx], fm[2][i_shared][tx],
-  //          fm[3][i_shared][tx], fm[4][i_shared][tx]);
-  // }
   __syncthreads();
 
   bool if_shock = false;
@@ -623,7 +662,53 @@ compute_convective_term_weno_z1(DZone *zone, DParameter *param) {
 
   // reconstruct the half-point left/right primitive variables with the chosen reconstruction method.
   if (const auto sch = param->inviscid_scheme; sch == 51 || sch == 71) {
-    // compute_weno_flux_cp(param, metric, jac, &fc[tid * n_var], i_shared, fp, fm, if_shock);
+    constexpr real eps{1e-8};
+    const real jac = zone->jac(i, j, k), jac_r = zone->jac(i, j, k + 1);
+    const real eps_ref = eps * param->weno_eps_scale * 0.25 *
+                         ((zone->metric(i, j, k, 3) * jac + zone->metric(i, j, k + 1, 3) * jac_r)
+                          *
+                          (zone->metric(i, j, k, 3) * jac + zone->metric(i, j, k + 1, 3) * jac_r) +
+                          (zone->metric(i, j, k, 4) * jac + zone->metric(i, j, k + 1, 4) * jac_r)
+                          *
+                          (zone->metric(i, j, k, 4) * jac + zone->metric(i, j, k + 1, 4) * jac_r)
+                          +
+                          (zone->metric(i, j, k, 5) * jac + zone->metric(i, j, k + 1, 5) * jac_r)
+                          *
+                          (zone->metric(i, j, k, 6) * jac + zone->metric(i, j, k + 1, 5) * jac_r));
+    real eps_scaled[3];
+    eps_scaled[0] = eps_ref;
+    eps_scaled[1] = eps_ref * param->v_ref * param->v_ref;
+    eps_scaled[2] = eps_scaled[1] * param->v_ref * param->v_ref;
+
+    auto &gc = zone->hFlux;
+    for (int l = 0; l < n_var; ++l) {
+      real eps_here{eps_scaled[0]};
+      if (l == 1 || l == 2 || l == 3) {
+        eps_here = eps_scaled[1];
+      } else if (l == 4) {
+        eps_here = eps_scaled[2];
+      }
+
+      if (param->inviscid_scheme == 71) {
+        real vp[7], vm[7];
+        vp[0] = fp[l][i_shared - 3][tx];
+        vp[1] = fp[l][i_shared - 2][tx];
+        vp[2] = fp[l][i_shared - 1][tx];
+        vp[3] = fp[l][i_shared][tx];
+        vp[4] = fp[l][i_shared + 1][tx];
+        vp[5] = fp[l][i_shared + 2][tx];
+        vp[6] = fp[l][i_shared + 3][tx];
+        vm[0] = fm[l][i_shared - 2][tx];
+        vm[1] = fm[l][i_shared - 1][tx];
+        vm[2] = fm[l][i_shared][tx];
+        vm[3] = fm[l][i_shared + 1][tx];
+        vm[4] = fm[l][i_shared + 2][tx];
+        vm[5] = fm[l][i_shared + 3][tx];
+        vm[6] = fm[l][i_shared + 4][tx];
+
+        gc(i, j, k, l) = WENO7(vp, vm, eps_here, if_shock);
+      }
+    }
   } else if (sch == 52 || sch == 72) {
     real rho_l = cv(i, j, k, 0);
     real rho_r = cv(i, j, k + 1, 0);
@@ -841,13 +926,6 @@ void compute_convective_term_weno(const Block &block, DZone *zone, DParameter *p
   dim3 TPB(block_dim, 1, 1);
   dim3 BPG((extent[0] - 1) / (block_dim - 1) + 1, extent[1], extent[2]);
   compute_convective_term_weno_x<mix_model><<<BPG, TPB, shared_mem>>>(zone, param);
-
-  // TPB = dim3(1, block_dim, 1);
-  // BPG = dim3(extent[0], (extent[1] - 1) / (block_dim - 1) + 1, extent[2]);
-  // if (parameter.get_bool("positive_preserving")) {
-  //   shared_mem += block_dim * (n_var - 5) * sizeof(real); // f_1th
-  // }
-  // compute_convective_term_weno_y<mix_model><<<BPG, TPB, shared_mem>>>(zone, param);
 
   constexpr int ny = 32;
   TPB = dim3(4, ny, 1);

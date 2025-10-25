@@ -534,25 +534,40 @@ __device__ void wu_zeroDReaction(const DParameter *param, real dt, DZone *zone, 
   for (int l = 0; l < ns; ++l) {
     c[l] = cv(i, j, k, l + 5) * imw[l] * 1e-3;
   }
-
-  // compute the forward reaction rate
   const real t = bv(i, j, k, 5);
   real kf[MAX_REAC_NUMBER];
-  forward_reaction_rate_1(t, kf, c);
-
   real kb[MAX_REAC_NUMBER] = {};
-  backward_reaction_rate_1(t, kf, kb, param);
-
-  // compute the rate of progress
   real q[MAX_REAC_NUMBER * 3];
   real *q1 = &q[MAX_REAC_NUMBER];
   real *q2 = &q[MAX_REAC_NUMBER * 2];
-  rate_of_progress_1(kf, kb, c, q, q1, q2);
-
-  // compute the chemical source
   real omega[MAX_SPEC_NUMBER * 2];
   real *omega_d = &omega[MAX_SPEC_NUMBER];
-  chemical_source_1(q1, q2, omega_d, omega);
+
+  const int hardCodedMech = param->hardCodedMech;
+
+  if (hardCodedMech == 1) {
+    // compute the forward reaction rate
+    forward_reaction_rate_1(t, kf, c);
+
+    backward_reaction_rate_1(t, kf, kb, param);
+
+    // compute the rate of progress
+    rate_of_progress_1(kf, kb, c, q, q1, q2);
+
+    // compute the chemical source
+    chemical_source_1(q1, q2, omega_d, omega);
+  } else {
+    // generic mechanisms
+    forward_reaction_rate(t, kf, c, param);
+
+    backward_reaction_rate(t, kf, c, param, kb);
+
+    // compute the rate of progress
+    rate_of_progress(kf, kb, c, q, q1, q2, param);
+
+    // compute the chemical source
+    chemical_source(q1, q2, omega_d, omega, param);
+  }
 
   // update the conservative variables with chemical source and Cn (constant).
   const real iJac = 1.0 / zone->jac(i, j, k);

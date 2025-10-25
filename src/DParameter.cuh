@@ -83,6 +83,7 @@ struct DParameter {
   real Sc = 0.5;
   real Prt = 0.9;
   real Sct = 0.9;
+  int hardCodedMech = 0; // If some mechanism is hardcoded, asign a value. 0 - No hardcoding, 1 - 9-species 19 reactions H2 mechanism (li, 2004)
   int *reac_type = nullptr;
   int *rev_type = nullptr;
   ggxl::MatrixDyn<int> stoi_f, stoi_b;

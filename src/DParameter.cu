@@ -44,9 +44,9 @@ spongeZPlusEnd{parameter.get_real("spongeZPlusEnd")}*/ {
   }
 
   // if (parameter.get_string("hybrid_inviscid_scheme") != "NO") {
-    shock_sensor = parameter.get_int("shock_sensor");
-    sensor_eps = parameter.get_real("shockSensor_epsilon");
-    sensor_threshold = parameter.get_real("shockSensor_threshold");
+  shock_sensor = parameter.get_int("shock_sensor");
+  sensor_eps = parameter.get_real("shockSensor_epsilon");
+  sensor_threshold = parameter.get_real("shockSensor_threshold");
   // }
 
   const auto &spec = species;
@@ -131,6 +131,7 @@ spongeZPlusEnd{parameter.get_real("spongeZPlusEnd")}*/ {
 
   // reaction info
   if (n_reac > 0) {
+    hardCodedMech = parameter.get_int("hardCodedMech");
     cudaMalloc(&reac_type, n_reac * sizeof(int));
     cudaMemcpy(reac_type, reaction->label.data(), n_reac * sizeof(int), cudaMemcpyHostToDevice);
     cudaMalloc(&rev_type, n_reac * sizeof(int));

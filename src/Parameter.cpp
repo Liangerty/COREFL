@@ -383,6 +383,7 @@ void cfd::Parameter::setup_default_settings() {
 
   int_parameters["species"] = 0;
   int_parameters["reaction"] = 0;
+  int_parameters["hardCodedMech"] = 0;
   string_parameters["therm_file"] = "chemistry/therm.dat";
   string_parameters["transport_file"] = "chemistry/tran.dat";
   int_parameters["chemSrcMethod"] = 0; // explicit treatment of the chemical source term is used by default.
